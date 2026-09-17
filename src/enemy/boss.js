@@ -41,6 +41,9 @@ const base = (cfg, shape, onFire) => ({
     cfg.onStart?.(b, run)
   },
   onActive(b, run) {
+    // 흔들림이 큰 패턴에만 '쿵' 을 얹는다. 전부에 넣으면 소리가 벽이 되고,
+    // 그러면 무엇이 큰 것인지 귀로 구분이 안 된다 — 흔들림이 곧 크기다.
+    if ((cfg.shake ?? 0.2) >= 0.4) b.world.sfx?.boom()
     b.fx.shake(cfg.shake ?? 0.2)
     onFire(b, run)
   },
@@ -431,6 +434,7 @@ export class Boss extends Actor {
     this.fx?.number(this.pos.clone().setY(this.cfg.barHeight ?? 3),
       left ? `머리 ${left}` : '마지막 머리', { color: '#9fe0ff', size: 28 })
     this.fx?.ring(this.pos.x, this.pos.z, { color: '#9fe0ff', radius: this.radius * 3.6, life: 0.7 })
+    this.world.sfx?.chime()
     this.fx?.shake(0.5)
     this.world.particles?.burst({ x: this.pos.x, y: (this.cfg.barHeight ?? 3) * 0.6, z: this.pos.z,
       count: 30, color: '#bfe4ff', speed: 9, size: 0.2, life: 0.7, gravity: 8, up: 1.1 })
@@ -450,6 +454,7 @@ export class Boss extends Actor {
     if (this.downed) {
       this.fx?.number(this.pos.clone().setY((this.cfg.barHeight ?? 3) * 0.6),
         this.downed.hint ?? '약점', { color: '#8fb6ff', size: 18 })
+      this.world.sfx?.clang()
       return 'iframe'
     }
 
@@ -480,12 +485,14 @@ export class Boss extends Actor {
       if (run.def.breakBy === 'draw' && (opts.draw ?? 0) < (this.cfg.bowMin ?? 0.72)) {
         this.fx?.number(this.pos.clone().setY((this.cfg.barHeight ?? 3) * 0.8),
           this.cfg.bowHint ?? '활을 꽉 당겨라', { color: '#8fb6ff', size: 18 })
+        this.world.sfx?.deny()
         return 'iframe'
       }
       // stop() 이 def 를 비운다. 먼저 꺼내 둬야 한다 —
       // 안 그러면 끊는 순간마다 게임이 죽는다.
       const say = run.def.breakSay
       this.action.stop()
+      this.world.sfx?.chime()
       this.fx?.number(this.pos.clone().setY(this.cfg.barHeight ?? 3), '끊었다', { color: '#ffd166', size: 26 })
       this.fx?.ring(this.pos.x, this.pos.z, { color: '#ffd166', radius: this.radius * 3.4, life: 0.6 })
       this.fx?.shake(0.35)
@@ -503,6 +510,7 @@ export class Boss extends Actor {
     if (guards) {
       this.fx?.number(this.pos.clone().setY((this.cfg.barHeight ?? 3) * 0.7),
         `부름 ${guards.length}`, { color: '#8fd06a', size: 18 })
+      this.world.sfx?.clang()
       return 'iframe'
     }
 

@@ -29,6 +29,7 @@ import { Reach } from './ui/reach.js'
 import { Reel } from './ui/reel.js'
 import { Music } from './core/music.js'
 import { Level, BOSS_XP } from './player/level.js'
+import { Sfx } from './core/sfx.js'
 import { CUT_TROY, CUT_CAVE, CUT_UNDER, CUT_WHIRL, CUT_ITHACA, ALL_CUTS, cutArt } from './stage/cuts.js'
 import { rollBlessings } from './player/blessings.js'
 import { models } from './render/models.js'
@@ -65,6 +66,9 @@ class Game {
     this.reach = new Reach(uiRoot)          // 저승 — 손이 올라온다
     this.reel = new Reel(uiRoot)           // 컷신 — 그림 몇 장으로 시간을 만든다
     this.music = new Music()               // 판의 결을 정하는 배경 한 겹
+    // 효과음은 파일이 없다 — 잡음과 사인파로 합성한다 (core/sfx.js).
+    // 음소거를 음악과 같이 보도록 music 을 물려 준다.
+    this.sfx = new Sfx(this.music)
     this.blessed = new Set()
     this.uiRoot = uiRoot
     this.equipFx = null
@@ -239,6 +243,7 @@ class Game {
     const up = this.level.add(amount)
     if (!up) return
     // 올랐다는 걸 카드보다 먼저 몸으로 알려 준다 — 카드는 0.2 초쯤 뒤에 뜬다
+    this.sfx?.level()
     const p = this.player
     this.fx.ring(p.pos.x, p.pos.z, { color: '#ffe6b8', radius: 2.6, life: 0.55 })
     this.particles.converge({ x: p.pos.x, y: 1.0, z: p.pos.z, count: 22, radius: 3.2,

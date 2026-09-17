@@ -58,6 +58,9 @@ function slash(cfg) {
     move: { distance: cfg.move, curve: CURVE.front },
     onActive(p) {
       const range = cfg.range * p.stats.meleeRange
+      // 허공을 가르는 소리. 맞은 소리는 아래 onHitWindow 에서 따로 낸다 —
+      // 이 둘이 같으면 맞았는지 빗맞았는지를 귀로 모른다.
+      p.world.sfx?.swing(cfg.id === 'slash3')
       p.fx.slash(p.pos.x, p.pos.z, p.facing, range, cfg.halfAngle, cfg.id === 'slash3' ? '#ffd28a' : '#fff0d0')
       if (cfg.id === 'slash3') {
         p.fx.shake(0.22)
@@ -88,6 +91,9 @@ function slash(cfg) {
         if (e.dead || run.hitSet.has(e)) continue
         if (!sectorHit(p.pos, p.facing, range, cfg.halfAngle, e)) continue
         run.hitSet.add(e)
+        // 그로기 중인 적은 다르게 들려야 한다. 같은 타격인데 값이 다르다.
+        if (e.groggy > 0 || cfg.id === 'slash3') p.world.sfx?.crit()
+        else p.world.sfx?.hit(false)
         e.hurt(cfg.damage * p.stats.meleeDamage, {
           from: p.pos, knockback: cfg.knockback, hitstop: cfg.hitstop,
           stagger: cfg.stagger, crit: cfg.id === 'slash3',
@@ -369,7 +375,13 @@ export class Player extends Actor {
 
     // 활: 누르는 동안 당기고 떼면 쏜다
     if (this.drawing > 0) {
+      // 당기기 시작할 때 한 번. gap 0.2 초가 반복을 막는다 (core/sfx.js)
+      if (this.drawing < 0.05) this.world.sfx?.draw()
+      const was = this.drawing
       this.drawing += dt * this.stats.drawRate
+      // 만작에 닿는 그 프레임에 '띵'. 조준하는 동안은 화살촉 색을 못 보므로
+      // 놓을 때를 눈이 아니라 귀가 알려 줘야 한다.
+      if (was < TUNING.bow.fullDraw && this.drawing >= TUNING.bow.fullDraw) this.world.sfx?.ready()
       this.facing = dampAngle(this.facing, Math.atan2(aim.x - this.pos.x, aim.z - this.pos.z), TUNING.turnHalf * 2.4, dt)
       if (!this.input.isHeld('bow') && this.drawing >= TUNING.bow.minDraw) this.#release()
       else if (this.drawing > TUNING.bow.fullDraw + 1.2) this.#release()  // 무한 홀드 방지
@@ -470,8 +482,27 @@ export class Player extends Actor {
     if (k >= 1) this._echo = null
   }
 
+  /**
+   * 맞았다.
+   *
+   * 규칙은 Actor 에 그대로 두고 **소리만** 더한다. 내가 맞는 소리는
+   * 적이 맞는 소리와 달라야 한다 — 같으면 화면 밖에서 뭔가 맞았을 때
+   * 그게 나인지 적인지 모른다. 낮고 둔하게(thud) 낸다.
+   *
+   * 흘린 것(iframe)에도 소리를 준다. 구르기로 피한 게 눈에 안 보이는
+   * 프레임이 있는데, 소리가 나면 "피했다" 가 손에 남는다.
+   */
+  hurt(amount, opts = {}) {
+    const before = this.invuln > 0 || this.rolling > 0 || this.god
+    const out = super.hurt(amount, opts)
+    if (out === 'hit') this.world.sfx?.thud()
+    else if (out === 'iframe' && before) this.world.sfx?.clang()
+    return out
+  }
+
   #startRoll() {
     const R = TUNING.roll
+    this.world.sfx?.roll()
     this.rollCharges--
     this._rollHits = new Set()
     this._rollFrom = { x: this.pos.x, z: this.pos.z }
@@ -510,6 +541,7 @@ export class Player extends Actor {
     })
     this.drawing = 0
     this.releaseLock = TUNING.bow.release
+    this.world.sfx?.shoot(full)
     this.fx.shake(full ? 0.16 : 0.07)
     this.fx.ring(this.pos.x, this.pos.z, { color: full ? '#ffe08a' : '#ff9a4a', radius: 1.1, life: 0.2 })
   }
