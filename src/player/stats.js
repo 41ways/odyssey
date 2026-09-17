@@ -55,6 +55,3 @@ export function rollChoices(n = 3, pool = UPGRADES) {
   }
   return out
 }
-
-/** 다음 레벨까지 필요한 경험치. 뒤로 갈수록 완만하게 늘어난다. */
-export const xpToNext = level => Math.round(6 + level * level * 2.4 + level * 4)

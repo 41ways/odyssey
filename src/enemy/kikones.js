@@ -1,7 +1,9 @@
 import * as THREE from 'three'
 import { Actor } from '../combat/actor.js'
 import { sectorHit } from '../combat/hit.js'
-import { dist2d, dampAngle, rand } from '../core/math.js'
+import { dist2d, dampAngle, rand, clamp } from '../core/math.js'
+import { buildFigure, wrapFigure } from '../render/figure.js'
+import { models } from '../render/models.js'
 
 /**
  * 키코네스족 — 이스마로스의 첫 적.
@@ -69,26 +71,45 @@ const ARCHER_SHOT = {
   },
 }
 
-function greybox({ cloth, skin, weapon }) {
-  const g = new THREE.Group()
-  const mats = []
-  const add = m => { m.castShadow = true; m.receiveShadow = true; g.add(m); mats.push(m.material); return m }
-  const clothM = new THREE.MeshStandardMaterial({ color: cloth, roughness: 0.9 })
-  const skinM = new THREE.MeshStandardMaterial({ color: skin, roughness: 0.75 })
-  const wM = new THREE.MeshStandardMaterial({ color: '#7d6242', roughness: 0.6 })
+function buildKikones({ palette, weapon, scale, bulk, model }) {
+  // 외부 모델이 있으면 그걸 쓴다. 없으면 코드로 만든 인체로 돌아간다.
+  const rig = model && models.create(model)
+  if (rig) return { rig, mats: rig.mats }
 
-  const torso = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.32, 0.7, 6, 12), clothM)); torso.position.y = 0.98
-  const head = add(new THREE.Mesh(new THREE.SphereGeometry(0.22, 14, 12), skinM)); head.position.y = 1.66
-  const brow = add(new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.09, 0.1), clothM)); brow.position.set(0, 1.72, 0.18)
+  const fig = buildFigure({ scale, bulk, palette })
+  const mats = [...fig.mats]
+  const mk = (c, r, m = 0) => { const x = new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: m }); mats.push(x); return x }
+  const wood = mk('#6b4a2c', 0.8)
+  const bronze = mk('#9c7434', 0.4, 0.7)
+  const cloth = mk(palette.cloth, 0.93)
+  const add = (p, m) => { m.castShadow = m.receiveShadow = true; p.add(m); return m }
+
+  // 튜닉 — 약탈당할 그 옷이다
+  const body = add(fig.j.chest, new THREE.Mesh(new THREE.CapsuleGeometry(0.2, 0.3, 4, 12), cloth))
+  body.position.y = 0.26; body.scale.z = 0.8
+  const skirt = add(fig.j.hips, new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.27, 0.3, 12, 1, true), cloth))
+  skirt.position.y = -0.12
+  skirt.material.side = THREE.DoubleSide
 
   if (weapon === 'spear') {
-    const shaft = add(new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 2.1), wM))
-    shaft.position.set(0.34, 1.1, 0.45); shaft.rotation.x = -0.25
+    const g = new THREE.Group()
+    fig.j.arms.R.hand.add(g)
+    g.position.y = -0.06
+    const shaft = add(g, new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 1.9, 6), wood))
+    shaft.position.y = -0.55
+    const tip = add(g, new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.22, 6), bronze))
+    tip.position.y = -1.58; tip.rotation.x = Math.PI
+    g.rotation.x = -0.2
   } else if (weapon === 'bow') {
-    const bow = add(new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.045, 6, 18, Math.PI * 1.2), wM))
-    bow.position.set(0.3, 1.15, 0.28); bow.rotation.set(0, Math.PI / 2, Math.PI / 2)
+    const g = new THREE.Group()
+    fig.j.arms.L.hand.add(g)
+    g.position.y = -0.1
+    const arc = add(g, new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.017, 6, 18, Math.PI * 1.15), wood))
+    arc.rotation.z = Math.PI * 0.42
+    g.rotation.set(Math.PI / 2, 0, 0)
   }
-  return { group: g, mats }
+
+  return { rig: wrapFigure(fig), mats }
 }
 
 class Kikones extends Actor {
@@ -96,14 +117,43 @@ class Kikones extends Actor {
     super({ hp: cfg.hp, radius: cfg.radius, mass: cfg.mass, team: 'enemy', fx })
     this.world = world
     this.cfg = cfg
-    const vis = greybox(cfg.look)
-    this.group.add(vis.group)
-    this.bodyMats = vis.mats
+    const built = buildKikones(cfg.look)
+    this.rig = built.rig
+    this.group.add(built.rig.root)
+    this.bodyMats = built.mats
+    this.animT = Math.random() * 4
+    this._run = 0
+    this._moved = 0
     this.attachBar(1.2, '#e0443a', cfg.barHeight)
     this.xpValue = cfg.xp ?? 3
     this.cooldown = rand(0.4, 1.6)
     this.strafe = Math.random() < 0.5 ? 1 : -1
     this.strafeTimer = rand(0.8, 2.0)
+  }
+
+  /** 렌더 시점 포즈. Actor.sync 를 확장한다. */
+  sync(camera) {
+    super.sync(camera)
+    const dt = 1 / 60
+    this.animT += dt
+    this._run += (clamp(this._moved, 0, 1) - this._run) * 0.18
+    this._moved *= 0.86
+    let attack = null
+    const run = this.action
+    if (run.active) {
+      const d = run.def
+      if (run.t < d.startup) attack = { wind: Math.pow(run.t / d.startup, 0.5), swing: 0 }
+      else {
+        const k = clamp((run.t - d.startup) / (d.active + d.recovery), 0, 1)
+        const hit = Math.min(k / 0.3, 1)
+        const out = 1 - clamp((k - 0.5) / 0.5, 0, 1)
+        attack = { wind: (1 - hit) * out, swing: Math.sin(hit * Math.PI / 2) * out }
+      }
+    }
+    this.rig.pose({
+      t: this.animT, run: this._run, attack, draw: null, roll: 0,
+      flinch: this.stagger > 0 ? clamp(this.stagger / 0.3, 0, 1) : 0,
+    }, dt)
   }
 
   think(dt) {
@@ -136,15 +186,21 @@ class Kikones extends Actor {
     else if (d < near) fwd = -0.85
     const sx = Math.cos(want) * this.strafe, sz = -Math.sin(want) * this.strafe
     const speed = this.cfg.speed
-    this.pos.x += (Math.sin(want) * fwd + sx * 0.55) * speed * dt
-    this.pos.z += (Math.cos(want) * fwd + sz * 0.55) * speed * dt
+    const dx = (Math.sin(want) * fwd + sx * 0.55) * speed * dt
+    const dz = (Math.cos(want) * fwd + sz * 0.55) * speed * dt
+    this.pos.x += dx
+    this.pos.z += dz
+    this._moved = Math.hypot(dx, dz) / Math.max(dt, 1e-4) / Math.max(speed, 1e-4)
   }
 }
 
 export function kikonesWarrior(world, fx) {
   return new Kikones(world, fx, {
     hp: 58, radius: 0.46, mass: 1.6, speed: 4.2, keepRange: [2.4, 3.1], barHeight: 2.05, xp: 4,
-    look: { cloth: '#6b2f2a', skin: '#9c7048', weapon: 'spear' },
+    look: {
+      weapon: 'spear', scale: 0.98, bulk: 1.0, model: 'kikonesWarrior',
+      palette: { skin: '#9c7048', cloth: '#7d3a2e', leather: '#4a3526', bronze: '#9c7434', accent: '#5a2a22', dark: '#241a14' },
+    },
     pickAction(e, d) {
       if (d < 3.1) return { def: WARRIOR_SWING, cooldown: rand(1.1, 1.9) }
       if (d < 5.2) return { def: WARRIOR_STAB, cooldown: rand(1.6, 2.4) }
@@ -156,7 +212,10 @@ export function kikonesWarrior(world, fx) {
 export function kikonesArcher(world, fx) {
   return new Kikones(world, fx, {
     hp: 40, radius: 0.42, mass: 1.2, speed: 4.6, keepRange: [7.5, 10.5], barHeight: 1.95, xp: 5,
-    look: { cloth: '#4a3a6b', skin: '#9c7048', weapon: 'bow' },
+    look: {
+      weapon: 'bow', scale: 0.95, bulk: 0.92, model: 'kikonesArcher',
+      palette: { skin: '#9c7048', cloth: '#4a3a6b', leather: '#3a2f22', bronze: '#9c7434', accent: '#2f2648', dark: '#1e1a24' },
+    },
     pickAction(e, d) {
       if (d > 4.5 && d < 18) return { def: ARCHER_SHOT, cooldown: rand(1.8, 2.8) }
       return null
@@ -168,7 +227,10 @@ export function kikonesArcher(world, fx) {
 export function dummy(world, fx, hp = 99999) {
   const d = new Kikones(world, fx, {
     hp, radius: 0.55, mass: 40, speed: 0, keepRange: [0, 0], barHeight: 2.1,
-    look: { cloth: '#4a4237', skin: '#7a6a52', weapon: null },
+    look: {
+      weapon: null, scale: 1.0, bulk: 1.15,
+      palette: { skin: '#7a6a52', cloth: '#4a4237', leather: '#3d352c', bronze: '#6f6252', accent: '#4a4237', dark: '#2a251e' },
+    },
     pickAction: () => null,
   })
   d.isDummy = true

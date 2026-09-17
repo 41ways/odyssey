@@ -5,8 +5,8 @@ import { damp, rand } from '../core/math.js'
 export const CAMERA_RIG = {
   pitch: THREE.MathUtils.degToRad(40),  // 수평에서 올려다본 각
   yaw: 0,                                // 고정. 방향키 축이 화면 축과 그대로 맞는다
-  distance: 26,
-  fov: 32,                               // 좁게 → 원근이 눌려서 장판이 잘 읽힌다
+  distance: 20.5,
+  fov: 30,                               // 좁게 → 원근이 눌려서 장판이 잘 읽힌다
   lead: 0.18,                            // 마우스 쪽으로 시선이 끌려가는 정도
   leadMax: 3.2,
   follow: 0.10,                          // 추적 감쇠 반감기(초)

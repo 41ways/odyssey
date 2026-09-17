@@ -14,12 +14,12 @@ const CSS = `
   background:#f5d7a0; opacity:.5; transition:transform .5s cubic-bezier(.2,.7,.3,1) .12s; }
 #hud .hp span { position:absolute; inset:0; display:grid; place-items:center;
   font-size:12px; font-weight:700; letter-spacing:.04em; text-shadow:0 1px 3px #000; }
-#hud .xp { width:360px; height:5px; background:#141018; border:1px solid #2b2436;
+#hud .xp { width:360px; height:5px; background:#181208; border:1px solid #372a18;
   border-radius:3px; overflow:hidden; position:relative; }
 #hud .xp i { display:block; height:100%; width:100%; transform-origin:left center;
-  background:linear-gradient(90deg,#4b8fd0,#9fe0ff); transition:transform .18s ease-out; }
-#hud .lv { position:absolute; left:-46px; top:-7px; font-size:12px; font-weight:800;
-  color:#9fe0ff; letter-spacing:.06em; }
+  background:linear-gradient(90deg,#9c6f2e,#ffd27a); transition:transform .22s ease-out; }
+#hud .lv { position:absolute; left:0; top:9px; width:360px; text-align:center;
+  font-size:11px; color:#8b7a60; letter-spacing:.05em; white-space:nowrap; }
 #hud .pips { display:flex; gap:8px; }
 #hud .pip { width:52px; height:7px; border-radius:4px; background:#1d1712;
   border:1px solid #3a2f26; overflow:hidden; }
@@ -52,7 +52,7 @@ export class Hud {
     el.innerHTML = `
       <div class="bottom">
         <div class="hp"><b></b><i></i><span></span></div>
-        <div class="xp"><i></i><span class="lv">Lv 1</span></div>
+        <div class="xp"><i></i><span class="lv"></span></div>
         <div class="pips"></div>
       </div>
       <div class="keys">
@@ -93,7 +93,7 @@ export class Hud {
     }
   }
 
-  update(player, { totalDamage, dt, xp = 0, xpNeed = 1, level = 1 }) {
+  update(player, { totalDamage, dt, kills = 0, kit = null }) {
     const k = clamp(player.hp / player.maxHp, 0, 1)
     this.hpFill.style.transform = `scaleX(${k})`
     this.hpGhost.style.transform = `scaleX(${k})`
@@ -108,8 +108,13 @@ export class Hud {
       f.style.transform = `scaleX(${filled ? 1 : charging ? (player.rollTimer / TUNING.roll.regen) : 0})`
     }
 
-    this.xpFill.style.transform = `scaleX(${clamp(xp / xpNeed, 0, 1)})`
-    this.lvEl.textContent = `Lv ${level}`
+    if (kit) {
+      this.xpFill.style.transform = `scaleX(${clamp(kit.ratio, 0, 1)})`
+      const label = kit.done
+        ? `처치 ${kills} · 차림 완성`
+        : `처치 ${kills} · ${kit.next.name}까지 ${kit.to - kills}`
+      if (label !== this._kitLabel) { this.lvEl.textContent = label; this._kitLabel = label }
+    }
 
     // 모은 스탯을 계속 보여준다. 성장이 눈에 보여야 고르는 재미가 산다.
     const st = player.stats

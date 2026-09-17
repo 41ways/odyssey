@@ -5,9 +5,10 @@ const CSS = `
 #levelup.on { display:grid; pointer-events:auto; cursor:default; }
 #levelup .wrap { text-align:center; animation:lvlIn .28s cubic-bezier(.2,.8,.3,1); }
 @keyframes lvlIn { from { opacity:0; transform:translateY(14px) } to { opacity:1; transform:none } }
-#levelup h2 { font-size:15px; letter-spacing:.42em; font-weight:700; color:#e8c98a;
-  margin-bottom:6px; text-indent:.42em; }
-#levelup .sub { font-size:12px; color:#8b8378; margin-bottom:26px; letter-spacing:.06em; }
+#levelup h2 { font-size:26px; letter-spacing:.2em; font-weight:800; color:#e8c98a;
+  margin-bottom:8px; text-indent:.2em; }
+#levelup .sub { font-size:13px; color:#8b8378; margin-bottom:30px; letter-spacing:.04em; }
+#levelup .sub::before { content:'"'; } #levelup .sub::after { content:'"'; }
 #levelup .cards { display:flex; gap:16px; justify-content:center; }
 #levelup button { width:196px; padding:24px 18px 20px; text-align:left; cursor:pointer;
   background:linear-gradient(180deg,#1e1712,#14100d); color:#e9e2d6;
@@ -37,14 +38,14 @@ export class LevelUp {
   get open() { return this.el.classList.contains('on') }
 
   /** 고를 때까지 기다린다. 숫자 키로도 고를 수 있다. */
-  show(level, choices) {
+  show({ heading, sub, choices }) {
     return new Promise(resolve => {
       this._resolve = resolve
       this._choices = choices
       this.el.innerHTML = `
         <div class="wrap">
-          <h2>레벨 ${level}</h2>
-          <div class="sub">하나를 고른다</div>
+          <h2>${heading}</h2>
+          <div class="sub">${sub}</div>
           <div class="cards">
             ${choices.map((u, i) => `
               <button data-i="${i}">

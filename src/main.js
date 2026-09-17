@@ -10,7 +10,9 @@ import { kikonesWarrior, kikonesArcher, dummy } from './enemy/kikones.js'
 import { Hud } from './ui/hud.js'
 import { LevelUp } from './ui/levelup.js'
 import { Pickups } from './combat/pickup.js'
-import { rollChoices, xpToNext, newStats } from './player/stats.js'
+import { rollChoices, newStats } from './player/stats.js'
+import { KIT, kitProgress } from './player/gear.js'
+import { models } from './render/models.js'
 import { rand } from './core/math.js'
 
 /**
@@ -29,9 +31,7 @@ class Game {
     this.hud = new Hud(uiRoot)
     this.levelUp = new LevelUp(uiRoot)
 
-    this.level = 1
-    this.xp = 0
-    this.xpNeed = xpToNext(1)
+    this.kills = 0
     this.paused = false
 
     this.enemies = []
@@ -79,7 +79,13 @@ class Game {
     enemy.onHurt = d => { this.totalDamage += d }
     if (!enemy.isDummy) {
       const die = enemy.die.bind(enemy)
-      enemy.die = () => { die(); this.pickups.drop(enemy.pos.x, enemy.pos.z, enemy.xpValue ?? 3, 1 + (Math.random() < 0.4 ? 1 : 0)) }
+      enemy.die = () => {
+        die()
+        this.kills++
+        // 이번 처치로 장비가 열리면 시체 자리에 전리품을 떨군다
+        const piece = KIT.find(k => k.kills === this.kills)
+        if (piece) this.pickups.drop(enemy.pos.x, enemy.pos.z, piece, { color: '#ffd27a' })
+      }
     }
     this.enemies.push(enemy)
     this.render3d.scene.add(enemy.group)
@@ -114,9 +120,8 @@ class Game {
     this.corpses.length = 0
     this.totalDamage = 0
     this.pickups.clear()
-    this.level = 1
-    this.xp = 0
-    this.xpNeed = xpToNext(1)
+    this.kills = 0
+    this.player.gear.reset()
     this.player.stats = newStats()
     this.player.applyStats()
     const p = this.player
@@ -146,11 +151,8 @@ class Game {
     separate(all, dt)
     this.projectiles.update(dt, all, this.arenaRadius)
 
-    const gained = this.pickups.update(dt, this.player)
-    if (gained > 0 && !this.player.dead) {
-      this.xp += gained
-      if (this.xp >= this.xpNeed) this.openLevelUp()
-    }
+    const looted = this.pickups.update(dt, this.player)
+    if (looted.length && !this.player.dead) this.openLoot(looted)
 
     for (let i = this.enemies.length - 1; i >= 0; i--) {
       const e = this.enemies[i]
@@ -169,20 +171,23 @@ class Game {
     }
   }
 
-  /** 레벨업 선택. 고를 때까지 시간을 멈춘다. */
-  async openLevelUp() {
+  /** 전리품을 입고 성장 선택지를 고른다. 고를 때까지 시간을 멈춘다. */
+  async openLoot(pieces) {
     if (this.paused) return
     this.paused = true
     this.input.held.clear()
     this.input.buffer.clear()
-    while (this.xp >= this.xpNeed) {
-      this.xp -= this.xpNeed
-      this.level++
-      this.xpNeed = xpToNext(this.level)
-      const pick = await this.levelUp.show(this.level, rollChoices(3))
+    this._queue = (this._queue ?? []).concat(pieces)
+    while (this._queue.length) {
+      const piece = this._queue.shift()
+      this.player.equip(piece.id)
+      this.fx.ring(this.player.pos.x, this.player.pos.z, { color: '#ffd27a', radius: 3.6, life: 0.6 })
+      const pick = await this.levelUp.show({
+        heading: piece.name, sub: piece.line, choices: rollChoices(3),
+      })
       pick.apply(this.player.stats)
       this.player.applyStats()
-      this.fx.ring(this.player.pos.x, this.player.pos.z, { color: '#9fe0ff', radius: 3.4, life: 0.5 })
+      this.fx.ring(this.player.pos.x, this.player.pos.z, { color: '#9fe0ff', radius: 3.0, life: 0.5 })
     }
     this.paused = false
   }
@@ -198,11 +203,13 @@ class Game {
     this.render3d.render()
     this.hud.update(this.player, {
       totalDamage: this.totalDamage, dt: this._real ?? 1 / 60,
-      xp: this.xp, xpNeed: this.xpNeed, level: this.level,
+      kills: this.kills, kit: kitProgress(this.kills),
     })
   }
 }
 
+// 있는 모델만 먼저 받아 둔다. 없으면 코드 인체로 돌아가므로 게임은 항상 시작된다.
+await models.preload()
 const game = new Game(document.getElementById('app'), document.getElementById('ui'))
 // 튜닝용 핸들. 콘솔에서 __game.player.pos 같은 걸 바로 만질 수 있다.
 window.__game = game

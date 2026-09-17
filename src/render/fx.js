@@ -142,7 +142,7 @@ export class Fx {
   slash(x, z, facing, range, halfAngle, color = '#fff0d0') {
     const geo = this.#arcGeo(range, halfAngle)
     const mat = new THREE.MeshBasicMaterial({
-      color, transparent: true, opacity: 0.72, depthWrite: false,
+      color, transparent: true, opacity: 0.5, depthWrite: false,
       blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
     })
     const m = new THREE.Mesh(geo, mat)
@@ -160,7 +160,7 @@ export class Fx {
     this._arcCache ??= new Map()
     let g = this._arcCache.get(key)
     if (!g) {
-      g = new THREE.RingGeometry(range * 0.74, range * 1.02, 44, 1, -halfAngle - Math.PI / 2, halfAngle * 2)
+      g = new THREE.RingGeometry(range * 0.86, range * 1.02, 44, 1, -halfAngle - Math.PI / 2, halfAngle * 2)
       this._arcCache.set(key, g)
     }
     return g
@@ -197,7 +197,7 @@ export class Fx {
       }
       if (r.grow) {          // 칼 궤적: 살짝 퍼지면서 빠르게 사라진다
         r.m.scale.setScalar(0.9 + k * r.grow)
-        r.m.material.opacity = 0.72 * (1 - k)
+        r.m.material.opacity = 0.5 * (1 - k)
       } else {               // 충격파 링: 크게 번지면서 사라진다
         r.m.scale.setScalar(r.radius * (0.35 + k * 0.85))
         r.m.material.opacity = (1 - k) * (1 - k)
