@@ -36,6 +36,8 @@ const CSS = `
 #hud .keys { position:absolute; left:22px; bottom:20px; font-size:11.5px; line-height:1.9;
   color:#7d7264; letter-spacing:.02em; }
 #hud .keys .grown { color:#c8a16a; margin-top:4px; font-size:11.5px; letter-spacing:.03em; }
+#hud .keys .dev { margin-top:7px; font-size:10.5px; color:#5f564c; letter-spacing:.02em; }
+#hud .keys .dev kbd { font-size:9.5px; padding:1px 5px; color:#8a7c66; border-color:#332b24; }
 #hud .keys kbd { background:#1c1611; border:1px solid #4a3a28; border-radius:2px;
   padding:1px 7px; color:#d8c39b; font-family:var(--serif); font-size:10.5px; letter-spacing:.06em; }
 #hud .stats { position:absolute; right:20px; top:18px; font-size:11px; text-align:right;
@@ -123,6 +125,7 @@ export class Hud {
         <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 이동 &nbsp; <kbd>마우스</kbd> 조준</div>
         <div><kbd>좌클릭</kbd> 칼 (3타) &nbsp; <kbd>우클릭</kbd> 활 (꾹 눌러 차징) &nbsp; <kbd>Space</kbd> 구르기</div>
         <div class="grown"></div>
+        <div class="dev"><kbd>Tab</kbd> 판 고르기 · <kbd>L</kbd> 화면 톤 · <kbd>]</kbd> 다음 판 · <kbd>R</kbd> 처음부터</div>
       </div>
       <div class="stats">
         <div>누적 피해</div><b class="dmg">0</b>

@@ -250,6 +250,19 @@ class Game {
    * 맨몸 레벨1 로 900 체력짜리 보스를 만나면 체험이 안 된다.
    * 그 지점까지 왔다면 가졌을 만큼을 쥐여 주고 시작한다.
    */
+  /**
+   * 시험용 — 화면 톤 시안을 하나씩 돌려 본다 (L 키).
+   * 지금 / 정오의 대리석 / 황금빛 오후 / 에게해 / 도기 채색 / 프레스코
+   */
+  cycleLook(name) {
+    const cur = LOOK_KEYS.indexOf(this.render3d.look ?? 'souls')
+    const next = name ?? LOOK_KEYS[(cur + 1) % LOOK_KEYS.length]
+    this.render3d.setLook(next)
+    const l = LOOKS[next]
+    this.hud.banner(l.name, l.line, 2.4)
+    return next
+  }
+
   async jumpTo(index, { bare = false, toBoss = true } = {}) {
     this.paused = false
     this.equipFx = null
