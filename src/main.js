@@ -395,7 +395,7 @@ class Game {
     this.hud.update(this.player, {
       totalDamage: this.totalDamage, dt: this._real ?? 1 / 60,
       kills: this.kills, kit: kitProgress(this.kills),
-      stage: this.run.stage, index: this.run.index, count: 9,
+      stage: this.run.view, index: this.run.index, count: STAGES.length,
     })
   }
 }

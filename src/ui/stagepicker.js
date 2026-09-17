@@ -24,12 +24,25 @@ const CSS = `
   transition:border-color .12s, background .12s, transform .12s; text-align:left; }
 #picker li:hover { border-color:var(--bronze); background:rgba(44,30,18,.85); transform:translateX(4px); }
 #picker .n { font-family:var(--serif); font-size:13px; color:var(--bronze); width:18px; }
-#picker .nm { font-size:15px; color:var(--ivory); min-width:150px; }
-#picker .ki { font-size:11px; letter-spacing:.14em; color:#7f7364; }
-#picker .ds { margin-left:auto; font-size:11.5px; color:#8a7c68; }
+#picker .nm { font-size:15px; color:var(--ivory); min-width:140px; }
+#picker .ki { font-size:11px; letter-spacing:.1em; color:#7f7364; min-width:78px; }
+#picker .ds { margin-left:auto; font-size:12px; color:#c8a16a; }
 `
 
-const KIND = { waves: '웨이브', boss: '보스', relic: '유물', fork: '갈림길' }
+const BOSS_NAME = {
+  polyphemos: '폴리페모스', antiphates: '안티파테스', kirke: '키르케', siren: '세이렌',
+  skylla: '스킬라', charybdis: '카리브디스', antinoos: '안티노오스', telegonos: '텔레고노스',
+}
+
+/** 한 판이 어떤 모양인지 한 줄로. */
+function shape(s) {
+  if (s.relic) return { left: '유물', right: '아가멤논의 그림자' }
+  const wave = s.wave ? `웨이브 ${s.wave.goal}` : '바로 보스'
+  const boss = s.fork
+    ? s.fork.options.map(o => BOSS_NAME[o.boss]).join(' / ')
+    : BOSS_NAME[s.boss?.id] ?? '—'
+  return { left: wave, right: `→ ${boss}` }
+}
 
 export class StagePicker {
   constructor(root, stages, onPick) {
@@ -43,13 +56,13 @@ export class StagePicker {
     this.el.innerHTML = `<div class="box">
       <div class="band"></div>
       <h3>스테이지 고르기</h3>
-      <div class="hint">숫자키 1–9 · 클릭 · Tab 으로 닫기 &nbsp;|&nbsp; 주소에 ?stage=3 을 붙여도 된다</div>
+      <div class="hint">숫자키 1–8 · 클릭 · Tab 으로 닫기 &nbsp;|&nbsp; 주소에 ?stage=3 을 붙여도 된다</div>
       <label class="opt"><input type="checkbox" id="picker-bare"> 맨몸으로 (전리품·성장 없이)</label>
-      <ol>${stages.map((s, i) => `<li data-i="${i}">
+      <ol>${stages.map((s, i) => { const sh = shape(s); return `<li data-i="${i}">
         <span class="n">${i + 1}</span>
         <span class="nm">${s.name}</span>
-        <span class="ki">${KIND[s.kind] ?? s.kind}</span>
-        <span class="ds">${s.title ?? ''}</span></li>`).join('')}</ol>
+        <span class="ki">${sh.left}</span>
+        <span class="ds">${sh.right}</span></li>` }).join('')}</ol>
       <div class="band"></div>
     </div>`
     root.appendChild(this.el)

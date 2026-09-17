@@ -284,9 +284,50 @@ export const TELEGONOS = {
   ],
 }
 
+/* ── 안티노오스 ──────────────────────────────────────────
+   구혼자들의 우두머리. 오디세우스가 활을 들고 처음 쏜 자다.
+   사람이라 크지 않고, 대신 빠르고 부하를 계속 부른다. */
+export const ANTINOOS = {
+  id: 'antinoos', name: '안티노오스', title: '구혼자들의 우두머리',
+  hp: 700, radius: 0.55, mass: 38, speed: 5.4, keepRange: [2.8, 6], gap: [0.5, 0.9],
+  barHeight: 2.4, groggyMult: 1.9, turnHalf: 0.07,
+  look: { height: 1.82, bulk: 1.0, tint: '#d0b070', gear: ['legs', 'feet', 'body', 'arms', 'pauldron'] },
+  phases: [
+    {
+      below: 1,
+      say: '술잔을 내려놓고 칼을 뽑는다',
+      patterns: [
+        slam({ id: 'a_slash', startup: 0.34, active: 0.08, recovery: 0.36, range: 3.4, halfAngle: 1.0,
+          damage: 18, knockback: 7, pick: { max: 4.4, weight: 5, cooldown: 1.1 } }),
+        volley({ id: 'a_bow', kind: 'arrow', startup: 0.55, active: 0.08, recovery: 0.45, count: 3, spread: 0.3,
+          damage: 15, speed: 26, bullet: '#ffd27a', bulletSize: 0.3,
+          pick: { min: 3.5, weight: 4, cooldown: 2.2 } }),
+        summon({ id: 'a_call', startup: 0.85, active: 0.1, recovery: 0.7, kind: 'warrior', count: 2, radius: 7,
+          pick: { weight: 3, cooldown: 8 } }),
+      ],
+    },
+    {
+      below: 0.45,
+      say: '홀 전체가 그를 둘러싼다',
+      patterns: [
+        slam({ id: 'a_slash2', startup: 0.26, active: 0.08, recovery: 0.3, range: 3.6, halfAngle: 1.2,
+          damage: 20, knockback: 8, pick: { max: 4.8, weight: 6, cooldown: 0.8 } }),
+        slam({ id: 'a_heavy', startup: 0.46, active: 0.1, recovery: 0.6, range: 4.4, halfAngle: 2.0,
+          damage: 30, knockback: 14, stagger: 0.5, groggy: 0.9, pick: { max: 5.5, weight: 3, cooldown: 3.4 } }),
+        volley({ id: 'a_rain', kind: 'arrow', startup: 0.5, active: 0.08, recovery: 0.4, count: 5, spread: 0.55,
+          damage: 15, speed: 28, bullet: '#ffd27a', bulletSize: 0.3,
+          pick: { weight: 4, cooldown: 1.8 } }),
+        summon({ id: 'a_call2', startup: 0.7, active: 0.1, recovery: 0.55, kind: 'warrior', count: 3, radius: 8,
+          pick: { weight: 3, cooldown: 7 } }),
+      ],
+    },
+  ],
+}
+
 export const BOSSES = {
   polyphemos: POLYPHEMOS, antiphates: ANTIPHATES, kirke: KIRKE,
-  siren: SIREN, skylla: SKYLLA, charybdis: CHARYBDIS, telegonos: TELEGONOS,
+  siren: SIREN, skylla: SKYLLA, charybdis: CHARYBDIS,
+  antinoos: ANTINOOS, telegonos: TELEGONOS,
 }
 
 export function makeBoss(id, world, fx) {

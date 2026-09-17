@@ -1,151 +1,195 @@
 /**
- * 아홉 개의 판.
+ * 여덟 개의 판.
  *
- * 스테이지는 데이터다 — 어떤 땅에서, 어떤 빛 아래, 무엇과 싸우는지.
+ * 한 판은 두 구간이다 — **뱀서식 웨이브로 자라고, 그 끝에서 보스를 만난다.**
+ * 웨이브 구간에서 전리품과 성장을 모으고, 그 차림 그대로 보스방으로 넘어간다.
+ * 구간마다 땅도 빛도 다르다 (해안에서 싸우다 동굴로 들어가는 식).
+ *
  * env 는 render/world.js 의 applyStage 가 그대로 받아 쓴다.
- * 바닥 텍스처는 스테이지에 들어갈 때 한 장씩만 받는다 (tools/fetch-ground.mjs).
+ * 바닥 텍스처는 그 구간에 들어갈 때 한 장씩만 받는다 (tools/fetch-ground.mjs).
  */
 
-const waveSet = (goal, steps) => ({ goal, waves: steps })
+/* ── 구간별 환경 조각 ────────────────────────────────────── */
+
+const SHORE = {
+  arena: { radius: 16, ground: 'ismaros', repeat: 9, wallColor: '#2a2018', rockColor: '#544738' },
+  env: { bg: '#150c08', fog: 0.019, fogColor: '#1a0e08', exposure: 1.05, camDistance: 20.5,
+    key: '#ffb478', keyIntensity: 2.4, rim: '#6f8cff', rimIntensity: 1.1,
+    hemiSky: '#3a4a74', hemiGround: '#140f0a', hemiIntensity: 0.55 },
+}
+const CAVE = {
+  arena: { radius: 15, ground: 'cyclops', repeat: 7, wallColor: '#1a1714', rockColor: '#3d372f' },
+  env: { bg: '#07080a', fog: 0.032, fogColor: '#0a0b0e', exposure: 1.0, camDistance: 30,
+    key: '#ff9a52', keyIntensity: 2.2, rim: '#4a6ea8', rimIntensity: 0.8,
+    hemiSky: '#1e2838', hemiGround: '#0c0a08', hemiIntensity: 0.35 },
+}
+const CLIFF = {
+  arena: { radius: 17, ground: 'telepylos', repeat: 8, wallColor: '#2a2e33', rockColor: '#4a4f55' },
+  env: { bg: '#0c1014', fog: 0.02, fogColor: '#121820', exposure: 1.06, camDistance: 22,
+    key: '#cfd8e8', keyIntensity: 2.0, rim: '#5f7fa8', rimIntensity: 1.2,
+    hemiSky: '#4a5a72', hemiGround: '#181c20', hemiIntensity: 0.6 },
+}
+const FOREST = {
+  arena: { radius: 16, ground: 'aiaia', repeat: 7, wallColor: '#23301f', rockColor: '#3e4a34' },
+  env: { bg: '#0a1208', fog: 0.022, fogColor: '#101a10', exposure: 1.08, camDistance: 21,
+    key: '#e8d08a', keyIntensity: 2.1, rim: '#a06fd0', rimIntensity: 1.3,
+    hemiSky: '#54704a', hemiGround: '#141a10', hemiIntensity: 0.55 },
+}
+const UNDER = {
+  arena: { radius: 14, ground: 'underworld', repeat: 6, wallColor: '#0e0c10', rocks: false },
+  env: { bg: '#050408', fog: 0.045, fogColor: '#08060c', exposure: 0.95, camDistance: 19,
+    key: '#8a7fd0', keyIntensity: 1.2, rim: '#d05a6a', rimIntensity: 0.9,
+    hemiSky: '#241e38', hemiGround: '#060508', hemiIntensity: 0.4 },
+}
+const DECK = (radius = 14, cam = 20) => ({
+  arena: { radius, ground: 'ship', repeat: 5, wallColor: '#141a22', rocks: false },
+  env: { bg: '#060c14', fog: 0.03, fogColor: '#0a121c', exposure: 1.02, camDistance: cam,
+    key: '#bfd8ff', keyIntensity: 1.8, rim: '#7f5fd0', rimIntensity: 1.4,
+    hemiSky: '#2a3d5a', hemiGround: '#0a1018', hemiIntensity: 0.5 },
+})
+const STORM = {
+  arena: { radius: 15, ground: 'ship', repeat: 5, wallColor: '#10161e', rocks: false },
+  env: { bg: '#04080e', fog: 0.034, fogColor: '#070d16', exposure: 1.0, camDistance: 24,
+    key: '#9fc0e8', keyIntensity: 1.7, rim: '#4a7fd0', rimIntensity: 1.5,
+    hemiSky: '#223349', hemiGround: '#060a10', hemiIntensity: 0.45 },
+}
+const HALL = {
+  arena: { radius: 15, ground: 'ithaca', repeat: 8, wallColor: '#2a2420', rocks: false },
+  env: { bg: '#0f0a06', fog: 0.024, fogColor: '#160f08', exposure: 1.1, camDistance: 20.5,
+    key: '#ffc888', keyIntensity: 2.6, rim: '#8a6fd0', rimIntensity: 0.9,
+    hemiSky: '#4a3f5a', hemiGround: '#1a1208', hemiIntensity: 0.5 },
+}
+const BEACH = {
+  arena: { radius: 16, ground: 'shore', repeat: 8, wallColor: '#241f1a', rockColor: '#4a4238' },
+  env: { bg: '#0a0c12', fog: 0.02, fogColor: '#10131a', exposure: 1.04, camDistance: 21,
+    key: '#e8c8a0', keyIntensity: 2.0, rim: '#6f7fd0', rimIntensity: 1.2,
+    hemiSky: '#3a4258', hemiGround: '#14120e', hemiIntensity: 0.55 },
+}
+
+/* ── 판 ──────────────────────────────────────────────────── */
 
 export const STAGES = [
   {
-    id: 'ismaros', kind: 'waves',
-    name: '이스마로스', title: '키코네스족의 해안',
-    intro: '돌아가는 길의 첫 항구. 우리는 이곳을 약탈했다.',
-    clear: '해안이 조용해졌다. 바다가 기다린다.',
-    arena: { radius: 16, ground: 'ismaros', repeat: 9, wallColor: '#2a2018', rockColor: '#544738' },
-    env: {
-      bg: '#150c08', fog: 0.019, fogColor: '#1a0e08', exposure: 1.05,
-      key: '#ffb478', keyIntensity: 2.4, rim: '#6f8cff', rimIntensity: 1.1,
-      hemiSky: '#3a4a74', hemiGround: '#140f0a', hemiIntensity: 0.55,
+    id: 'ismaros', name: '이스마로스', title: '키코네스족과 외눈의 목자',
+    wave: {
+      ...SHORE,
+      intro: '돌아가는 길의 첫 항구. 우리는 이곳을 약탈했다.',
+      goal: 14,
+      steps: [
+        { untilKills: 3, maxAlive: 3, interval: 1.8, mix: { warrior: 1 } },
+        { untilKills: 8, maxAlive: 4, interval: 1.4, mix: { warrior: 3, archer: 1 }, say: '언덕에서 활잡이가 내려온다' },
+        { untilKills: 14, maxAlive: 6, interval: 1.1, mix: { warrior: 3, archer: 2 }, say: '마을이 깨어났다' },
+      ],
+      clear: '해안이 조용해졌다. 바람이 동굴 쪽에서 불어온다.',
     },
-    ...waveSet(24, [
-      { untilKills: 3, maxAlive: 3, interval: 1.8, mix: { warrior: 1 } },
-      { untilKills: 8, maxAlive: 4, interval: 1.5, mix: { warrior: 3, archer: 1 }, say: '언덕에서 활잡이가 내려온다' },
-      { untilKills: 15, maxAlive: 6, interval: 1.2, mix: { warrior: 3, archer: 2 }, say: '마을이 깨어났다' },
-      { untilKills: 24, maxAlive: 8, interval: 0.95, mix: { warrior: 3, archer: 2 }, say: '내륙에서 떼로 몰려온다' },
-    ]),
-  },
-
-  {
-    id: 'cyclops', kind: 'boss', boss: 'polyphemos',
-    name: '폴리페모스의 동굴', title: '외눈의 목자',
-    intro: '입구를 바위가 막았다. 나갈 길은 저것을 눕히는 것뿐이다.',
+    boss: { ...CAVE, id: 'polyphemos', intro: '입구를 바위가 막았다. 나갈 길은 저것을 눕히는 것뿐이다.' },
     clear: '“아무도 나를 해치지 않았다”  그가 그렇게 외쳤다.',
-    arena: { radius: 15, ground: 'cyclops', repeat: 7, wallColor: '#1a1714', rockColor: '#3d372f' },
-    env: {
-      camDistance: 30,
-      bg: '#07080a', fog: 0.032, fogColor: '#0a0b0e', exposure: 1.0,
-      key: '#ff9a52', keyIntensity: 2.2, rim: '#4a6ea8', rimIntensity: 0.8,
-      hemiSky: '#1e2838', hemiGround: '#0c0a08', hemiIntensity: 0.35,
-    },
   },
 
   {
-    id: 'telepylos', kind: 'boss', boss: 'antiphates',
-    name: '텔레필로스', title: '라이스트리고네스의 항구',
-    intro: '좁은 만에 배를 댔다. 절벽 위에서 바위가 날아왔다.',
+    id: 'telepylos', name: '텔레필로스', title: '라이스트리고네스의 항구',
+    wave: {
+      ...CLIFF,
+      intro: '좁은 만에 배를 댔다. 절벽 위에서 바위가 날아왔다.',
+      goal: 16,
+      steps: [
+        { untilKills: 5, maxAlive: 4, interval: 1.5, mix: { warrior: 3, archer: 1 } },
+        { untilKills: 11, maxAlive: 6, interval: 1.2, mix: { warrior: 3, archer: 2 }, say: '절벽 위가 새까맣다' },
+        { untilKills: 16, maxAlive: 7, interval: 1.0, mix: { warrior: 3, archer: 2 }, say: '배가 하나씩 부서진다' },
+      ],
+      clear: '항구 안쪽에서 거대한 그림자가 걸어 나온다.',
+    },
+    boss: { ...CLIFF, camDistance: 26, id: 'antiphates', intro: '항구 전체가 우리를 향해 돌아섰다.' },
     clear: '배 한 척만 남았다.',
-    arena: { radius: 17, ground: 'telepylos', repeat: 8, wallColor: '#2a2e33', rockColor: '#4a4f55' },
-    env: {
-      camDistance: 26,
-      bg: '#0c1014', fog: 0.02, fogColor: '#121820', exposure: 1.06,
-      key: '#cfd8e8', keyIntensity: 2.0, rim: '#5f7fa8', rimIntensity: 1.2,
-      hemiSky: '#4a5a72', hemiGround: '#181c20', hemiIntensity: 0.6,
-    },
   },
 
   {
-    id: 'aiaia', kind: 'boss', boss: 'kirke',
-    name: '아이아이에섬', title: '키르케의 숲',
-    intro: '연기가 오르는 집 하나. 먼저 간 자들은 돌아오지 않았다.',
+    id: 'aiaia', name: '아이아이에섬', title: '키르케의 숲',
+    wave: {
+      ...FOREST,
+      intro: '연기가 오르는 집 하나. 먼저 간 자들은 돌아오지 않았다.',
+      goal: 18,
+      steps: [
+        { untilKills: 6, maxAlive: 5, interval: 1.3, mix: { pig: 1 } },
+        { untilKills: 12, maxAlive: 7, interval: 1.0, mix: { pig: 3, warrior: 1 }, say: '짐승이 사람 소리를 낸다' },
+        { untilKills: 18, maxAlive: 9, interval: 0.85, mix: { pig: 3, warrior: 1, archer: 1 }, say: '숲이 통째로 움직인다' },
+      ],
+      clear: '집 문이 열렸다.',
+    },
+    boss: { ...FOREST, camDistance: 21, id: 'kirke', intro: '술잔을 든 여자가 웃는다.' },
     clear: '돼지가 다시 사람이 되었다.',
-    arena: { radius: 16, ground: 'aiaia', repeat: 7, wallColor: '#23301f', rockColor: '#3e4a34' },
-    env: {
-      camDistance: 24,
-      bg: '#0a1208', fog: 0.022, fogColor: '#101a10', exposure: 1.08,
-      key: '#e8d08a', keyIntensity: 2.1, rim: '#a06fd0', rimIntensity: 1.3,
-      hemiSky: '#54704a', hemiGround: '#141a10', hemiIntensity: 0.55,
-    },
   },
 
   {
-    id: 'underworld', kind: 'relic',
-    name: '저승', title: '아가멤논의 그림자',
+    id: 'underworld', name: '저승', title: '아가멤논의 그림자',
+    ...UNDER,
+    relic: true,
     intro: '피를 마신 망자가 말을 한다. 가져갈 것을 하나 고르라고.',
     clear: '그림자가 등을 돌렸다.',
-    arena: { radius: 14, ground: 'underworld', repeat: 6, wallColor: '#0e0c10', rocks: false },
-    env: {
-      bg: '#050408', fog: 0.045, fogColor: '#08060c', exposure: 0.95,
-      key: '#8a7fd0', keyIntensity: 1.2, rim: '#d05a6a', rimIntensity: 0.9,
-      hemiSky: '#241e38', hemiGround: '#060508', hemiIntensity: 0.4,
-    },
   },
 
   {
-    id: 'sirens', kind: 'boss', boss: 'siren',
-    name: '세이렌의 바다', title: '노래하는 것',
-    intro: '돛대에 몸을 묶었다. 그래도 귀는 열려 있다.',
+    id: 'sirens', name: '세이렌의 바다', title: '노래하는 것',
+    wave: {
+      ...DECK(14, 20),
+      intro: '돛대에 몸을 묶었다. 그래도 귀는 열려 있다.',
+      goal: 16,
+      steps: [
+        { untilKills: 6, maxAlive: 5, interval: 1.2, mix: { warrior: 1 } },
+        { untilKills: 16, maxAlive: 8, interval: 0.9, mix: { warrior: 3, archer: 2 }, say: '물에서 올라온다' },
+      ],
+      clear: '갑판이 비었다. 그때 노래가 시작된다.',
+    },
+    boss: { ...DECK(14, 22), id: 'siren', intro: '노래가 들린다. 귀를 막을 수 없다.' },
     clear: '노래가 멎었다.',
-    arena: { radius: 14, ground: 'ship', repeat: 5, wallColor: '#141a22', rocks: false },
-    env: {
-      camDistance: 24,
-      bg: '#060c14', fog: 0.03, fogColor: '#0a121c', exposure: 1.02,
-      key: '#bfd8ff', keyIntensity: 1.8, rim: '#7f5fd0', rimIntensity: 1.4,
-      hemiSky: '#2a3d5a', hemiGround: '#0a1018', hemiIntensity: 0.5,
-    },
   },
 
   {
-    id: 'messina', kind: 'fork',
-    name: '메시나 해협', title: '스킬라와 카리브디스',
-    intro: '어느 쪽으로도 갈 수 있다. 어느 쪽도 무사하지 않다.',
+    id: 'messina', name: '메시나 해협', title: '스킬라와 카리브디스',
+    wave: {
+      ...STORM,
+      intro: '해협이 좁아진다. 양쪽 다 무사하지 않다.',
+      goal: 14,
+      steps: [
+        { untilKills: 6, maxAlive: 6, interval: 1.0, mix: { warrior: 3, archer: 1 } },
+        { untilKills: 14, maxAlive: 8, interval: 0.8, mix: { warrior: 3, archer: 2 }, say: '파도가 갑판을 넘는다' },
+      ],
+      clear: '어느 쪽으로 갈지 정해야 한다.',
+    },
+    fork: {
+      ...STORM,
+      intro: '어느 쪽으로도 갈 수 있다. 어느 쪽도 무사하지 않다.',
+      options: [
+        { boss: 'skylla', label: '절벽 쪽으로', line: '스킬라 — 여섯 머리가 배 위로 내려온다' },
+        { boss: 'charybdis', label: '소용돌이 쪽으로', line: '카리브디스 — 바다가 통째로 빨려 들어간다' },
+      ],
+    },
     clear: '해협을 지났다.',
-    options: [
-      { boss: 'skylla', label: '절벽 쪽으로', line: '스킬라 — 여섯 머리가 배 위로 내려온다' },
-      { boss: 'charybdis', label: '소용돌이 쪽으로', line: '카리브디스 — 바다가 통째로 빨려 들어간다' },
-    ],
-    arena: { radius: 15, ground: 'ship', repeat: 5, wallColor: '#10161e', rocks: false },
-    env: {
-      camDistance: 26,
-      bg: '#04080e', fog: 0.034, fogColor: '#070d16', exposure: 1.0,
-      key: '#9fc0e8', keyIntensity: 1.7, rim: '#4a7fd0', rimIntensity: 1.5,
-      hemiSky: '#223349', hemiGround: '#060a10', hemiIntensity: 0.45,
-    },
   },
 
   {
-    id: 'ithaca', kind: 'waves',
-    name: '이타카', title: '구혼자들',
-    intro: '스무 해 만에 문을 열었다. 홀 안이 가득 차 있다.',
+    id: 'ithaca', name: '이타카', title: '구혼자들',
+    wave: {
+      ...HALL,
+      intro: '스무 해 만에 문을 열었다. 홀 안이 가득 차 있다.',
+      goal: 30,
+      steps: [
+        { untilKills: 8, maxAlive: 6, interval: 0.9, mix: { warrior: 1 } },
+        { untilKills: 18, maxAlive: 9, interval: 0.7, mix: { warrior: 4, archer: 1 }, say: '위층에서도 내려온다' },
+        { untilKills: 30, maxAlive: 12, interval: 0.55, mix: { warrior: 4, archer: 1 }, say: '문이란 문에서 쏟아진다' },
+      ],
+      clear: '한 사람만 남았다.',
+    },
+    boss: { ...HALL, camDistance: 20, id: 'antinoos', intro: '술잔을 내려놓고 칼을 뽑는다.' },
     clear: '홀이 비었다.',
-    arena: { radius: 15, ground: 'ithaca', repeat: 8, wallColor: '#2a2420', rocks: false },
-    env: {
-      bg: '#0f0a06', fog: 0.024, fogColor: '#160f08', exposure: 1.1,
-      key: '#ffc888', keyIntensity: 2.6, rim: '#8a6fd0', rimIntensity: 0.9,
-      hemiSky: '#4a3f5a', hemiGround: '#1a1208', hemiIntensity: 0.5,
-    },
-    // 빠르고 끝없이 달려든다. 한 마리는 약하지만 멈추지 않는다.
-    ...waveSet(40, [
-      { untilKills: 8, maxAlive: 6, interval: 0.9, mix: { warrior: 1 } },
-      { untilKills: 20, maxAlive: 9, interval: 0.7, mix: { warrior: 4, archer: 1 }, say: '위층에서도 내려온다' },
-      { untilKills: 40, maxAlive: 13, interval: 0.5, mix: { warrior: 4, archer: 1 }, say: '문이란 문에서 쏟아진다' },
-    ]),
   },
 
   {
-    id: 'death', kind: 'boss', boss: 'telegonos', endless: true,
-    name: '죽음', title: '텔레고노스',
+    id: 'death', name: '죽음', title: '텔레고노스',
+    boss: { ...BEACH, id: 'telegonos', intro: '해변에 선 젊은이가 같은 창을 들고 있다.' },
+    endless: true,
     intro: '해변에 선 젊은이가 같은 창을 들고 있다.',
     clear: '',
-    arena: { radius: 16, ground: 'shore', repeat: 8, wallColor: '#241f1a', rockColor: '#4a4238' },
-    env: {
-      camDistance: 23,
-      bg: '#0a0c12', fog: 0.02, fogColor: '#10131a', exposure: 1.04,
-      key: '#e8c8a0', keyIntensity: 2.0, rim: '#6f7fd0', rimIntensity: 1.2,
-      hemiSky: '#3a4258', hemiGround: '#14120e', hemiIntensity: 0.55,
-    },
   },
 ]
 

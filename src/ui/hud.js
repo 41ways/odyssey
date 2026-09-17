@@ -265,8 +265,11 @@ export class Hud {
     if (line !== this._statLine) { this.statsEl.textContent = line; this._statLine = line }
 
     if (stage) {
-      const prog = stage.goal ? ` · <b>${Math.min(kills, stage.goal)}</b> / ${stage.goal}` : ''
-      const label = `${index + 1} / ${count} · ${stage.name}${prog}`
+      // 웨이브 구간이면 처치 수를, 보스 구간이면 보스 이름을 보여 준다
+      const tail = stage.goal
+        ? ` · <b>${Math.min(kills, stage.goal)}</b> / ${stage.goal}`
+        : (stage.bossName ? ` · <b>${stage.bossName}</b>` : '')
+      const label = `${index + 1} / ${count} · ${stage.name}${tail}`
       if (label !== this._waveLabel) { this.waveEl.innerHTML = label; this._waveLabel = label }
     }
 
