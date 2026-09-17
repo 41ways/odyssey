@@ -339,6 +339,9 @@ export class Player extends Actor {
     this.#visual(dt, false)
   }
 
+  /** 연출 중 — 시뮬레이션은 멈췄지만 포즈는 돌아야 한다. */
+  updateVisualOnly(dt) { this.#visual(dt, false) }
+
   #moveBy(dt, scale) {
     if (this._move.lengthSq() === 0) return
     // 키르케의 변신 마법에 걸리면 몸이 무거워진다

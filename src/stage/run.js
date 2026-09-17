@@ -56,7 +56,8 @@ export class Run {
 
     if (stage.relic) {
       this.phase = 'relic'
-      await this.#scene(stage, stage.intro)
+      // 저승은 걸어 들어가는 연출이 현판을 대신한다
+      await this.#scene(stage, stage.intro, { banner: false })
       this.busy = true
       await g.chooseRelic(RELICS)
       this.busy = false
@@ -78,7 +79,7 @@ export class Run {
   }
 
   /** 구간 하나를 연다 — 땅·빛을 갈고, 플레이어를 세우고, 현판을 띄운다. */
-  async #scene(part, intro) {
+  async #scene(part, intro, { banner = true } = {}) {
     const g = this.game
     g.clearField()
     await g.render3d.applyStage(part)
@@ -86,7 +87,7 @@ export class Run {
     g.player.pos.set(0, 0, Math.min(6, g.arenaRadius - 3))
     g.player.vel.set(0, 0, 0)
     g.render3d.camTarget.copy(g.player.pos)
-    g.hud.banner(this.stage.name, intro, 3.4)
+    if (banner) g.hud.banner(this.stage.name, intro, 3.4)
   }
 
   /** 웨이브를 다 치우면 보스방으로 넘어간다. */

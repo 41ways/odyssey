@@ -20,6 +20,8 @@ import { rollChoices, newStats, newlyUnlocked, TIERS, UPGRADES } from './player/
 import { KIT, kitProgress } from './player/gear.js'
 import { Run } from './stage/run.js'
 import { RELICS } from './stage/stages.js'
+import { RelicScreen } from './ui/relic.js'
+import { startUnderworldIntro } from './stage/underworld.js'
 import { models } from './render/models.js'
 import { preloadCharacter } from './render/character.js'
 import { rand } from './core/math.js'
@@ -45,6 +47,9 @@ class Game {
     this.hud.setUpgradePool([...UPGRADES, ...RELICS])
     this.levelUp = new LevelUp(uiRoot)
     this.equipCard = new EquipCard(uiRoot)
+    this.relicScreen = new RelicScreen(uiRoot)
+    this.uiRoot = uiRoot
+    this.cutscene = null
     this.equipFx = null
 
     this.enemies = []
@@ -174,11 +179,31 @@ class Game {
     return pick
   }
 
+  /** 저승으로 걸어 들어간다. 끝나면 유물 화면이 열린다. */
+  playCutscene(make) {
+    return new Promise(resolve => {
+      this.#freeze()
+      this.cutscene = { run: make(this), done: resolve }
+    })
+  }
+
+  #driveCutscene(dt) {
+    const c = this.cutscene
+    if (!c) return
+    if (c.run.tick(dt)) {
+      c.run.dispose()
+      this.cutscene = null
+      c.done()
+    }
+  }
+
   async chooseRelic(relics) {
-    this.#freeze()
-    const pick = await this.levelUp.show({
-      heading: '아가멤논의 그림자', sub: '가져갈 것을 하나 고르라고 했다',
-      choices: relics, tiers: TIERS,
+    await this.playCutscene(startUnderworldIntro)
+    const pick = await this.relicScreen.show({
+      name: '아가멤논', title: '뮈케네의 왕이었던 것',
+      said: '나는 내 집 문턱에서 죽었다. <em>스무 해를 싸우고</em> 돌아가 아내의 손에.<br>'
+        + '너도 돌아갈 셈이냐. 그렇다면 <em>하나만 가져가라</em> — 들고 갈 수 있는 건 하나뿐이다.',
+      relics,
     })
     pick.apply(this.player.stats)
     this.player.applyStats()
@@ -400,8 +425,11 @@ class Game {
   }
 
   draw() {
-    this.#driveEquipFx(this._real ?? 1 / 60)
+    const real = this._real ?? 1 / 60
+    this.#driveCutscene(real)
+    this.#driveEquipFx(real)
     const cam = this.render3d.camera
+    if (this.cutscene) this.player.updateVisualOnly(real)
     this.player.sync(cam)
     for (const e of this.enemies) e.sync(cam)
     for (const c of this.corpses) { c.sync(cam); c.group.position.y = -Math.min(c.deathT / 0.45, 1) * 1.6 }
@@ -461,9 +489,24 @@ if (import.meta.env?.DEV) {
       const css = [...document.styleSheets].map(s => {
         try { return [...s.cssRules].map(r => r.cssText).join('\n') } catch { return '' }
       }).join('\n')
+      // foreignObject 안에서는 외부 파일을 못 불러온다. 이미지는 data URI 로 바꿔 넣는다.
+      const imgs = [...ui.querySelectorAll('img')]
+      const saved = imgs.map(im => im.getAttribute('src'))
+      await Promise.all(imgs.map(async im => {
+        const src = im.getAttribute('src')
+        if (!src || src.startsWith('data:')) return
+        try {
+          const blob = await (await fetch(src)).blob()
+          im.setAttribute('src', await new Promise(ok => {
+            const fr = new FileReader(); fr.onload = () => ok(fr.result); fr.readAsDataURL(blob)
+          }))
+        } catch { /* 못 가져오면 그냥 둔다 */ }
+      }))
+
       // outerHTML 은 <br> 처럼 안 닫힌 태그를 그대로 뱉어서 XML 파서가 거부한다.
       // XMLSerializer 는 XML 로 맞춰 준다.
       const body = new XMLSerializer().serializeToString(ui)
+      imgs.forEach((im, i) => { if (saved[i]) im.setAttribute('src', saved[i]) })
       // 캡처에서만 빼는 것들:
       //  - backdrop-filter 는 foreignObject 안에서 화면 전체를 뭉갠다
       //  - animation 은 정지 스냅샷에서 0% 키프레임(대개 opacity:0)으로 굳어 버린다
