@@ -139,7 +139,10 @@ export class Run {
     this.boss = b
 
     // 만나는 장면. 체력바는 이 뒤에 붙여야 이름이 두 번 나오지 않는다
-    await g.cinema({ title: b.cfg.name, sub: b.cfg.title ?? '', at: b.pos, zoom: 0.5, hold: 2.3 })
+    await g.cinema({
+      title: b.cfg.name, sub: b.cfg.title ?? '', at: b.pos, zoom: 0.5, hold: 2.6,
+      face: `/img/boss/${b.cfg.id}.webp`,
+    })
     g.hud.setBoss(b)
     if (cfg.intro) g.hud.banner(cfg.name ?? this.stage.name, cfg.intro, 2.4)
   }

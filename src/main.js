@@ -282,8 +282,9 @@ class Game {
    * @param o.at     카메라가 볼 자리 {x, z}. 없으면 플레이어를 본다
    * @param o.zoom   0~1. 클수록 바짝
    * @param o.hold   글자를 띄워 두는 시간(초)
+   * @param o.face   초상 그림 주소. 없거나 못 불러오면 글자만 뜬다
    */
-  async cinema({ title, sub = '', at = null, zoom = 0.45, hold = 2.2, lead = 0.7 } = {}) {
+  async cinema({ title, sub = '', at = null, zoom = 0.45, hold = 2.2, lead = 0.7, face = null } = {}) {
     const box = this._cinema ??= (() => {
       // 모양은 <style> 로 뺀다. 인라인 style 에 뇌문 data URI 를 넣으면
       // 그 안의 날것 <svg 때문에 화면 캡처용 XML 직렬화가 통째로 깨진다.
@@ -299,6 +300,20 @@ class Game {
   opacity:0; transform:translateY(10px);
   transition:opacity .7s ease, transform .9s cubic-bezier(.2,.8,.3,1); }
 #cinema.say .cn-card { opacity:1; transform:none; }
+
+/* 초상 — 화면 한쪽에 세우고 가장자리는 지운다.
+   잘라 낸 컷을 쓰면 테두리가 칼자국처럼 남는다. 네 변을 흐리게 지우면
+   배경이 무엇이든 무대 어둠에 그대로 녹는다. */
+#cinema .cn-face { position:absolute; right:6vw; top:50%; width:min(29vw, 380px);
+  aspect-ratio:3/4; transform:translateY(-46%) scale(1.04); opacity:0;
+  background-size:cover; background-position:center top;
+  -webkit-mask-image:radial-gradient(ellipse 62% 58% at 50% 40%, #000 22%, rgba(0,0,0,.55) 62%, transparent 86%);
+  mask-image:radial-gradient(ellipse 62% 58% at 50% 40%, #000 22%, rgba(0,0,0,.55) 62%, transparent 86%);
+  transition:opacity 1.1s ease, transform 2.6s cubic-bezier(.2,.8,.3,1); }
+#cinema.on .cn-face { opacity:1; transform:translateY(-46%) scale(1); }
+#cinema .cn-face.none { display:none; }
+@media (max-width: 860px) { #cinema .cn-face { right:50%; transform:translate(50%,-46%); width:62vw; }
+  #cinema.on .cn-face { transform:translate(50%,-46%) scale(1); } }
 #cinema .cn-rule { height:13px; width:min(420px,64vw); margin:0 auto 20px;
   background-image:${meanderURI()}; background-repeat:repeat-x;
   background-position:center; opacity:.5; }
@@ -314,6 +329,7 @@ class Game {
       d.innerHTML = `
         <div class="cn-bar cn-top"></div>
         <div class="cn-bar cn-bot"></div>
+        <div class="cn-face none"></div>
         <div class="cn-card">
           <div class="cn-rule"></div>
           <div class="cn-title"></div>
@@ -325,6 +341,24 @@ class Game {
 
     box.querySelector('.cn-title').textContent = title ?? ''
     box.querySelector('.cn-sub').textContent = sub ?? ''
+
+    // 초상은 받아지고 나서야 켠다. 없는 파일이면 글자만 뜨고 아무 일도 없다.
+    const faceEl = box.querySelector('.cn-face')
+    faceEl.classList.add('none')
+    faceEl.style.backgroundImage = ''
+    if (face) {
+      await new Promise(done => {
+        const probe = new Image()
+        probe.onload = () => {
+          faceEl.style.backgroundImage = `url("${face}")`
+          faceEl.classList.remove('none')
+          done()
+        }
+        probe.onerror = () => done()
+        probe.src = face
+        setTimeout(done, 1200)        // 늦게 오면 그냥 글자만 간다
+      })
+    }
 
     this.#freeze()
     this.settle = null                 // 판이 열리는 몸풀기와 카메라를 두고 다투지 않게
