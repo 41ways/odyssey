@@ -160,6 +160,24 @@ function cyclopsEye(rig) {
    돌이라는 게 재질로만 읽히면 안 된다. 움직임도 돌이어야 한다 —
    물결치는 진폭을 살로 된 것의 절반쯤으로 줄이고, 마디 수를 적게 잡아
    관절이 뚝뚝 꺾이게 한다. 매끄럽게 휘면 그냥 초록 뱀이 회색이 된 것뿐이다. */
+/**
+ * 스킬라 — 절벽에서 뻗는 여섯 머리.
+ *
+ * 전에는 원통 마디 다섯을 이어 만든 관이었다 (tentacle() 헬퍼). 그건 돌로도
+ * 살로도 안 보이고, 무엇보다 **제 동작이 없었다** — 사인파로 흔드는 것뿐이라
+ * 내려찍는 순간과 물러나는 순간이 같은 모양이었다.
+ *
+ * 이제 받아 온 촉수 모델을 쓴다. 뼈대 15 마디에 Attack · Idle 클립이 붙어
+ * 있어서, 그 머리가 실제로 때릴 때 때리는 동작을 한다. 파훼가 '회복 구간을
+ * 노리는 것' 이므로 (bosses.js 의 SKYLLA) 때리는 동작과 거둬들이는 동작이
+ * 눈에 보이는 게 규칙의 절반이다 — 안 보이면 언제 때릴지를 못 읽는다.
+ *   Quaternius (CC0), poly.pizza 경유 · CREDITS.md
+ *
+ * 머리 끝에는 돌 뱀 머리를 얹는다. 촉수 끝은 빨판이고, 이 보스는
+ * '여섯 머리의 것' 이라 머리로 읽혀야 한다.
+ *
+ * 모델이 없으면 옛 원통으로 돌아간다. 파일 하나 없다고 보스가 안 나오면 안 된다.
+ */
 function skyllaWall(rig) {
   const root = new THREE.Group()
   const stone = mat('#7d8288', { roughness: 0.97, metalness: 0.02, flatShading: true })
@@ -170,66 +188,87 @@ function skyllaWall(rig) {
   const arms = []
   const SPREAD = [-1.15, -0.72, -0.26, 0.26, 0.72, 1.15]
   for (let i = 0; i < 6; i++) {
-    // 마디가 적고 굵다. 돌은 낭창거리지 않는다.
-    const tt = tentacle({ segs: 5, len: 0.46, r0: 0.19, r1: 0.055, curl: 0.2, material: stone, sides: 6 })
+    const arm = new THREE.Group()
+    const made = models.create('tentacle')
+    let tt = null, tip = null
 
-    // 끝은 돌 뱀 머리. 받아 둔 모델이 있으면 그걸 쓰고,
-    // 없으면 깨진 바위 덩어리로 간다 — 파일 하나 없다고 보스가 안 나오면 안 된다.
-    const head = new THREE.Group()
-    const made = models.create('serpentHead')
     if (made) {
-      made.root.scale.setScalar(0.42)
-      made.root.rotation.x = -Math.PI * 0.5   // 머리가 목 방향(+y)을 보게
-      head.add(made.root)
+      /**
+       * 촉수는 +z 로 뻗는다. 갑판 쪽으로 앞-아래로 숙여 심는다.
+       *
+       * 숫자는 눈으로 고른 게 아니라 끝 뼈(Tentacle15)의 월드 높이를
+       * 재서 골랐다. 0.28 이면 머리가 y 4.1 — 화면 위로 지나가서 위협이
+       * 안 된다. 0.9 면 y 1.2 로 가슴 높이에 온다. 그 사이를 머리마다
+       * 다르게 줘서 (0.62 · 0.75 · 0.88) 높낮이가 섞이게 한다 —
+       * 여섯이 같은 각도로 늘어서면 한 마리에서 난 갈래로 읽힌다.
+       */
+      made.root.rotation.x = 0.62 + (i % 3) * 0.13
+      // 돌로 칠한다. 받아 온 재질은 제 색이 따로 있어서 그대로 두면
+      // 판의 색과 따로 논다.
+      for (const m of made.mats) { m.color?.set?.('#7d8288'); m.roughness = 0.95; m.metalness = 0.03 }
+      arm.add(made.root)
+      // 끝 뼈를 찾아 머리를 매단다. 뼈에 붙이면 동작을 따라 같이 움직인다.
+      made.root.traverse(o => { if (o.isBone && o.name === 'Tentacle15') tip = o })
+    } else {
+      tt = tentacle({ segs: 5, len: 0.46, r0: 0.19, r1: 0.055, curl: 0.2, material: stone, sides: 6 })
+      arm.add(tt.root)
+      tip = tt.tip
+    }
+
+    // 돌 뱀 머리. 받아 둔 모델이 있으면 그걸, 없으면 깨진 바위 덩어리.
+    const head = new THREE.Group()
+    const hm = models.create('serpentHead')
+    if (hm) {
+      hm.root.scale.setScalar(made ? 0.22 : 0.42)
+      hm.root.rotation.x = made ? 0 : -Math.PI * 0.5
+      head.add(hm.root)
     } else {
       const chunk = new THREE.Mesh(new THREE.DodecahedronGeometry(0.17, 0), stone)
       chunk.scale.set(0.9, 0.8, 1.4)
       head.add(chunk)
-      for (let t = 0; t < 5; t++) {
-        const spike = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.12, 4), stone)
-        const a = (t / 5) * Math.PI * 2
-        spike.position.set(Math.sin(a) * 0.1, Math.cos(a) * 0.08, 0.17)
-        spike.rotation.x = -Math.PI * 0.5
-        head.add(spike)
-      }
     }
-    // 갈라진 틈에서 새는 빛 — 살아 있는 돌이라는 표시
     const glow = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), crack)
     glow.position.set(0, 0.02, 0.06)
     head.add(glow)
-    head.position.y = 0.46
-    tt.tip.add(head)
+    if (!made) head.position.y = 0.46
+    tip?.add(head)
 
     // 절벽 폭만큼 벌린다. 좁게 모으면 한 마리에서 난 뿔처럼 보이고,
     // 벌려야 벽 여기저기서 따로 뻗어 나온 것으로 읽힌다.
-    // (attachTo 는 월드 단위라 여기 값에 보스 키 배수가 한 번 더 곱해진다)
-    tt.root.rotation.z = SPREAD[i] * 0.3
-    // 앞-아래로 숙인다. 위로 서면 갑판에 닿지 않고 화면 위로만 자란다.
-    tt.root.rotation.x = -1.05 - Math.abs(SPREAD[i]) * 0.1
-    tt.root.position.set(SPREAD[i] * 3.6, -0.5, 0)
-    root.add(tt.root)
-    arms.push({ tt, head, glow, phase: i * 1.3, spread: SPREAD[i], alive: 1 })
+    arm.rotation.z = SPREAD[i] * 0.3
+    if (!made) arm.rotation.x = -1.05 - Math.abs(SPREAD[i]) * 0.1
+    arm.position.set(SPREAD[i] * 3.6, made ? -0.2 : -0.5, 0)
+    root.add(arm)
+    arms.push({ arm, tt, made, head, glow, phase: i * 1.3, spread: SPREAD[i], alive: 1, striking: 0 })
   }
 
   const mount = rig.attachTo('spine_03', root, { scale: 1, position: [0, 0.1, -0.1] })
   return {
     group: root, mount, arms, necks: arms,     // necks 는 옛 이름 호환
+    /**
+     * @param s.severed 끊긴 머리 수 (Boss.severed.size). 끊긴 만큼 사라진다 —
+     *   파훼의 보상이 눈에 보이는 자리가 여기다.
+     * @param s.striking 지금 때리는 중인 머리 번호(1..6) 또는 0
+     */
     update(dt, s) {
-      // 2페에는 하나만 남는다 — 나머지는 부서져 내린다
-      const keep = s.phase >= 1 ? 1 : 6
+      // 끊긴 머리는 돌아오지 않는다. 옛 규칙(2페엔 하나만)은 severed 가
+      // 없을 때만 쓴다 — 페이즈로 숨기면 끊은 것과 구분이 안 된다.
+      const gone = s.severed ?? (s.phase >= 1 ? 5 : 0)
+      const keep = Math.max(1, 6 - gone)
       this.arms.forEach((a, i) => {
         const want = i < keep ? 1 : 0
         a.alive += (want - a.alive) * Math.min(1, dt * 2.2)
-        a.tt.root.scale.setScalar(Math.max(0.001, a.alive))
-        a.tt.root.visible = a.alive > 0.02
-        // 돌은 살보다 덜 흔들린다
-        waveTentacle(s.t, a.tt, { speed: 1.5, amp: 0.06, lag: 0.5, phase: a.phase })
-        a.glow.material.emissiveIntensity = 0.7 + Math.sin(s.t * 3 + a.phase) * 0.35
-        // 남은 하나는 앞으로 곧게 선다
-        if (keep === 1 && i === 0) {
-          a.tt.root.rotation.z += (0 - a.tt.root.rotation.z) * Math.min(1, dt * 2)
-          a.tt.root.position.x += (0 - a.tt.root.position.x) * Math.min(1, dt * 2)
+        a.arm.scale.setScalar(Math.max(0.001, a.alive))
+        a.arm.visible = a.alive > 0.02
+        if (a.made) {
+          // 때리는 머리만 Attack, 나머지는 Idle. 이게 파훼의 읽을 거리다.
+          const hit = s.striking === i + 1
+          if (hit !== a.striking) { a.made.pose({ run: 0, attack: hit, draw: null, roll: 0 }, dt); a.striking = hit }
+          a.made.mixer?.update(dt)
+        } else {
+          waveTentacle(s.t, a.tt, { speed: 1.5, amp: 0.06, lag: 0.5, phase: a.phase })
         }
+        a.glow.material.emissiveIntensity = 0.7 + Math.sin(s.t * 3 + a.phase) * 0.35
       })
     },
   }
@@ -279,25 +318,48 @@ function charybdisVortex(rig) {
     swirls.push({ m: s, spin: (1 + i * 0.55) * (i % 2 ? -1 : 1) })
   }
 
-  // 팔 여섯. 소용돌이 가장자리에서 올라와 안쪽으로 굽는다.
+  /**
+   * 팔 여섯. 소용돌이 가장자리에서 올라와 안쪽으로 굽는다.
+   *
+   * 깔때기와 물살 고리와 눈은 코드가 맞다 — 소용돌이는 받아 올 수 있는
+   * 메시가 아니고, 저 셋은 모양이 아니라 **움직임**이다. 그런데 팔은
+   * 모양이라서, 원통 마디를 이어 붙인 것과 진짜 촉수가 확연히 다르다.
+   * 그래서 팔만 받아 온 모델로 간다 (스킬라와 같은 파일을 돌려 쓴다).
+   *   Quaternius (CC0), poly.pizza 경유 · CREDITS.md
+   *
+   * 모델이 없으면 원통으로 돌아간다.
+   */
   const arms = []
   for (let i = 0; i < 6; i++) {
     const a = (i / 6) * Math.PI * 2 + 0.3
-    const tt = tentacle({ segs: 8, len: 0.44, r0: 0.17, r1: 0.025, curl: 0.19, material: flesh, sides: 8 })
-    // 빨판 — 안쪽 면에만
-    for (let k = 1; k < tt.joints.length; k += 2) {
-      const cup = new THREE.Mesh(new THREE.CircleGeometry(0.045, 8), new THREE.MeshStandardMaterial({
-        color: '#cfe4f2', roughness: 0.35, side: THREE.DoubleSide,
-      }))
-      cup.position.set(0, 0.2, 0.1 - k * 0.008)
-      cup.rotation.x = -0.4
-      tt.joints[k].add(cup)
+    const holder = new THREE.Group()
+    const made = models.create('tentacle')
+    let tt = null
+    if (made) {
+      // 촉수는 +z 로 뻗는다. 바깥에서 안쪽-위로 굽게 세운다.
+      made.root.rotation.x = -0.55
+      // 살색으로 칠한다. 돌인 스킬라와 같은 파일이라 색으로 갈라야 한다.
+      for (const m of made.mats) {
+        m.color?.set?.('#4a7fa8'); m.roughness = 0.45; m.metalness = 0.05
+      }
+      holder.add(made.root)
+    } else {
+      tt = tentacle({ segs: 8, len: 0.44, r0: 0.17, r1: 0.025, curl: 0.19, material: flesh, sides: 8 })
+      for (let k = 1; k < tt.joints.length; k += 2) {
+        const cup = new THREE.Mesh(new THREE.CircleGeometry(0.045, 8), new THREE.MeshStandardMaterial({
+          color: '#cfe4f2', roughness: 0.35, side: THREE.DoubleSide,
+        }))
+        cup.position.set(0, 0.2, 0.1 - k * 0.008)
+        cup.rotation.x = -0.4
+        tt.joints[k].add(cup)
+      }
+      holder.add(tt.root)
     }
-    tt.root.position.set(Math.sin(a) * 1.9, -0.3, Math.cos(a) * 1.9)
-    tt.root.rotation.y = a
-    tt.root.rotation.x = -0.42
-    root.add(tt.root)
-    arms.push({ tt, phase: i * 1.05, a })
+    holder.position.set(Math.sin(a) * 1.9, -0.3, Math.cos(a) * 1.9)
+    holder.rotation.y = a
+    if (!made) holder.rotation.x = -0.42
+    root.add(holder)
+    arms.push({ holder, tt, made, phase: i * 1.05, a })
   }
 
   // 가운데 눈. 깔때기 바닥에서 올려다본다.
@@ -341,10 +403,19 @@ function charybdisVortex(rig) {
       const want = s.sucking ? 1 : 0.12
       this.open += (want - this.open) * Math.min(1, dt * 5)
       for (const a of this.arms) {
-        waveTentacle(s.t, a.tt, {
-          speed: 1.9 * fast, amp: 0.1, lag: 0.48, phase: a.phase,
-          curl: 0.19 + this.open * 0.14,
-        })
+        if (a.made) {
+          // 빨아들이는 동안만 Attack. 그때가 이 보스의 위험 구간이고,
+          // 팔이 그 순간에만 크게 움직여야 '지금 빨아들인다' 가 읽힌다.
+          a.made.pose({ run: 0, attack: s.sucking, draw: null, roll: 0 }, dt)
+          // 오므리는 만큼 안쪽으로 기울인다 — 모델은 굽지 않으니 축을 돌린다
+          a.holder.rotation.x = -0.55 - this.open * 0.35
+          a.made.mixer?.update(dt)
+        } else {
+          waveTentacle(s.t, a.tt, {
+            speed: 1.9 * fast, amp: 0.1, lag: 0.48, phase: a.phase,
+            curl: 0.19 + this.open * 0.14,
+          })
+        }
       }
 
       // 빨아들이는 동안 눈이 열린다 — 여기가 치라는 신호다

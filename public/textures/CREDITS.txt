@@ -6,3 +6,23 @@
 - `ship.webp` — "dark_planks" (Poly Haven, CC0) — https://polyhaven.com/a/dark_planks
 - `ithaca.webp` — "marble_01" (Poly Haven, CC0) — https://polyhaven.com/a/marble_01
 - `shore.webp` — "coast_sand_04" (Poly Haven, CC0) — https://polyhaven.com/a/coast_sand_04
+
+── 노멀맵 · 거칠기맵 (ambientCG, CC0) ──
+색(map)은 위의 Poly Haven 것을 쓰고, 요철(-n)과 거칠기(-r)는 ambientCG 에서
+받았다. 색과 노멀의 출처가 다른 것은 의도다 — 판마다 이미 정해 둔 색을
+바꾸지 않고 요철만 얹으려면 이렇게 된다. 결이 완전히 같지는 않지만,
+비스듬히 내려보는 쿼터뷰에서는 요철의 방향이 결보다 크게 작동한다.
+
+- `shore-n/-r.webp`      — Ground054     (CC0) https://ambientcg.com/view?id=Ground054
+- `ismaros-n/-r.webp`    — Ground111     (CC0) https://ambientcg.com/view?id=Ground111
+- `telepylos-n/-r.webp`  — Snow015       (CC0) https://ambientcg.com/view?id=Snow015
+- `aiaia-n/-r.webp`      — Ground078     (CC0) https://ambientcg.com/view?id=Ground078
+- `cyclops-n/-r.webp`    — Rock035       (CC0) https://ambientcg.com/view?id=Rock035
+- `underworld-n/-r.webp` — Ground068     (CC0) https://ambientcg.com/view?id=Ground068
+- `ship-n/-r.webp`       — Planks009     (CC0) https://ambientcg.com/view?id=Planks009
+- `ithaca-n/-r.webp`     — PavingStones136 (CC0) https://ambientcg.com/view?id=PavingStones136
+
+ship 과 ithaca 는 처음에 WoodFloor064 · Tiles074 로 받았다가 바꿨다.
+둘 다 노멀이 사실상 평평해서(채널 표준편차 0.6 · 0.8) 깔아도 아무 일이
+일어나지 않았다 — 매끈한 재질은 노멀맵이 없는 것과 같다. 홈이 있는
+널판과 줄눈이 있는 포석으로 갈았다 (19.3 · 9.2).

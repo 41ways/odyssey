@@ -778,6 +778,12 @@ export class Boss extends Actor {
       blinded: !!this.weakPointDone,
       acting: this.action.active,
       sucking: this.action.active && /pull|suck/.test(this.action.def?.id ?? ''),
+      // 끊긴 머리 수와 지금 때리는 머리 번호. 스킬라의 몸이 이걸 보고
+      // 끊긴 팔을 지우고 때리는 팔만 Attack 을 돌린다 (bossparts.js).
+      // 파훼의 보상이 눈에 보이는 자리가 여기다.
+      severed: this.severed?.size ?? 0,
+      striking: this.action.active && this.action.phase !== 'recovery'
+        ? (this.action.def?.head ?? 0) : 0,
     })
   }
 

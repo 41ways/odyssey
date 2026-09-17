@@ -39,7 +39,13 @@ Sketchfab "Free Standard" 는 표기 의무는 없지만 모델 단독 재배포
 | 모델 | 작가 | 쓰는 곳 | 출처 |
 |---|---|---|---|
 | Cyclops Rig | DM-913 | 폴리페모스 | https://sketchfab.com/3d-models/cyclops-rig-e5cc86878c314f5bae6d7268bb7541d9 |
-| Yamata no Orochi | tran95 | 스킬라 (여섯 머리의 대역 — 원본은 여덟) | https://sketchfab.com/3d-models/yamata-no-orochi-8f4c0e2c632e401eb5c5381acc3ce789 |
+| Yamata no Orochi | tran95 | ~~스킬라~~ **지금은 안 쓴다** (아래 참고) | https://sketchfab.com/3d-models/yamata-no-orochi-8f4c0e2c632e401eb5c5381acc3ce789 |
+
+> 오로치는 스킬라의 몸이었다가 빠졌다. 정적 메시라 목이 안 움직였고
+> (내려찍는 보스인데 몸이 안 움직이면 언제 때릴지를 못 읽는다), 머리가
+> 여덟이라 '여섯 머리의 것' 과 안 맞았다. 지금은 애니메이션이 붙은
+> 촉수 여섯으로 몸을 짠다 (아래 Quaternius). 파일은 지우지 않고 남겨 둔다 —
+> 움직이는 뱀이 필요해지면 다시 볼 자리다.
 
 CC-BY 는 작가 표기가 조건이다. 배포 시 이 표를 크레딧 화면에도 싣는다.
 
@@ -55,3 +61,21 @@ CC-BY 는 작가 표기가 조건이다. 배포 시 이 표를 크레딧 화면�
 |---|---|---|
 | serpent-head | tripo_3d (텍스트→3D) | 스킬라 코드 촉수 끝 (오로치 모델이 없을 때의 대체) |
 | agamemnon-hand | nano_banana_pro | 저승 손 연출 |
+
+## Quaternius (CC0) — poly.pizza 경유
+
+| 모델 | 쓰는 곳 | 출처 |
+|---|---|---|
+| Tentacle | **스킬라의 여섯 머리**(돌색) · **카리브디스의 여섯 팔**(살색) | https://poly.pizza/m/BR1vpIvvvv |
+
+한 파일이 두 보스의 몸을 다 맡는다. 뼈대 15 마디에 Attack · Idle 클립이
+붙어 있어서, 전에 코드로 만들던 원통 마디와 달리 **때리는 순간과 거둬들이는
+순간이 다르게 보인다.** 스킬라의 파훼가 '회복 구간을 노리기' 인 이상
+그게 규칙의 절반이다. 색만 갈라 쓴다 — 돌(#7d8288)과 살(#4a7fa8).
+
+CC0 라 표기 의무는 없지만 적어 둔다. 어디서 왔는지 모르는 파일이
+저장소에 있는 게 더 나쁘다.
+
+## ambientCG (CC0)
+
+판 바닥의 노멀맵·거칠기맵 여덟 벌. 목록은 `public/textures/CREDITS.txt`.

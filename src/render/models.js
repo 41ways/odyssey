@@ -35,6 +35,16 @@ export const MANIFEST = {
   orochi: { url: '/models/orochi.glb', height: 5.5 },
   // 절벽 바위. 스킬라 절벽과 동굴 판에 뿌린다.
   cliffRock: { url: '/models/cliff-rock.glb', height: 2.2 },
+  /**
+   * 촉수 — 뼈대 21 마디에 Attack · Attack2 · Idle · Poke 네 클립.
+   * Quaternius (CC0), poly.pizza 경유. 이것 하나가 스킬라의 여섯 머리와
+   * 카리브디스의 촉수를 **둘 다** 대신한다. 전에는 둘 다 코드로 만든
+   * 원통 마디였다 (bossparts.js 의 tentacle()).
+   *
+   * +z 로 누운 막대라 z 축으로 키를 맞추고(axis), 뿌리를 원점에 두려고
+   * 중심 맞추기를 끈다(center). 뿌리가 원점이어야 벽에 심을 수 있다.
+   */
+  tentacle: { url: '/models/tentacle.glb', scale: 0.165, center: false },
 }
 
 /** 클립 이름이 제각각이라 느슨하게 맞춘다. 앞에 있는 후보일수록 우선. */
@@ -127,14 +137,41 @@ class Models {
     const box = measure()
     const size = new THREE.Vector3()
     box.getSize(size)
-    const s = size.y > 1e-4 ? cfg.height / size.y : 1
+    /**
+     * 어느 축으로 키를 맞출 것인가.
+     *
+     * 기본은 y 다 — 사람이든 짐승이든 서 있는 것은 키로 잰다. 그런데
+     * **누워 있는 것**은 y 가 거의 0 이다. 촉수는 +z 로 뻗은 막대라
+     * y 두께가 0.021 밖에 안 되고, 그걸로 키를 맞추면 배수가 47 배가 되어
+     * 촉수 하나가 판을 덮는다. 그런 모델은 뻗은 축으로 재야 한다.
+     */
+    const axis = cfg.axis ?? 'y'
+    const along = size[axis]
+    /**
+     * `scale` 을 박아 두면 자동 맞추기를 건너뛴다.
+     *
+     * 자동 맞추기는 **바인드 포즈**를 잰다. 대개는 그게 맞는데, 받아 온
+     * 파일 중에는 바인드 포즈와 애니메이션 트랙의 단위가 어긋난 게 있다 —
+     * 촉수 모델이 그랬다. 바인드 포즈는 0.197 인데 애니메이션이 뼈를
+     * 20 단위 밖으로 보낸다 (FBX 의 센티미터 단위가 트랙에만 남은 것이다).
+     * 그러면 바인드 포즈로 잰 배수가 100 배쯤 어긋나서, 가만히 있을 때는
+     * 맞고 움직이기 시작하면 촉수 하나가 투기장을 덮는다.
+     *
+     * 이럴 때는 재지 말고 숫자를 박는 게 맞다. 재는 것이 틀린 걸
+     * 더 정교하게 재서 고칠 수는 없다.
+     */
+    const s = cfg.scale ?? (along > 1e-4 ? cfg.height / along : 1)
     model.scale.setScalar(s)
 
-    // 발을 바닥에, 중심을 원점에
+    // 발을 바닥에, 중심을 원점에.
+    // center: false 면 원점을 그대로 둔다 — 촉수처럼 **뿌리가 원점이어야**
+    // 하는 것은 중심을 맞추면 뿌리가 허공으로 간다.
     const box2 = measure()
-    model.position.y -= box2.min.y
-    model.position.x -= (box2.min.x + box2.max.x) / 2
-    model.position.z -= (box2.min.z + box2.max.z) / 2
+    if (cfg.center !== false) {
+      model.position.y -= box2.min.y
+      model.position.x -= (box2.min.x + box2.max.x) / 2
+      model.position.z -= (box2.min.z + box2.max.z) / 2
+    }
 
     if (cfg.rotationY) model.rotation.y = cfg.rotationY
     const baseY = model.position.y

@@ -422,7 +422,53 @@ export class World {
    * 잡석을 다시 뿌린다. 판마다 크기와 밀도가 다르다 —
    * 동굴 바닥은 크고 촘촘해야 울퉁불퉁해 보이고, 해안은 작고 성겨야 한다.
    */
+  /**
+   * 잡석의 모양을 받아 온 바위로 바꾼다.
+   *
+   * 원래는 DodecahedronGeometry(1, 0) — 면 열두 개짜리 다면체였다. 한 번의
+   * 드로우콜로 110 개를 그릴 수 있어서 싼데, **열두 면이라 돌로 안 보인다.**
+   * 어느 판을 찍어도 화면에 흰 주사위가 흩어져 있는 게 제일 먼저 눈에 들어왔다.
+   *
+   * 그런데 비싼 걸로 바꿀 필요는 없었다. 받아 온 바위가 516 삼각형이라
+   * InstancedMesh 의 **지오메트리만 갈아 끼우면** 드로우콜은 그대로 하나고
+   * 모양만 진짜가 된다. 110 × 516 = 5.7 만 삼각형 — 감당된다.
+   *
+   * 모델이 없으면 다면체로 남는다. 한 번만 갈아 끼우고 그 뒤로는 안 건드린다.
+   */
+  #useRockModel() {
+    if (this._rockSwapped) return
+    const made = models.create('cliffRock')
+    if (!made) { this._rockSwapped = 'none'; return }
+    let geo = null
+    made.root.traverse(o => { if (o.isMesh && o.geometry && !geo) geo = o.geometry })
+    if (!geo) { this._rockSwapped = 'none'; return }
+    /**
+     * 크기를 **가장 긴 변이 2** 가 되게 맞춘다.
+     *
+     * 처음에는 높이를 1 로 맞췄는데, 그러면 갈아 끼우는 순간 잡석이 통째로
+     * 작아진다 — 원래 쓰던 DodecahedronGeometry(1, 0) 은 반지름이 1 이라
+     * 지름이 2 였고, 흩뿌리는 쪽의 배수(0.2~0.65)가 그 2 를 기준으로
+     * 맞춰져 있었다. 받아 온 바위는 납작해서 높이로 맞추면 더 줄어들어,
+     * 바위가 아니라 부스러기가 깔린다.
+     *
+     * 잡석은 장식이 아니라 **이동 속도를 눈으로 가늠하는 기준점**이다.
+     * 너무 작으면 지나가는 게 안 보여서 그 값을 못 한다.
+     */
+    geo = geo.clone()
+    geo.computeBoundingBox()
+    const bb = geo.boundingBox
+    const span = Math.max(
+      bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z, 1e-4)
+    geo.translate(-(bb.min.x + bb.max.x) / 2, -bb.min.y, -(bb.min.z + bb.max.z) / 2)
+    geo.scale(2 / span, 2 / span, 2 / span)
+    geo.computeVertexNormals()
+    this.rocks.geometry.dispose()
+    this.rocks.geometry = geo
+    this._rockSwapped = 'model'
+  }
+
   #scatterRocks([lo, hi], count) {
+    this.#useRockModel()
     const rocks = this.rocks
     const R = this.arenaRadius
     const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler()
@@ -497,23 +543,54 @@ export class World {
     this.vignette.darkness = e.vignette ?? 0.55
   }
 
+  /**
+   * 판 바닥.
+   *
+   * 색(map)만 깔면 바닥이 납작하다. 빛이 스쳐도 돌이 돌처럼 안 보인다 —
+   * 사진을 바닥에 눕혀 놓은 것과 같아서, 쿼터뷰에서는 그게 바로 보인다.
+   * 그래서 **노멀맵과 거칠기맵을 같이** 깐다. 노멀이 요철을 만들고
+   * 거칠기가 어디가 젖었고 어디가 말랐는지를 만든다.
+   *
+   * 셋은 같은 이름 규칙으로 찾는다 — `<판>.webp`, `<판>-n.webp`, `<판>-r.webp`.
+   * 노멀·거칠기가 없는 판은 색만 깔고 지나간다 (없다고 판이 안 열리면 안 된다).
+   * 출처는 ambientCG 의 CC0 자료다 (public/textures/CREDITS.txt).
+   *
+   * 노멀은 **NormalGL** 을 쓴다. DX 쪽은 초록 채널이 뒤집혀 있어서 그대로
+   * 깔면 요철이 반대로 파인다 — 빛이 위에서 오는데 그림자가 위에 생긴다.
+   */
   async #setGround(name, repeat) {
-    let tex = this._texCache.get(name)
-    if (!tex) {
+    const load = async (suffix, srgb) => {
+      const key = name + suffix
+      if (this._texCache.has(key)) return this._texCache.get(key)
       try {
-        tex = await new THREE.TextureLoader().loadAsync(`/textures/${name}.webp`)
-        tex.wrapS = tex.wrapT = THREE.RepeatWrapping
-        tex.colorSpace = THREE.SRGBColorSpace
-        tex.anisotropy = Math.min(8, this.renderer.capabilities.getMaxAnisotropy())
-        this._texCache.set(name, tex)
+        const t = await new THREE.TextureLoader().loadAsync(`/textures/${name}${suffix}.webp`)
+        t.wrapS = t.wrapT = THREE.RepeatWrapping
+        if (srgb) t.colorSpace = THREE.SRGBColorSpace
+        t.anisotropy = Math.min(8, this.renderer.capabilities.getMaxAnisotropy())
+        this._texCache.set(key, t)
+        return t
       } catch {
-        console.info(`[world] 바닥 텍스처 없음: ${name} — 절차 생성으로 간다`)
-        return
+        this._texCache.set(key, null)     // 한 번 없으면 다시 찾지 않는다
+        return null
       }
     }
-    tex.repeat.set(repeat, repeat)
-    this.ground.material.map = tex
-    this.ground.material.needsUpdate = true
+
+    const [tex, nrm, rgh] = await Promise.all([load('', true), load('-n', false), load('-r', false)])
+    if (!tex) {
+      console.info(`[world] 바닥 텍스처 없음: ${name} — 절차 생성으로 간다`)
+      return
+    }
+    const m = this.ground.material
+    for (const t of [tex, nrm, rgh]) if (t) t.repeat.set(repeat, repeat)
+    m.map = tex
+    m.normalMap = nrm ?? null
+    m.roughnessMap = rgh ?? null
+    // 노멀 세기. 1 로 두면 요철이 과해서 바닥이 자갈밭으로 읽힌다 —
+    // 쿼터뷰는 바닥을 비스듬히 보므로 각도가 과장돼 보인다.
+    if (nrm) m.normalScale.set(0.7, 0.7)
+    // 거칠기맵이 있으면 스칼라는 1 이어야 한다 (곱해지기 때문).
+    if (rgh) m.roughness = 1
+    m.needsUpdate = true
   }
 
   /**
