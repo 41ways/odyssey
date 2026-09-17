@@ -189,12 +189,33 @@ export const lob = cfg => base(cfg,
  * 빨아들이기. 시전 동안 플레이어를 가운데로 끈다.
  * 걸어서는 못 벗어나고 구르기로 끊어야 한다. 끝나면 잠잠해지고, 그때가 근접 창이다.
  */
+/**
+ * 빨아들이기. 소용돌이.
+ *
+ * 피해는 눈 안에 있는 매 순간 조금씩 들어간다 (Boss.think 에서 처리).
+ * 여기서는 끝나는 순간 — 물이 잠잠해지며 뱉어 내는 것만 맡는다.
+ * 순간이동처럼 튕기지 않게 위치를 옮기지 않고 속도만 준다.
+ */
 export const suck = cfg => base(cfg,
   (b, run) => ({ x: b.pos.x, z: b.pos.z, facing: 0, range: cfg.radius ?? 15, inner: cfg.eye ?? 2.2, halfAngle: Math.PI, color: cfg.color ?? '#6fa8ff' }),
   (b, run) => {
     b.fx.ring(b.pos.x, b.pos.z, { color: '#8fd6ff', radius: (cfg.radius ?? 15) * 0.5, life: 0.5 })
     const p = b.world.player
-    if (circleHit(b.pos.x, b.pos.z, cfg.eye ?? 2.2, p)) landed(b, run, cfg, b.pos.x, b.pos.z)
+    if (!circleHit(b.pos.x, b.pos.z, (cfg.eye ?? 2.2) * 1.2, p)) return
+    // 뱉어 낸다 — 밀어내는 힘만 주고 자리는 안 건드린다
+    const dx = p.pos.x - b.pos.x, dz = p.pos.z - b.pos.z
+    const d = Math.hypot(dx, dz) || 1
+    p.vel.x += (dx / d) * 16
+    p.vel.z += (dz / d) * 16
+    p.hurt(cfg.damage * 0.6, {
+      from: b.pos, knockback: 0, hitstop: 0.12,
+      stagger: cfg.stagger ?? 0.35, color: '#8fd6ff',
+    })
+    b.fx.shake(0.7)
+    b.world.particles?.burst({
+      x: p.pos.x, y: 0.7, z: p.pos.z, count: 26,
+      color: '#bfe4ff', speed: 12, size: 0.2, life: 0.7, gravity: 6, up: 1.2,
+    })
   })
 
 /**
@@ -341,6 +362,24 @@ export class Boss extends Actor {
         p.pos.x += (dx / d0) * force * dt
         p.pos.z += (dz / d0) * force * dt
       }
+
+      // 눈 안에 있는 동안은 계속 깎인다.
+      // 전에는 기술이 끝날 때 한 번에 들어갔다 — 끌려 들어간 순간과 아픈 순간이
+      // 어긋나서, 맞는 이유를 알 수가 없었다.
+      const eye = run.def.eye ?? 0
+      if (eye && run.phase === 'active' && d0 < eye && p.invuln <= 0 && p.rolling <= 0) {
+        this._eyeT = (this._eyeT ?? 0) - dt
+        if (this._eyeT <= 0) {
+          this._eyeT = 0.34
+          p.hurt((run.def.damage ?? 20) * 0.34, {
+            from: this.pos, knockback: 0, hitstop: 0.03, color: '#8fd6ff',
+          })
+          this.world.particles?.burst({
+            x: p.pos.x, y: 0.8, z: p.pos.z, count: 8,
+            color: '#8fd6ff', speed: 5, size: 0.14, life: 0.4, gravity: 2,
+          })
+        }
+      } else this._eyeT = 0
     }
 
     if (this.groggy > 0) { this.groggy -= dt; return }

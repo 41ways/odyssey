@@ -517,6 +517,7 @@ class Game {
       heading: stage.name, sub: stage.intro,
       choices: stage.options.map(o => ({ ...o, name: o.label, desc: o.line, tag: '해협', tier: 0 })),
       tiers: TIERS,
+      sheer: true,        // 배 위에서 고르는 것이 보여야 한다
     })
     this.#thaw()
     return pick

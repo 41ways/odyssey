@@ -6,6 +6,13 @@ const CSS = `
   background:
     radial-gradient(ellipse 95% 65% at 50% 42%, rgba(232,200,132,.12), transparent 66%),
     linear-gradient(180deg, rgba(10,9,7,.82), rgba(5,4,3,.95));
+}
+/* 해협의 갈림길처럼 '어디서 고르는지' 가 중요한 선택은 바탕을 얇게 한다.
+   화면을 다 덮으면 배 위에서 고르는 건지 어디서 고르는 건지 알 수가 없다. */
+#levelup.sheer {
+  background:
+    radial-gradient(ellipse 70% 52% at 50% 46%, rgba(10,16,26,.30), rgba(4,7,12,.72) 100%),
+    linear-gradient(180deg, rgba(6,10,16,.42), rgba(4,6,10,.60));
   backdrop-filter:blur(2.5px); }
 #levelup.on { display:grid; pointer-events:auto; cursor:default; }
 #levelup .wrap { text-align:center; animation:lvlIn .32s cubic-bezier(.2,.8,.3,1); }
@@ -103,7 +110,8 @@ export class LevelUp {
   get open() { return this.el.classList.contains('on') }
 
   /** 고를 때까지 기다린다. 숫자 키로도 고를 수 있다. */
-  show({ heading, sub, choices, unlocked = [], tiers = [] }) {
+  show({ heading, sub, choices, unlocked = [], tiers = [], sheer = false }) {
+    this.el.classList.toggle('sheer', !!sheer)
     return new Promise(resolve => {
       this._resolve = resolve
       this._choices = choices
