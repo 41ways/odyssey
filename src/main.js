@@ -30,6 +30,7 @@ import { Reel } from './ui/reel.js'
 import { Music } from './core/music.js'
 import { Level, BOSS_XP } from './player/level.js'
 import { Sfx } from './core/sfx.js'
+import { Notice } from './ui/notice.js'
 import { promote, eliteChance } from './enemy/elite.js'
 import { CUT_TROY, CUT_CAVE, CUT_UNDER, CUT_WHIRL, CUT_ITHACA, ALL_CUTS, cutArt } from './stage/cuts.js'
 import { rollBlessings } from './player/blessings.js'
@@ -70,6 +71,7 @@ class Game {
     // 효과음은 파일이 없다 — 잡음과 사인파로 합성한다 (core/sfx.js).
     // 음소거를 음악과 같이 보도록 music 을 물려 준다.
     this.sfx = new Sfx(this.music)
+    this.notice = new Notice(uiRoot)     // 얻은 것이 얻은 것처럼 보이게 (ui/notice.js)
     this.blessed = new Set()
     this.uiRoot = uiRoot
     this.equipFx = null
@@ -267,6 +269,7 @@ class Game {
     this.enemies.length = 0
     this.corpses.length = 0
     this.hazards.length = 0
+    this.notice?.clear()
     this.pickups.clear()
     this.projectiles.clear()
     this.particles.clear()
@@ -332,6 +335,7 @@ class Game {
     if (!up) return
     // 올랐다는 걸 카드보다 먼저 몸으로 알려 준다 — 카드는 0.2 초쯤 뒤에 뜬다
     this.sfx?.level()
+    this.notice?.level(this.level.lv, up > 1 ? `${up} 칸 올랐다` : '')
     const p = this.player
     this.fx.ring(p.pos.x, p.pos.z, { color: '#ffe6b8', radius: 2.6, life: 0.55 })
     this.particles.converge({ x: p.pos.x, y: 1.0, z: p.pos.z, count: 22, radius: 3.2,
@@ -362,8 +366,26 @@ class Game {
     this.taken.set(pick.id, (this.taken.get(pick.id) ?? 0) + 1)
     pick.apply(this.player.stats)
     this.player.applyStats()
+    // 고른 것을 오른쪽에 남긴다. 카드 화면은 닫히면 사라지므로,
+    // 무엇을 모으고 있는지가 화면에 계속 남아야 빌드가 보인다.
+    this.notice?.acquire({ kind: TIERS[pick.tier]?.label ?? '성장',
+      name: pick.name, desc: pick.desc, tier: pick.tier ?? 0 })
     const opened = newlyUnlocked(before, this.taken)
-    if (opened.length) this._pendingUnlocks = opened
+    if (opened.length) {
+      this._pendingUnlocks = opened
+      /**
+       * 등급이 열린 걸 알려 준다.
+       *
+       * 이건 원래 있던 사건인데 아무도 몰랐다 — 같은 계열을 두 번 고르면
+       * 레어가 열리고 네 번이면 유니크가 열리는데, 그게 다음 선택지에
+       * 조용히 한 장 더 생기는 것으로만 표현됐다. 열린 걸 안 알려 주면
+       * 계열을 모으는 게 선택이 아니라 우연이 된다.
+       */
+      const top = opened.reduce((a, b) => (b.tier > a.tier ? b : a), opened[0])
+      const label = TIERS[top.tier]?.label ?? ''
+      this.notice?.unlock(top.tier, label, top.name)
+      this.sfx?.chime()
+    }
     this.fx.ring(this.player.pos.x, this.player.pos.z, { color: '#9fe0ff', radius: 3.0, life: 0.5 })
     this.#thaw()
     return pick
@@ -1033,6 +1055,8 @@ class Game {
       const meshes = this.player.equip(piece.id)
       await this.presentGear(piece, meshes)
       this.paused = false
+      // 입은 것을 오른쪽에 남긴다 — 카드 연출은 지나가고 나면 사라진다
+      this.notice?.acquire({ kind: '차림', name: piece.name, desc: piece.line, tier: 1 })
       await this.offerUpgrade(piece.name, piece.line)
     }
   }
