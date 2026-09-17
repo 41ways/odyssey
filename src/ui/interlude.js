@@ -21,12 +21,16 @@ const CSS = `
 #lude .scene { position:absolute; inset:0; opacity:0; transition:opacity 1.4s ease; }
 #lude.on .scene { opacity:1; }
 
-/* 그림 한 장이 들어오면 그게 배경이 된다. 없으면 아래 CSS 장면이 그대로 남는다.
-   느리게 밀려 나가는 것만으로도 정지 그림이 '지나가는 풍경'이 된다. */
+/* 그림이 들어오면 그게 배경이 된다. 없으면 아래 CSS 장면이 그대로 남는다.
+   느리게 밀려 나가는 것만으로도 정지 그림이 '지나가는 풍경'이 된다.
+
+   글줄마다 다른 장을 깔 수 있다. 한 장으로 세 줄을 다 받으면 읽는 동안
+   화면이 멈춰 있고, 갈아 끼우면 '배가 가고 있다' 가 된다.
+   두 장이 겹쳐 있다가 위의 것이 켜지면서 아래를 덮는 식이다. */
 #lude .plate-img { position:absolute; inset:-4%; background-size:cover;
   background-position:center; opacity:0; transition:opacity 1.6s ease;
   animation:ludeDrift 26s ease-in-out infinite alternate; }
-#lude.on .plate-img { opacity:1; }
+#lude.on .plate-img.in { opacity:1; }
 @keyframes ludeDrift {
   from { transform:scale(1.04) translate3d(-1.2%, 0, 0) }
   to   { transform:scale(1.10) translate3d(1.2%, -1%, 0) } }
@@ -204,12 +208,14 @@ export class Interlude {
    * @param o.lines   한 줄씩 뜰 글. 각 { text, hold }
    * @param o.dest    아래에 작게 뜨는 목적지 (선택)
    * @param o.scene   SCENES 의 이름 — sea·dawn·storm·fire·ashdawn·whirl·landfall·night
-   * @param o.art      배경 그림 주소. 있으면 CSS 장면 위에 덮인다 (없으면 조용히 무시)
+   * @param o.art      배경 그림. 한 장이면 문자열, 글줄마다 갈려면 배열.
+   *                    없거나 못 불러오면 조용히 CSS 장면이 남는다
    */
   play({ lines, dest, scene = 'sea', art = null }) {
     return new Promise(resolve => {
+      const arts = art ? (Array.isArray(art) ? art : [art]) : []
       const back = (SCENES[scene] ? SCENES[scene]() : SCENES.sea())
-        + (art ? `<div class="plate-img" data-src="${art}"></div>` : '')
+        + arts.map((src, i) => `<div class="plate-img" data-i="${i}" data-src="${src}"></div>`).join('')
 
       this.el.innerHTML = `${back}
         <div class="plate">
@@ -223,12 +229,23 @@ export class Interlude {
       document.body.style.cursor = 'default'
 
       // 그림은 받아지고 나서야 붙인다. 없는 파일이면 CSS 장면 그대로 간다.
-      const imgEl = this.el.querySelector('.plate-img')
-      if (imgEl) {
+      const plates = [...this.el.querySelectorAll('.plate-img')]
+      for (const el of plates) {
         const probe = new Image()
-        probe.onload = () => { imgEl.style.backgroundImage = `url("${imgEl.dataset.src}")` }
-        probe.onerror = () => imgEl.remove()
-        probe.src = imgEl.dataset.src
+        probe.onload = () => {
+          el.style.backgroundImage = `url("${el.dataset.src}")`
+          el.dataset.ready = '1'
+          if (el.dataset.i === '0') el.classList.add('in')
+        }
+        probe.onerror = () => el.remove()
+        probe.src = el.dataset.src
+      }
+      /** n번째 장을 올린다. 없는 번호면 마지막 장이 그대로 남는다. */
+      const showPlate = n => {
+        const want = plates.filter(e => e.isConnected && e.dataset.ready)
+        if (want.length < 2) return
+        const i = Math.min(n, want.length - 1)
+        want.forEach((e, k) => e.classList.toggle('in', k <= i))
       }
 
       const span = this.el.querySelector('.line span')
@@ -254,13 +271,14 @@ export class Interlude {
       timers.push(setTimeout(() => addEventListener('keydown', skip), 500))
 
       let t = 350
-      for (const l of lines) {
+      lines.forEach((l, i) => {
         timers.push(setTimeout(() => {
           span.classList.remove('in')
+          showPlate(i)                 // 글이 바뀌기 조금 전에 그림부터 넘어간다
           timers.push(setTimeout(() => { span.innerHTML = l.text; span.classList.add('in') }, 320))
         }, t))
         t += (l.hold ?? 2600)
-      }
+      })
       if (destEl) timers.push(setTimeout(() => destEl.classList.add('in'), Math.max(600, t - 1400)))
       timers.push(setTimeout(finish, t + 300))
     })

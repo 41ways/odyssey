@@ -40,25 +40,58 @@ function haloTexture() {
   return t
 }
 
-/** 땅 위로 올라오는 망자. 땅에 잠긴 부분은 잘라 낸다. */
-function makeRisen(game, { at = { x: 0, z: -4.6 }, height = 3.8 } = {}) {
+/**
+ * 그림 한 장을 가로로 잘라 띠 여러 개로 만든다.
+ *
+ * 한 장을 통째로 올리면 판자가 밀려 올라오는 것처럼 보인다.
+ * 띠마다 조금씩 늦게, 조금씩 다르게 올리면 흙을 밀어내며 몸을 빼는 것처럼 보인다.
+ * 각 띠는 원본의 제 구역만 잘라 쓰도록 UV 를 잘라 준다.
+ *
+ * @returns {{ group, strips: [{mesh, k}] }}
+ */
+function sliceIntoStrips(tex, { w, h, count = 12, lean = -0.44 }) {
+  const group = new THREE.Group()
+  const strips = []
+  for (let i = 0; i < count; i++) {
+    // i=0 이 맨 아래. 위로 갈수록 나중에 나온다.
+    const v0 = i / count, v1 = (i + 1) / count
+    const geo = new THREE.PlaneGeometry(w, h / count)
+    const uv = geo.attributes.uv
+    for (let k = 0; k < uv.count; k++) {
+      uv.setY(k, v0 + uv.getY(k) * (v1 - v0))
+    }
+    uv.needsUpdate = true
+
+    const mat = new THREE.MeshBasicMaterial({
+      map: tex, transparent: true, depthWrite: false,
+      side: THREE.DoubleSide, toneMapped: false,
+    })
+    // 갑옷이 새까매서 저승의 어둠에 그대로 묻힌다. 색을 1 넘게 곱해 끌어올린다.
+    mat.color.setRGB(2.5, 2.35, 2.6)
+
+    const mesh = new THREE.Mesh(geo, mat)
+    mesh.rotation.x = lean
+    mesh.renderOrder = 4 + i * 0.001
+    group.add(mesh)
+    strips.push({ mesh, mat, at: (i + 0.5) / count })   // at = 그림 안에서의 높이 0..1
+  }
+  return { group, strips }
+}
+
+/** 땅 위로 올라오는 망자. 그림을 가로띠로 잘라 아래부터 차례로 올린다. */
+function makeRisen(game, { at = { x: 0, z: -4.2 }, height = 3.3 } = {}) {
   const tex = new THREE.TextureLoader().load(PORTRAIT)
   tex.colorSpace = THREE.SRGBColorSpace
   // 821×782 — 허벅지 아래는 잘라 두었고 아랫단은 흐려진다
   const w = height * (821 / 782)
   const clip = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.02)
-  const mat = new THREE.MeshBasicMaterial({
-    map: tex, transparent: true, depthWrite: false,
-    clippingPlanes: [clip], side: THREE.DoubleSide, toneMapped: false,
-  })
-  // 갑옷이 새까매서 저승의 어둠에 그대로 묻힌다. 색을 1 넘게 곱해 끌어올린다.
-  mat.color.setRGB(2.5, 2.35, 2.6)
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, height), mat)
-  mesh.position.set(at.x, -height / 2, at.z)
-  // 카메라가 40도 위에서 내려다본다. 판을 그쪽으로 뉘어야 세워 둔 판자처럼
-  // 위로 길게 뻗지 않고, 화면 안에 다 들어온다.
-  mesh.rotation.x = -0.44
-  mesh.renderOrder = 4
+
+  const STRIPS = 14
+  const LEAN = -0.44
+  const sliced = sliceIntoStrips(tex, { w, h: height, count: STRIPS, lean: LEAN })
+  for (const s of sliced.strips) s.mat.clippingPlanes = [clip]
+  const mesh = sliced.group
+  mesh.position.set(at.x, 0, at.z)
 
   // 뒤에서 받치는 빛 — 이게 없으면 검은 형체가 검은 배경에 묻힌다
   const back = new THREE.Mesh(
@@ -98,7 +131,7 @@ function makeRisen(game, { at = { x: 0, z: -4.6 }, height = 3.8 } = {}) {
   const g = new THREE.Group()
   g.add(back, mesh, pool, mound)
   game.render3d.scene.add(g)
-  return { group: g, mesh, back, pool, mound, mat, height, at }
+  return { group: g, mesh, strips: sliced.strips, back, pool, mound, height, w, at, lean: LEAN }
 }
 
 /**
@@ -170,10 +203,28 @@ export function startUnderworldIntro(game) {
       risen.mound.scale.setScalar(0.4 + swell * 0.8)
       if (swell > 0 && swell < 1) game.render3d.addShake(dt * 0.5)
 
-      // 올라온다. 땅에 잠긴 부분은 잘려 있어 정말 흙을 헤치고 나오는 것처럼 보인다
+      // 올라온다. 띠마다 조금씩 늦게 나와서 흙을 밀어내며 몸을 빼는 것처럼 보인다.
+      // 땅에 잠긴 부분은 잘려 있으니 정말 흙 속에서 나오는 것으로 읽힌다.
       const rise = clamp((t - 4.6) / 2.6, 0, 1)
       const ease = 1 - Math.pow(1 - rise, 2.6)
-      risen.mesh.position.y = -risen.height / 2 + ease * risen.height * 0.92
+      const H = risen.height
+      for (const s of risen.strips) {
+        // 위쪽 띠일수록 늦게 시작한다. 뒤로 갈수록 간격이 좁아져 한 몸으로 모인다.
+        const delay = s.at * 0.42
+        const k = clamp((rise - delay) / (1 - delay * 0.8), 0, 1)
+        const e = 1 - Math.pow(1 - k, 2.4)
+        // 제자리로 돌아온다. 판이 뒤로 기울어 있으니 위쪽 띠일수록 뒤로도 물러난다 —
+        // 안 그러면 띠가 수직으로 쌓여서 그림이 원래보다 길쭉해진다.
+        const u = (s.at - 0.5) * H
+        const homeY = H * 0.36 + u * Math.cos(risen.lean)
+        const homeZ = u * Math.sin(risen.lean)
+        s.mesh.position.y = homeY - (1 - e) * H * 0.9
+        // 나오는 동안만 좌우로 조금 흔들린다 — 흙을 헤치는 저항
+        const wob = (1 - e) * 0.09
+        s.mesh.position.x = Math.sin(t * 9 + s.at * 14) * wob
+        s.mesh.position.z = homeZ - (1 - e) * 0.12
+        s.mat.opacity = 0.15 + 0.85 * Math.min(1, e * 2.2)
+      }
       risen.pool.material.opacity = ease * 0.26
       risen.back.material.opacity = ease * 0.26
       if (rise > 0 && rise < 1) {
@@ -191,7 +242,11 @@ export function startUnderworldIntro(game) {
         game.render3d.addShake(dt * 0.7)
       }
 
-      // 카메라가 바짝 붙고 이름이 뜬다
+      // 카메라가 바짝 붙고 이름이 뜬다.
+      // 시선도 둘 사이로 옮긴다 — 플레이어만 보면 올라오는 쪽이 레터박스에 잘린다.
+      const look = clamp((t - 4.2) / 1.6, 0, 1)
+      game.camFocus ??= new THREE.Vector3()
+      game.camFocus.set(0, 0, p.pos.z + (risen.at.z + 1.0 - p.pos.z) * look)
       game.render3d.zoom = clamp((t - 5.4) / 1.8, 0, 1) * 0.3
       if (!named && t > 7.0) { named = true; nameEl.style.opacity = '1' }
       if (named && t > 8.4) nameEl.style.opacity = '0'
@@ -203,10 +258,11 @@ export function startUnderworldIntro(game) {
     },
     dispose() {
       layer.remove()
+      game.camFocus = null
       game.render3d.zoom = 0
       game.render3d.scene.remove(risen.group)
-      risen.mat.map?.dispose()
-      risen.mat.dispose()
+      risen.strips[0]?.mat.map?.dispose()
+      for (const s of risen.strips) { s.mat.dispose(); s.mesh.geometry.dispose() }
     },
   }
 }

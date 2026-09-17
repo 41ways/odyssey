@@ -232,7 +232,7 @@ export const STAGE_BY_ID = new Map(STAGES.map(s => [s.id, s]))
 /** 맨 처음. 왜 바다에 있는지부터 말한다. */
 export const OPENING = {
   scene: 'fire',
-  art: '/img/lude-opening.webp',
+  art: ['/img/lude-opening.webp', '/img/lude-opening-b.webp', '/img/lude-opening-c.webp'],
   lines: [
     { text: '십 년이 걸렸다. <em>트로이가 불탔다.</em>', hold: 3000 },
     { text: '열두 척으로 떠났다.<br>집까지는 며칠이면 되는 거리였다.', hold: 3400 },
@@ -275,8 +275,8 @@ export function interludeFor(fromIndex) {
   const lines = SAILING[from.id] ?? ['배를 밀었다.']
   return {
     scene: PASSAGE[from.id] ?? 'sea',
-    // 그림이 들어오면 그게 배경이 된다. 없으면 CSS 장면이 그대로 남는다.
-    art: `/img/lude-${from.id}.webp`,
+    // 글줄마다 한 장씩. 두 번째 장이 없으면 첫 장이 그대로 남는다.
+    art: [`/img/lude-${from.id}.webp`, `/img/lude-${from.id}-b.webp`],
     lines: lines.map((text, i) => ({ text, hold: i === lines.length - 1 ? 3000 : 2800 })),
     dest: `${to.name} — ${to.title}`,
   }
