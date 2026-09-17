@@ -112,36 +112,69 @@ const CSS = `
 
 #hud .keys kbd { background:#191510; border:1px solid var(--line-dim); border-radius:2px;
   padding:1px 7px; color:var(--text); font-family:var(--serif); font-size:10.5px; letter-spacing:.06em; }
-#hud .stats { position:absolute; right:20px; top:18px; font-size:11px; text-align:right;
-  color:#7d7264; font-variant-numeric:tabular-nums; line-height:1.8;
-  font-family:var(--serif); letter-spacing:.16em; }
+#hud .stats { position:absolute; right:20px; top:18px; font-size:12px; text-align:right;
+  color:#9d9084; font-variant-numeric:tabular-nums; line-height:1.9;
+  font-family:var(--serif); letter-spacing:.04em;
+  text-shadow:0 1px 3px rgba(0,0,0,.9); }
 #hud .stats b { color:var(--gold); font-size:25px; font-weight:700; letter-spacing:.02em;
   text-shadow:0 0 26px rgba(232,200,132,.4); }
-#hud .banner { position:absolute; left:0; right:0; top:19%; text-align:center; opacity:0;
+/* 판 이름 현판.
+   ── 왜 고쳤나 ──
+   글자 사이를 .28em 씩 벌려 뒀다. 그건 라틴 대문자 제목(THE ODYSSEY)의
+   어법이다. 한글은 글자 자체가 네모라서 그만큼 벌리면 "이스마로스" 가
+   '이 스 마 로 스' 다섯 덩어리로 흩어진다 — 읽는 게 아니라 글자를 세게 된다.
+   한글은 0.02~0.06em 이 상한이다.
+   설명은 14px · #b09a74 였다. 움직이는 3D 판 위의 작은 갈색 글씨는
+   배경이 밝아지는 순간 사라진다. 키우고, 밝히고, **뒤에 판을 깐다.** */
+#hud .banner { position:absolute; left:0; right:0; top:17%; text-align:center; opacity:0;
   transition:opacity .5s, transform .5s; transform:translateY(10px); pointer-events:none; }
 #hud .banner.on { opacity:1; transform:none; }
-#hud .banner h1 { font-family:var(--serif); font-size:46px; font-weight:700;
-  letter-spacing:.28em; text-indent:.28em; color:var(--ivory);
-  text-shadow:0 0 60px rgba(232,200,132,.5), 0 2px 0 #4a3a1c, 0 4px 34px rgba(0,0,0,.95); }
-#hud .banner p { margin-top:14px; font-size:14px; letter-spacing:.06em; color:#b09a74; }
+/* 어두운 판. 글자 뒤에만 깔려서 배경이 무엇이든 글이 읽힌다.
+   네모로 깔면 창처럼 보이므로 타원으로 흐려 깐다. */
+#hud .banner::before { content:''; position:absolute; left:50%; top:50%;
+  width:min(760px,92vw); height:260px; transform:translate(-50%,-50%);
+  background:radial-gradient(ellipse 50% 50% at 50% 50%,
+    rgba(6,5,9,.82) 0%, rgba(6,5,9,.62) 46%, rgba(6,5,9,0) 78%);
+  pointer-events:none; }
+#hud .banner h1, #hud .banner p, #hud .banner .rule { position:relative; }
+#hud .banner h1 { font-family:var(--serif); font-size:48px; font-weight:700;
+  letter-spacing:.05em; color:#fff6e2;
+  /* 넓은 광채(60px)는 글자 경계를 녹인다. 좁고 진한 테두리가 읽히게 만든다. */
+  text-shadow:0 2px 0 #3a2c12, 0 0 3px rgba(0,0,0,.9),
+              0 3px 12px rgba(0,0,0,.95), 0 0 42px rgba(232,200,132,.28); }
+#hud .banner p { margin-top:15px; font-size:17.5px; line-height:1.6; letter-spacing:.015em;
+  color:#e6d5b4; max-width:min(680px,86vw); margin-left:auto; margin-right:auto;
+  text-shadow:0 1px 2px rgba(0,0,0,.95), 0 2px 12px rgba(0,0,0,.9); }
 #hud .banner .rule { height:14px; width:min(520px,72vw); margin:16px auto 0;
   background-image:${MEANDER}; background-repeat:repeat-x; background-position:center; opacity:.4; }
-#hud .toast { position:absolute; left:0; right:0; top:34%; text-align:center; opacity:0;
+/* 웨이브 한 줄. 이것도 벌림을 줄이고 키운다. */
+#hud .toast { position:absolute; left:0; right:0; top:32%; text-align:center; opacity:0;
   transition:opacity .35s; pointer-events:none; font-family:var(--serif);
-  font-size:17px; letter-spacing:.16em; color:#e0b77a; text-shadow:0 2px 18px #000; }
+  font-size:19px; letter-spacing:.03em; color:#f2dcb0; }
+#hud .toast span { display:inline-block; padding:7px 20px; border-radius:2px;
+  background:linear-gradient(180deg, rgba(10,8,12,.86), rgba(10,8,12,.68));
+  box-shadow:inset 0 0 0 1px rgba(232,200,132,.22), 0 4px 20px rgba(0,0,0,.7);
+  text-shadow:0 1px 2px rgba(0,0,0,.95); }
 #hud .toast.on { opacity:1; }
-#hud .wave { position:absolute; left:50%; top:20px; transform:translateX(-50%);
-  font-family:var(--serif); font-size:12px; letter-spacing:.22em; color:#8f8172;
-  font-variant-numeric:tabular-nums; }
+/* 판 진행 한 줄 — 여기에 판 이름이 들어간다. 12px · .22em 이라
+   '이 스 마 로 스' 로 흩어져 있었다. 키우고 붙이고 판을 깐다. */
+#hud .wave { position:absolute; left:50%; top:16px; transform:translateX(-50%);
+  font-family:var(--serif); font-size:13.5px; letter-spacing:.04em; color:#c4b49c;
+  font-variant-numeric:tabular-nums; padding:5px 16px; border-radius:2px;
+  background:linear-gradient(180deg, rgba(10,8,12,.72), rgba(10,8,12,.42));
+  box-shadow:inset 0 0 0 1px rgba(232,200,132,.16);
+  text-shadow:0 1px 3px rgba(0,0,0,.95); }
 #hud .wave b { color:var(--gold); font-weight:700; }
 #hud .boss { position:absolute; left:50%; top:52px; transform:translateX(-50%);
   width:min(620px, 72vw); opacity:0; transition:opacity .4s; }
 #hud .boss.on { opacity:1; }
 #hud .boss .who { display:flex; justify-content:space-between; align-items:baseline;
   margin-bottom:6px; }
-#hud .boss .who b { font-family:var(--serif); font-size:18px; font-weight:700;
-  letter-spacing:.18em; color:var(--ivory); }
-#hud .boss .who span { font-size:11px; letter-spacing:.16em; color:#9a8a72; }
+#hud .boss .who b { font-family:var(--serif); font-size:20px; font-weight:700;
+  letter-spacing:.04em; color:#fff4e0;
+  text-shadow:0 1px 2px rgba(0,0,0,.95), 0 2px 10px rgba(0,0,0,.8); }
+#hud .boss .who span { font-size:13px; letter-spacing:.02em; color:#c0ad90;
+  text-shadow:0 1px 3px rgba(0,0,0,.95); }
 #hud .boss .bar { height:13px; background:#120c09; border:1px solid var(--line);
   border-radius:1px; overflow:hidden; position:relative;
   box-shadow:inset 0 0 0 1px rgba(200,151,62,.18), 0 6px 22px rgba(0,0,0,.6); }
@@ -150,8 +183,10 @@ const CSS = `
 #hud .boss .bar u { position:absolute; inset:0; transform-origin:left center; display:block;
   background:#f5d7a0; opacity:.4; transition:transform .6s cubic-bezier(.2,.7,.3,1) .15s; }
 #hud .boss.down .bar { border-color:#c8973e; box-shadow:inset 0 0 0 1px rgba(255,200,90,.5), 0 0 34px rgba(255,190,60,.45); }
-#hud .boss .weak { margin-top:7px; text-align:center; font-family:var(--serif);
-  font-size:12.5px; letter-spacing:.2em; color:#ffd166; opacity:0; transition:opacity .3s; }
+/* 약점 안내. 제일 급할 때 읽어야 하는 줄이라 제일 잘 보여야 한다. */
+#hud .boss .weak { margin-top:8px; text-align:center; font-family:var(--serif);
+  font-size:15px; letter-spacing:.03em; color:#ffd980; opacity:0; transition:opacity .3s;
+  text-shadow:0 1px 2px rgba(0,0,0,.95), 0 0 16px rgba(255,190,60,.5); }
 #hud .boss.down .weak { opacity:1; }
 #hud .boss .phases { position:absolute; inset:0; display:flex; pointer-events:none; }
 #hud .boss .phases s { flex:1; border-right:1px solid rgba(0,0,0,.6); }
@@ -268,7 +303,9 @@ export class Hud {
 
   /** 웨이브가 바뀔 때 한 줄. */
   toast(text, hold = 2.2) {
-    this.toastEl.textContent = text
+    // 글자만 감싸는 판을 두려고 span 안에 넣는다 (CSS 의 #hud .toast span)
+    this.toastEl.innerHTML = `<span></span>`
+    this.toastEl.firstChild.textContent = text
     this.toastEl.classList.add('on')
     clearTimeout(this._toastT)
     this._toastT = setTimeout(() => this.toastEl.classList.remove('on'), hold * 1000)

@@ -161,22 +161,27 @@ function cyclopsEye(rig) {
    물결치는 진폭을 살로 된 것의 절반쯤으로 줄이고, 마디 수를 적게 잡아
    관절이 뚝뚝 꺾이게 한다. 매끄럽게 휘면 그냥 초록 뱀이 회색이 된 것뿐이다. */
 /**
- * 스킬라 — 절벽에서 뻗는 여섯 머리.
+ * 스킬라 — 돌 뱀 여섯. 각자 따로 움직이고 각자 문다.
  *
- * 전에는 원통 마디 다섯을 이어 만든 관이었다 (tentacle() 헬퍼). 그건 돌로도
- * 살로도 안 보이고, 무엇보다 **제 동작이 없었다** — 사인파로 흔드는 것뿐이라
- * 내려찍는 순간과 물러나는 순간이 같은 모양이었다.
+ * ── 두 번 틀린 자리다 ──
+ * 1차: 원통 마디를 이어 만든 관 여섯. 돌로도 살로도 안 보이고 제 동작이
+ *      없어서, 내려찍는 순간과 물러나는 순간이 같은 모양이었다.
+ * 2차: 받아 온 촉수 여섯을 한 점에서 부챗살로 뻗었다. 움직이긴 했는데
+ *      **한 마리 오징어의 팔로 읽혔다** — 여섯이 한 곳에서 나와 같은
+ *      동작을 같은 박자로 하니 당연했다. 절벽도 안 보였다.
  *
- * 이제 받아 온 촉수 모델을 쓴다. 뼈대 15 마디에 Attack · Idle 클립이 붙어
- * 있어서, 그 머리가 실제로 때릴 때 때리는 동작을 한다. 파훼가 '회복 구간을
- * 노리는 것' 이므로 (bosses.js 의 SKYLLA) 때리는 동작과 거둬들이는 동작이
- * 눈에 보이는 게 규칙의 절반이다 — 안 보이면 언제 때릴지를 못 읽는다.
- *   Quaternius (CC0), poly.pizza 경유 · CREDITS.md
+ * 3차(지금): **메두사의 머리처럼** 짠다. 뱀 여섯이 각각
+ *   · 제 자리에 따로 심겨 있고 (벽면을 따라 벌어져, 높이도 제각각)
+ *   · 제 시간으로 움직이고 (mixer 시간을 어긋나게 준다)
+ *   · 제 속도로 고개를 돌리고 (플레이어를 따라보는 속도가 머리마다 다르다)
+ *   · 제 차례에 혼자 문다 (striking 인 머리만 Attack)
  *
- * 머리 끝에는 돌 뱀 머리를 얹는다. 촉수 끝은 빨판이고, 이 보스는
- * '여섯 머리의 것' 이라 머리로 읽혀야 한다.
+ * 마지막 셋이 핵심이다. 여섯이 같은 박자로 같은 방향을 보면 아무리 따로
+ * 떼어 놔도 한 마리가 된다. **어긋남이 여섯 마리를 만든다.**
  *
- * 모델이 없으면 옛 원통으로 돌아간다. 파일 하나 없다고 보스가 안 나오면 안 된다.
+ * 모델은 뼈 열다섯의 돌 뱀 (Quaternius, CC0 · CREDITS.md). Body·Neck·Head·
+ * Tail·Mouth·Tongue 가 따로 있어서 한 마리가 제 몸으로 움직인다.
+ * 없으면 옛 원통으로 돌아간다 — 파일 하나 없다고 보스가 안 나오면 안 된다.
  */
 function skyllaWall(rig) {
   const root = new THREE.Group()
@@ -186,90 +191,124 @@ function skyllaWall(rig) {
   })
 
   const arms = []
-  const SPREAD = [-1.15, -0.72, -0.26, 0.26, 0.72, 1.15]
+  /**
+   * 벽면을 따라 벌어진 자리.
+   *
+   * 간격을 고르게 두지 않는다 — 고르게 두면 늘어선 기둥처럼 보이고,
+   * 들쭉날쭉해야 벽 여기저기서 따로 난 것이 된다.
+   *
+   * **좌표가 두 배로 먹힌다.** attachBossParts 가 mount 에
+   * look.height / 1.8 (= 3.6/1.8 = 2) 을 곱하기 때문이다. 처음에 ±6.6 으로
+   * 뒀다가 실측해 보니 여섯이 월드 x −13 ~ +13 에 섰다 — 반지름 16 인
+   * 투기장의 가장자리 밖이라 화면에 아무것도 안 보였다. 그래서 원하는
+   * 월드 값의 **절반**을 적는다.
+   *
+   * y 도 같다. spine_03 에 매달리므로 뼈 높이만큼 기본 offset 이 있다
+   * (실측 2.4). 바닥에 앉히려면 음수로 내려야 한다.
+   */
+  const SPOT = [
+    { x: -3.3, y: -1.15, z: 0.30, turn: 1.7 },
+    { x: -2.0, y: -0.95, z: -0.10, turn: 2.6 },
+    { x: -0.7, y: -1.20, z: 0.45, turn: 2.1 },
+    { x: 0.9, y: -1.00, z: 0.05, turn: 3.0 },
+    { x: 2.2, y: -1.15, z: 0.35, turn: 1.9 },
+    { x: 3.4, y: -0.90, z: -0.15, turn: 2.4 },
+  ]
+
   for (let i = 0; i < 6; i++) {
+    const spot = SPOT[i]
     const arm = new THREE.Group()
-    const made = models.create('tentacle')
-    let tt = null, tip = null
+    const head = new THREE.Group()          // 고개를 돌리는 축
+    const made = models.create('snake')
+    let tt = null
 
     if (made) {
+      for (const m of made.mats) {
+        m.color?.set?.('#8a8f95'); m.roughness = 0.95; m.metalness = 0.04
+      }
       /**
-       * 촉수는 +z 로 뻗는다. 갑판 쪽으로 앞-아래로 숙여 심는다.
+       * 몸을 세운다.
        *
-       * 숫자는 눈으로 고른 게 아니라 끝 뼈(Tentacle15)의 월드 높이를
-       * 재서 골랐다. 0.28 이면 머리가 y 4.1 — 화면 위로 지나가서 위협이
-       * 안 된다. 0.9 면 y 1.2 로 가슴 높이에 온다. 그 사이를 머리마다
-       * 다르게 줘서 (0.62 · 0.75 · 0.88) 높낮이가 섞이게 한다 —
-       * 여섯이 같은 각도로 늘어서면 한 마리에서 난 갈래로 읽힌다.
+       * 모델은 기어가는 자세다 (1.08 × 1.49 × 4.34 — z 로 길고 낮다).
+       * 그대로 두면 쿼터뷰에서 위에서 내려보므로 길이가 안 보이고 납작한
+       * 덩어리로 읽힌다. 실제로 그렇게 나왔다.
+       *
+       * 세워야 '고개를 든 뱀' 이 된다. Head 뼈의 월드 높이를 재서 골랐다 —
+       * 0 이면 1.62, −0.8 이면 2.27 이다. 플레이어가 1.8 이니 −0.8 이면
+       * 머리가 사람 키를 넘어 내려다보는 높이가 된다.
+       * 머리마다 조금씩 달리 줘서 여섯이 같은 각도로 안 서게 한다.
        */
-      made.root.rotation.x = 0.62 + (i % 3) * 0.13
-      // 돌로 칠한다. 받아 온 재질은 제 색이 따로 있어서 그대로 두면
-      // 판의 색과 따로 논다.
-      for (const m of made.mats) { m.color?.set?.('#7d8288'); m.roughness = 0.95; m.metalness = 0.03 }
-      arm.add(made.root)
-      // 끝 뼈를 찾아 머리를 매단다. 뼈에 붙이면 동작을 따라 같이 움직인다.
-      made.root.traverse(o => { if (o.isBone && o.name === 'Tentacle15') tip = o })
+      made.root.rotation.x = -0.7 - (i % 3) * 0.12
+      head.add(made.root)
+      /**
+       * 제 시간으로 움직이게 한다.
+       *
+       * 여섯이 같은 클립을 0 초부터 같이 틀면 여섯이 한 몸처럼 흔들린다.
+       * mixer 를 미리 제각각 돌려 놓으면 그 뒤로는 영원히 어긋난 채 간다 —
+       * 한 줄로 여섯 마리가 된다.
+       */
+      made.pose({ run: 0, attack: false, draw: null, roll: 0 }, 1 / 60)
+      made.mixer?.update(i * 0.9 + Math.random() * 0.6)
     } else {
       tt = tentacle({ segs: 5, len: 0.46, r0: 0.19, r1: 0.055, curl: 0.2, material: stone, sides: 6 })
-      arm.add(tt.root)
-      tip = tt.tip
+      head.add(tt.root)
     }
 
-    // 돌 뱀 머리. 받아 둔 모델이 있으면 그걸, 없으면 깨진 바위 덩어리.
-    const head = new THREE.Group()
-    const hm = models.create('serpentHead')
-    if (hm) {
-      hm.root.scale.setScalar(made ? 0.22 : 0.42)
-      hm.root.rotation.x = made ? 0 : -Math.PI * 0.5
-      head.add(hm.root)
-    } else {
-      const chunk = new THREE.Mesh(new THREE.DodecahedronGeometry(0.17, 0), stone)
-      chunk.scale.set(0.9, 0.8, 1.4)
-      head.add(chunk)
-    }
-    const glow = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), crack)
-    glow.position.set(0, 0.02, 0.06)
+    // 갈라진 틈에서 새는 빛 — 살아 있는 돌이라는 표시
+    const glow = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), crack)
+    glow.position.set(0, 0.35, 0.1)
     head.add(glow)
-    if (!made) head.position.y = 0.46
-    tip?.add(head)
 
-    // 절벽 폭만큼 벌린다. 좁게 모으면 한 마리에서 난 뿔처럼 보이고,
-    // 벌려야 벽 여기저기서 따로 뻗어 나온 것으로 읽힌다.
-    arm.rotation.z = SPREAD[i] * 0.3
-    if (!made) arm.rotation.x = -1.05 - Math.abs(SPREAD[i]) * 0.1
-    arm.position.set(SPREAD[i] * 3.6, made ? -0.2 : -0.5, 0)
+    arm.add(head)
+    arm.position.set(spot.x, spot.y, spot.z)
     root.add(arm)
-    arms.push({ arm, tt, made, head, glow, phase: i * 1.3, spread: SPREAD[i], alive: 1, striking: 0 })
+    arms.push({
+      arm, head, tt, made, glow,
+      spot, turn: spot.turn, facing: 0,
+      phase: i * 1.3, alive: 1, striking: false,
+    })
   }
 
   const mount = rig.attachTo('spine_03', root, { scale: 1, position: [0, 0.1, -0.1] })
   return {
     group: root, mount, arms, necks: arms,     // necks 는 옛 이름 호환
     /**
-     * @param s.severed 끊긴 머리 수 (Boss.severed.size). 끊긴 만큼 사라진다 —
-     *   파훼의 보상이 눈에 보이는 자리가 여기다.
-     * @param s.striking 지금 때리는 중인 머리 번호(1..6) 또는 0
+     * @param s.severed  끊긴 머리 수 — 끊긴 만큼 사라진다
+     * @param s.striking 지금 무는 머리 번호(1..6) 또는 0
+     * @param s.aimX/aimZ 플레이어 자리. 머리마다 다른 속도로 이쪽을 본다
      */
     update(dt, s) {
-      // 끊긴 머리는 돌아오지 않는다. 옛 규칙(2페엔 하나만)은 severed 가
-      // 없을 때만 쓴다 — 페이즈로 숨기면 끊은 것과 구분이 안 된다.
-      const gone = s.severed ?? (s.phase >= 1 ? 5 : 0)
+      const gone = s.severed ?? (s.phase >= 1 ? 3 : 0)
       const keep = Math.max(1, 6 - gone)
-      this.arms.forEach((a, i) => {
+      for (let i = 0; i < this.arms.length; i++) {
+        const a = this.arms[i]
         const want = i < keep ? 1 : 0
         a.alive += (want - a.alive) * Math.min(1, dt * 2.2)
         a.arm.scale.setScalar(Math.max(0.001, a.alive))
         a.arm.visible = a.alive > 0.02
+
+        // 고개를 돌린다. 속도가 머리마다 달라서 여섯이 제각각 늦거나 빠르다.
+        // 이 한 줄이 '따로 움직인다' 의 절반이다.
+        const want2 = Math.atan2((s.aimX ?? 0) - a.spot.x, (s.aimZ ?? 0) - a.spot.z)
+        let d = want2 - a.facing
+        while (d > Math.PI) d -= Math.PI * 2
+        while (d < -Math.PI) d += Math.PI * 2
+        a.facing += d * Math.min(1, dt * a.turn)
+        a.head.rotation.y = a.facing
+
         if (a.made) {
-          // 때리는 머리만 Attack, 나머지는 Idle. 이게 파훼의 읽을 거리다.
+          // 제 차례에만 문다. 나머지는 제 시간으로 흔들린다.
           const hit = s.striking === i + 1
-          if (hit !== a.striking) { a.made.pose({ run: 0, attack: hit, draw: null, roll: 0 }, dt); a.striking = hit }
+          if (hit !== a.striking) {
+            a.made.pose({ run: 0, attack: hit, draw: null, roll: 0 }, dt)
+            a.striking = hit
+          }
           a.made.mixer?.update(dt)
         } else {
           waveTentacle(s.t, a.tt, { speed: 1.5, amp: 0.06, lag: 0.5, phase: a.phase })
         }
         a.glow.material.emissiveIntensity = 0.7 + Math.sin(s.t * 3 + a.phase) * 0.35
-      })
+      }
     },
   }
 }

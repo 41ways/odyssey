@@ -51,6 +51,18 @@ export const MANIFEST = {
    * 늘린 것**이었다 — 실루엣이 사람이면 '식인 거인의 왕' 이 몸에 안 보인다.
    */
   giant: { url: '/models/giant.glb', height: 4.6 },
+  /**
+   * 돌 뱀 — Attack · Idle · Walk · Jump 네 클립, 뼈 열다섯 (Body·Neck·Head·Tail·Mouth·Tongue).
+   * Quaternius (CC0), poly.pizza 경유.
+   *
+   * 스킬라의 여섯 머리가 이것이다. 촉수 여섯을 부챗살로 뻗어 봤는데
+   * 한 마리 오징어 팔로 읽혔다 — 여섯이 **각자 따로 움직이고 각자 물어야**
+   * 메두사 머리처럼 보인다. 그래서 한 마리씩 제 뼈대와 제 시간을 갖는
+   * 이 모델로 갈았다 (bossparts.js 의 skyllaWall).
+   *
+   * 촉수와 같은 단위 어긋남이 있어 scale 을 박는다 (MANIFEST.scale 주석 참고).
+   */
+  snake: { url: '/models/snake.glb', scale: 0.4, center: false },
 }
 
 /** 클립 이름이 제각각이라 느슨하게 맞춘다. 앞에 있는 후보일수록 우선. */

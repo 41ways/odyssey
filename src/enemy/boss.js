@@ -784,6 +784,10 @@ export class Boss extends Actor {
       severed: this.severed?.size ?? 0,
       striking: this.action.active && this.action.phase !== 'recovery'
         ? (this.action.def?.head ?? 0) : 0,
+      // 플레이어가 어느 쪽인가. 스킬라의 여섯 머리가 각자 이쪽으로 고개를
+      // 돌린다 — 여섯이 제각각 돌아야 여섯 마리로 읽힌다.
+      aimX: this.world.player?.pos?.x ?? 0,
+      aimZ: this.world.player?.pos?.z ?? 0,
     })
   }
 
