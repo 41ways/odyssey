@@ -127,10 +127,10 @@ export class World {
     // 잡석 — 이동 속도를 눈으로 가늠할 기준점
     const rockGeo = new THREE.DodecahedronGeometry(1, 0)
     const rockMat = new THREE.MeshStandardMaterial({ color: '#544738', roughness: 1 })
-    const rocks = new THREE.InstancedMesh(rockGeo, rockMat, 46)
+    const rocks = new THREE.InstancedMesh(rockGeo, rockMat, 110)
     rocks.castShadow = rocks.receiveShadow = true
     const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler()
-    for (let i = 0; i < 46; i++) {
+    for (let i = 0; i < 110; i++) {
       const a = rand(0, Math.PI * 2), r = rand(6, R + 1.2)
       const s = rand(0.2, 0.65)
       e.set(rand(0, 3), rand(0, 3), rand(0, 3)); q.setFromEuler(e)
@@ -200,13 +200,15 @@ export class World {
     this.camera.fov = CAMERA_RIG.fov = e.camFov ?? 30
     this.camera.updateProjectionMatrix()
 
-    this.setArenaRadius(a.radius ?? 16)
+    this.setArenaRadius(a.radius ?? 16, a.shape ?? 'round')
     this.wall.material.color.set(a.wallColor ?? '#2a2018')
     this.ground.material.color.set(a.groundTint ?? '#ffffff')
     this.rocks.visible = a.rocks !== false
     this.rocks.material.color.set(a.rockColor ?? '#544738')
+    this.#scatterRocks(a.rockScale ?? [0.2, 0.65], a.rockCount ?? 46)
 
     this.#setProps(a.props)
+    this.#setSnow(!!e.snow)
     this.#setPost(e)
     if (a.ground) await this.#setGround(a.ground, a.repeat ?? 8)
   }
@@ -252,6 +254,76 @@ export class World {
     this.scene.add(g)
   }
 
+  /**
+   * 잡석을 다시 뿌린다. 판마다 크기와 밀도가 다르다 —
+   * 동굴 바닥은 크고 촘촘해야 울퉁불퉁해 보이고, 해안은 작고 성겨야 한다.
+   */
+  #scatterRocks([lo, hi], count) {
+    const rocks = this.rocks
+    const R = this.arenaRadius
+    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler()
+    const n = Math.min(count, rocks.instanceMatrix.count)
+    for (let i = 0; i < rocks.instanceMatrix.count; i++) {
+      if (i >= n) { m.makeScale(0, 0, 0); rocks.setMatrixAt(i, m); continue }
+      const a = rand(0, Math.PI * 2), r = rand(4, R + 1.2)
+      const s = rand(lo, hi)
+      e.set(rand(0, 3), rand(0, 3), rand(0, 3)); q.setFromEuler(e)
+      m.compose(new THREE.Vector3(Math.cos(a) * r, s * 0.32, Math.sin(a) * r), q, new THREE.Vector3(s, s * 0.6, s))
+      rocks.setMatrixAt(i, m)
+    }
+    rocks.instanceMatrix.needsUpdate = true
+  }
+
+  /**
+   * 눈. 텔레필로스는 북쪽 끝이라 눈이 와야 한다.
+   * 파티클 하나로 돌리면 전투 이펙트와 예산을 다투므로 따로 작은 Points 를 쓴다.
+   */
+  #setSnow(on) {
+    if (!on) { if (this.snow) this.snow.visible = false; return }
+    if (!this.snow) {
+      const N = 900
+      const pos = new Float32Array(N * 3)
+      const spd = new Float32Array(N)
+      for (let i = 0; i < N; i++) {
+        pos[i * 3] = rand(-30, 30)
+        pos[i * 3 + 1] = rand(0, 22)
+        pos[i * 3 + 2] = rand(-30, 30)
+        spd[i] = rand(0.7, 2.0)
+      }
+      const geo = new THREE.BufferGeometry()
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
+      const mat = new THREE.PointsMaterial({
+        color: '#dfe8f2', size: 0.13, transparent: true, opacity: 0.75,
+        depthWrite: false, sizeAttenuation: true,
+      })
+      const pts = new THREE.Points(geo, mat)
+      pts.frustumCulled = false
+      pts.userData.spd = spd
+      this.scene.add(pts)
+      this.snow = pts
+    }
+    this.snow.visible = true
+  }
+
+  /** draw() 가 매 프레임 부른다. 눈은 카메라를 따라다니며 내린다. */
+  updateSnow(dt, focus) {
+    const s = this.snow
+    if (!s || !s.visible) return
+    const p = s.geometry.attributes.position
+    const spd = s.userData.spd
+    for (let i = 0; i < spd.length; i++) {
+      let y = p.array[i * 3 + 1] - spd[i] * dt
+      p.array[i * 3] += Math.sin((y + i) * 0.5) * dt * 0.25
+      if (y < 0) {
+        y = 22
+        p.array[i * 3] = focus.x + rand(-30, 30)
+        p.array[i * 3 + 2] = focus.z + rand(-30, 30)
+      }
+      p.array[i * 3 + 1] = y
+    }
+    p.needsUpdate = true
+  }
+
   #setPost(e) {
     if (!this.bloom) return
     this.bloom.intensity = e.bloom ?? 0.85
@@ -278,14 +350,28 @@ export class World {
     this.ground.material.needsUpdate = true
   }
 
-  /** 투기장 크기는 스테이지마다 다르다. 보스방은 넓고 잡몹방은 좁다. */
-  setArenaRadius(R) {
-    if (this.arenaRadius === R) return
+  /**
+   * 투기장 크기와 모양. 보스방은 넓고 잡몹방은 좁다.
+   *
+   * 모양도 곳에 따라 다르다 — 이타카의 홀은 사람이 지은 방이라 네모여야 하고,
+   * 동굴이나 해안은 둥근 게 맞다. 원통을 네모로만 바꿔도 '지은 곳' 으로 읽힌다.
+   */
+  setArenaRadius(R, shape = 'round') {
+    if (this.arenaRadius === R && this._shape === shape) return
     this.arenaRadius = R
+    this._shape = shape
+    const E = R + 2
     this.ground.geometry.dispose()
-    this.ground.geometry = new THREE.CircleGeometry(R + 2, 96)
+    this.ground.geometry = shape === 'square'
+      ? new THREE.PlaneGeometry(E * 2, E * 2)
+      : new THREE.CircleGeometry(E, 96)
     this.wall.geometry.dispose()
-    this.wall.geometry = new THREE.CylinderGeometry(R + 2, R + 2.4, 3.2, 96, 1, true)
+    this.wall.geometry = shape === 'square'
+      // 네 면짜리 원통 = 네모 방. 45도 돌려야 벽이 축과 나란해진다.
+      ? new THREE.CylinderGeometry(E * Math.SQRT2, E * Math.SQRT2 + 0.4, 3.6, 4, 1, true)
+      : new THREE.CylinderGeometry(E, E + 0.4, 3.2, 96, 1, true)
+    this.wall.rotation.y = shape === 'square' ? Math.PI / 4 : 0
+    this.wall.position.y = shape === 'square' ? 1.8 : 1.6
     const d = R + 8
     const c = this.keyLight.shadow.camera
     c.left = -d; c.right = d; c.top = d; c.bottom = -d

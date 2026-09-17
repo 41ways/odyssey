@@ -24,7 +24,7 @@ const CAVE = {
   arena: { radius: 15, ground: 'cyclops', repeat: 7, wallColor: '#1a1714', rockColor: '#3d372f' },
   // 거인이 나오는 방이라고 카메라를 물리면 내가 작아질 뿐 거인은 안 커진다.
   // 카메라는 그대로 두고 거인을 키운다.
-  env: { bg: '#07080a', fog: 0.032, fogColor: '#0a0b0e', exposure: 1.0, camDistance: 23,
+  env: { bg: '#07080a', fog: 0.032, fogColor: '#0a0b0e', exposure: 1.0, camDistance: 26,
     key: '#ff9a52', keyIntensity: 2.2, rim: '#4a6ea8', rimIntensity: 0.8,
     hemiSky: '#1e2838', hemiGround: '#0c0a08', hemiIntensity: 0.35 },
 }
@@ -32,7 +32,8 @@ const CLIFF = {
   arena: { radius: 17, ground: 'telepylos', repeat: 8, wallColor: '#2a2e33', rockColor: '#4a4f55',
     // 좁은 만 — 바위 절벽 위로 라이스트리고네스의 집들이 있었다
     props: [{ key: 'columnRound', count: 5, ring: [1.03, 1.12], scale: [0.9, 1.4], tint: '#9aa0a6' }] },
-  env: { bg: '#0c1014', fog: 0.02, fogColor: '#121820', exposure: 1.06, camDistance: 22,
+  env: { bg: '#0c1014', fog: 0.024, fogColor: '#151c26', exposure: 1.06, camDistance: 22,
+    snow: true,          // 북쪽 끝이다. 눈이 온다
     key: '#cfd8e8', keyIntensity: 2.0, rim: '#5f7fa8', rimIntensity: 1.2,
     hemiSky: '#4a5a72', hemiGround: '#181c20', hemiIntensity: 0.6 },
 }
@@ -73,6 +74,7 @@ const STORM = {
 }
 const HALL = {
   arena: { radius: 15, ground: 'ithaca', repeat: 8, wallColor: '#2a2420', rocks: false,
+    shape: 'square',     // 홀은 사람이 지은 방이다. 둥글면 안 된다
     // 구혼자들이 스무 해를 먹어 치운 홀
     props: [{ key: 'column', count: 10, ring: [1.06, 1.06], scale: [1.2, 1.2], spread: false, tint: '#e3d8be' },
             { key: 'jar', count: 7, ring: [1.04, 1.12], scale: [0.9, 1.3], tint: '#8a5f3c' }] },
