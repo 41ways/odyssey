@@ -1,4 +1,4 @@
-import { CUT_CAVE, CUT_WHIRL, CUT_ITHACA } from './cuts.js'
+import { CUT_CAVE, CUT_WHIRL, CUT_ITHACA, CUT_TELEPYLOS } from './cuts.js'
 
 /**
  * 여덟 개의 판.
@@ -155,6 +155,9 @@ export const STAGES = [
 
   {
     id: 'telepylos', name: '텔레필로스', title: '라이스트리고네스의 항구',
+    // 열두 척 중 열한 척이 여기서 가라앉는다. 오디세우스가 혼자 남는
+    // 이유가 이 장면인데 현판 한 줄로 지나가고 있었다.
+    cut: CUT_TELEPYLOS,
     wave: {
       ...CLIFF,
       intro: '좁은 만에 배를 댔다. 절벽 위에서 바위가 날아왔다.',

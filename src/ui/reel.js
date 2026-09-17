@@ -38,7 +38,8 @@ const CSS = `
    cover 로 깔면 16:9 화면에서 가로만 맞추고 위아래를 잘라내므로, 남는 건
    가슴 높이의 가로 띠 하나다. 그런데 초상에서 봐야 하는 건 얼굴이다 —
    "그것이 우리를 세어 보았다" 를 읽는 순간 화면에 몸통만 있으면 안 된다.
-   그래서 세로를 넉넉히 넘치게 깔고 시선을 위쪽(28%)으로 올린다. */
+   그래서 세로를 넉넉히 넘치게 깔고 시선을 위쪽(26%)으로 올린다.
+   컷마다 화각을 따로 주려면 shot.focus 를 쓴다 — 인라인이 이 규칙을 이긴다. */
 #reel .plate.tall { background-size:auto 132%; background-position:center 26%; }
 /* 켄 번스 — 아주 느리게 밀고 당긴다. 장마다 방향을 달리해서 리듬이 생긴다. */
 @keyframes reelPush {
@@ -218,7 +219,26 @@ export class Reel {
         // 보스 초상은 세로가 길다. 판판한 배경 그림과 같은 방식으로 깔면
         // 얼굴이 잘려 나간다 (.plate.tall 주석 참고).
         const tall = (s.tall ?? /\/(boss|rise)\//.test(s.art ?? '')) ? ' tall' : ''
-        return `<div class="plate${tall}" data-i="${i}" style="${bg}--zoom:${zoom.toFixed(3)};--px:${px.toFixed(0)}px;--py:${py.toFixed(0)}px"></div>`
+        /**
+         * 한 장을 여러 컷으로 쓴다.
+         *
+         * `focus: [x%, y%, 배수]` 를 주면 그림의 그 지점을 그 배수로 당겨
+         * 깐다. 같은 그림이라도 넓게 한 번, 한쪽을 당겨 한 번, 더 당겨 한 번
+         * 쓰면 **카메라가 그 장면 안을 움직인 것**이 된다.
+         *
+         * 왜 이게 필요한가 — 컷신 하나를 네다섯 장으로 늘리려면 그만큼
+         * 그림이 있어야 하는데, 지금 판마다 두 장씩뿐이다. 없는 그림을
+         * 기다리는 대신, 있는 그림 안에서 **화각을 바꿔** 컷을 만든다.
+         * 만화가 같은 배경에 칸을 나누는 것과 같은 수법이고, 영상을
+         * 흉내내는 게 아니라 칸 사이에서 시간을 만드는 쪽이다.
+         *
+         * 진짜 그림이 생기면 focus 를 지우고 art 만 바꿔 끼우면 된다.
+         */
+        const f = s.focus
+        const fit = f
+          ? `background-size:${(f[2] * 100).toFixed(0)}% auto;background-position:${f[0]}% ${f[1]}%;`
+          : ''
+        return `<div class="plate${tall}" data-i="${i}" style="${bg}${fit}--zoom:${zoom.toFixed(3)};--px:${px.toFixed(0)}px;--py:${py.toFixed(0)}px"></div>`
       }).join('')
 
       this.el.style.setProperty('--flame', M.flame)

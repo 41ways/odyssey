@@ -42,16 +42,43 @@
  * 아직 필요한 그림은 HANDOFF.md 에 프롬프트까지 적어 뒀다.
  */
 
+/**
+ * ── 한 장면을 네다섯 컷으로 ──
+ *
+ * 컷 하나에 그림 한 장이면 장면이 "그림 세 장" 으로 읽힌다. 장면이 되려면
+ * **같은 곳을 여러 화각으로** 봐야 한다 — 넓게 한 번, 한쪽을 당겨 한 번,
+ * 더 당겨 한 번. 그러면 카메라가 그 장면 안을 움직인 것이 된다.
+ *
+ * 그래서 `focus: [x%, y%, 배수]` 를 쓴다 (ui/reel.js). 그림의 그 지점을
+ * 그 배수로 당겨 깐다. 판마다 그림이 두 장씩뿐인데 컷을 네다섯 개로
+ * 늘려야 하니, 없는 그림을 기다리는 대신 있는 그림 안에서 화각을 바꾼다.
+ * 만화가 같은 배경에 칸을 나누는 수법이고, 영상을 흉내내는 게 아니라
+ * 칸 사이에서 시간을 만드는 쪽이다.
+ *
+ * **솔직히**: 이건 새 그림이 아니라 같은 그림의 다른 화각이다. 진짜로
+ * 이어지는 그림이 생기면 focus 를 지우고 art 만 갈아 끼우면 된다 —
+ * 컷의 수와 글은 그대로 두고. 필요한 그림 목록은 HANDOFF.md 3절에 있다.
+ *
+ * 화각을 고르는 규칙 하나: **점점 좁혀 들어간다.** 넓게 시작해서 당겨
+ * 끝내면 "들어간다" 가 되고, 반대로 하면 "물러난다" 가 된다. 컷신은
+ * 대개 들어가는 쪽이다.
+ */
+
 /** 트로이가 불탄다. 게임이 시작되는 이유. (이 세 장은 이 컷신 전용으로 만든 것) */
 export const CUT_TROY = {
   mood: 'fire',
   where: '트로이 — 열 해째',
   shots: [
-    { art: '/img/lude-opening.webp', hold: 2100,
-      text: '십 년이 걸렸다. <em>트로이가 불탔다.</em>' },
-    { art: '/img/lude-opening-b.webp', hold: 2100,
+    // 불타는 도시를 넓게 → 성벽으로 당겨 → 불길만
+    { art: '/img/lude-opening.webp', hold: 1900, focus: [50, 50, 1.0],
+      text: '십 년이 걸렸다.' },
+    { art: '/img/lude-opening.webp', hold: 1800, focus: [52, 38, 1.9],
+      text: '<em>트로이가 불탔다.</em>' },
+    { art: '/img/lude-opening.webp', hold: 1700, focus: [30, 62, 2.6],
+      text: '우리는 배에 올랐다.' },
+    { art: '/img/lude-opening-b.webp', hold: 2000, focus: [50, 55, 1.15],
       text: '열두 척으로 떠났다.<br>집까지는 며칠이면 되는 거리였다.' },
-    { art: '/img/lude-opening-c.webp', hold: 2400,
+    { art: '/img/lude-opening-c.webp', hold: 2400, focus: [50, 50, 1.0],
       text: '바다가 <em>스무 해</em>를 붙들었다.' },
   ],
 }
@@ -69,14 +96,48 @@ export const CUT_CAVE = {
   mood: 'stone',
   where: '폴리페모스의 동굴',
   shots: [
-    // 동굴 입구를 안에서 본 장. 저승 액자용이지만 다섯 판 뒤라 겹치지 않는다.
-    { art: '/img/lude-underworld.webp', hold: 1900,
-      text: '동굴 하나. 양 떼와 치즈가 있었고, <em>주인은 없었다.</em>' },
-    // 바위를 머리 위로 든 거인 — 문이 막히는 순간의 대역이다
-    { art: '/img/boss/antiphates.webp', hold: 2100,
+    // 동굴 입구를 안에서 — 넓게 보고, 입구로 당기고, 그 다음 막힌다.
+    // 저승 액자용 그림이지만 다섯 판 뒤라 겹치지 않는다.
+    { art: '/img/lude-underworld.webp', hold: 1800, focus: [50, 50, 1.0],
+      text: '동굴 하나. 양 떼와 치즈가 있었다.' },
+    { art: '/img/lude-underworld.webp', hold: 1700, focus: [52, 44, 1.8],
+      text: '<em>주인은 없었다.</em>' },
+    // 바위를 머리 위로 든 거인 — 문이 막히는 순간의 대역이다 (진짜 그림 필요)
+    { art: '/img/boss/antiphates.webp', hold: 1800, focus: [50, 30, 1.5], tall: false,
+      text: '해가 질 때 무언가가 돌아왔다.' },
+    { art: '/img/boss/antiphates.webp', hold: 2000, focus: [50, 46, 2.3], tall: false,
       text: '돌아온 것이 <em>바위로 문을 막았다.</em><br>스무 명이 밀어도 꼼짝하지 않는 바위였다.' },
     { art: '/img/boss/polyphemos.webp', hold: 2300,
       text: '그것이 우리를 세어 보았다.' },
+  ],
+}
+
+/**
+ * 절벽 위에서 돌이 날아온다 — 라이스트리고네스.
+ *
+ * 이 판에는 컷신이 없었다. 그런데 이야기에서 **열두 척 중 열한 척이
+ * 여기서 가라앉는다.** 그게 이 항해의 가장 큰 손실인데, 게임에서는
+ * 현판 한 줄로 지나갔다. 오디세우스가 혼자 남는 이유가 이 장면이다.
+ *
+ * 다섯 컷이 (댄다 → 조용하다 → 위를 본다 → 돌이 온다 → 배가 부서진다)
+ * 로 간다. 셋째 컷이 중요하다 — 위를 보는 순간이 있어야 그 다음 돌이
+ * '위에서 온 것' 이 되고, 판에 들어가서 하늘을 보는 습관이 생긴다
+ * (이 판의 잡졸은 바위를 던진다).
+ */
+export const CUT_TELEPYLOS = {
+  mood: 'snow',
+  where: '텔레필로스 — 라이스트리고네스의 항구',
+  shots: [
+    { art: '/img/lude-telepylos-b.webp', hold: 1800, focus: [50, 62, 1.15],
+      text: '좁은 만이었다. 물이 잔잔해서 열두 척을 다 들였다.' },
+    { art: '/img/lude-telepylos-b.webp', hold: 1600, focus: [44, 70, 2.1],
+      text: '한 척만 밖에 묶어 뒀다. <em>그것이 살았다.</em>' },
+    { art: '/img/lude-telepylos-b.webp', hold: 1700, focus: [50, 18, 2.3],
+      text: '절벽 위가 새까맣게 움직였다.' },
+    { art: '/img/boss/antiphates.webp', hold: 1900, focus: [50, 34, 1.6],
+      text: '사람이 아니었다. <em>온 마을이 거인이었다.</em>' },
+    { art: '/img/lude-telepylos-b.webp', hold: 2300, focus: [56, 48, 1.5],
+      text: '돌이 떨어졌다. 열한 척이 그 만에 남았다.' },
   ],
 }
 
@@ -85,11 +146,18 @@ export const CUT_UNDER = {
   mood: 'under',
   where: '저승 — 해가 들지 않는 곳',
   shots: [
-    // 해가 들지 않는 실내. 이타카 액자용이지만 그건 세 판 뒤다.
-    { art: '/img/lude-ithaca.webp', hold: 2000,
+    // 해가 들지 않는 실내를 넓게 → 어둠으로 당겨 → 흙에서 손이 올라온다.
+    // 이타카 액자용 그림이지만 그건 세 판 뒤다.
+    { art: '/img/lude-ithaca.webp', hold: 1900, focus: [50, 50, 1.0],
       text: '바다 끝에 <em>해가 들지 않는 곳</em>이 있었다.' },
-    { art: '/img/rise/rise-agamemnon-1.webp', hold: 2200,
-      text: '구덩이를 파고 <em>피를 부으라</em> 했다.<br>그러면 망자가 말을 한다고.' },
+    { art: '/img/lude-ithaca.webp', hold: 1700, focus: [42, 58, 1.9],
+      text: '살아서 여기 온 사람은 없다고 했다.' },
+    { art: '/img/rise/rise-agamemnon-1.webp', hold: 1800, focus: [50, 70, 1.2],
+      text: '구덩이를 파고 <em>피를 부으라</em> 했다.' },
+    { art: '/img/rise/rise-agamemnon-1.webp', hold: 1700, focus: [50, 42, 2.0],
+      text: '그러면 망자가 말을 한다고.' },
+    { art: '/img/rise/rise-agamemnon-1.webp', hold: 2100, focus: [50, 22, 2.8],
+      text: '흙이 움직였다.' },
   ],
 }
 
@@ -106,12 +174,17 @@ export const CUT_WHIRL = {
   mood: 'water',
   where: '메시나 해협',
   shots: [
-    // 절벽 사이로 좁아지는 물길. 텔레필로스 액자용이지만 네 판 전이다.
-    { art: '/img/lude-telepylos-b.webp', hold: 1900,
-      text: '해협이 좁아진다. <em>양쪽 다 무사하지 않다.</em>' },
-    { art: '/img/lude-aiaia-b.webp', hold: 2000,
-      text: '한쪽은 절벽, 한쪽은 <em>바다가 통째로 도는 자리.</em>' },
-    { art: '/img/boss/charybdis.webp', hold: 2200,
+    // 좁아지는 물길을 넓게 → 절벽 쪽 → 도는 물 쪽 → 그 안으로.
+    // 텔레필로스 액자용 그림이지만 네 판 전이다.
+    { art: '/img/lude-telepylos-b.webp', hold: 1800, focus: [50, 50, 1.0],
+      text: '해협이 좁아진다.' },
+    { art: '/img/lude-telepylos-b.webp', hold: 1700, focus: [34, 44, 2.0],
+      text: '<em>양쪽 다 무사하지 않다.</em>' },
+    { art: '/img/lude-aiaia-b.webp', hold: 1800, focus: [30, 50, 1.6],
+      text: '한쪽은 절벽.' },
+    { art: '/img/boss/charybdis.webp', hold: 1800, focus: [50, 46, 1.3],
+      text: '한쪽은 <em>바다가 통째로 도는 자리.</em>' },
+    { art: '/img/boss/charybdis.webp', hold: 2300, focus: [50, 40, 2.2],
       text: '여섯을 잃을 것인가, 배를 잃을 것인가.' },
   ],
 }
@@ -127,16 +200,21 @@ export const CUT_ITHACA = {
   mood: 'stone',
   where: '이타카 — 스무 해 만에',
   shots: [
-    { art: '/img/lude-underworld-b.webp', hold: 2000,
+    // 바다에서 섬을 보고 → 해안으로 당기고 → 홀 문 → 잔치 → 그 우두머리.
+    { art: '/img/lude-underworld-b.webp', hold: 1900, focus: [50, 50, 1.0],
       text: '이십 년 만에 <em>이타카</em>가 보였다.' },
-    { art: '/img/lude-ithaca-b.webp', hold: 2100,
-      text: '홀에서는 잔치가 벌어지고 있었다.<br>내 것으로.' },
+    { art: '/img/lude-underworld-b.webp', hold: 1700, focus: [62, 56, 2.0],
+      text: '아무도 마중 나오지 않았다.' },
+    { art: '/img/lude-ithaca-b.webp', hold: 1800, focus: [50, 52, 1.1],
+      text: '홀에서는 잔치가 벌어지고 있었다.' },
+    { art: '/img/lude-ithaca-b.webp', hold: 1700, focus: [58, 46, 2.1],
+      text: '<em>내 것으로.</em>' },
     { art: '/img/boss/antinoos.webp', hold: 2300,
       text: '거지 차림으로 들어간다. <em>아직은.</em>' },
   ],
 }
 
 /** 컷신마다 쓰는 그림. 미리 받아 두려고 한 군데 모아 둔다. */
-export const ALL_CUTS = [CUT_TROY, CUT_CAVE, CUT_UNDER, CUT_WHIRL, CUT_ITHACA]
+export const ALL_CUTS = [CUT_TROY, CUT_TELEPYLOS, CUT_CAVE, CUT_UNDER, CUT_WHIRL, CUT_ITHACA]
 
 export const cutArt = cut => (cut?.shots ?? []).map(s => s.art).filter(Boolean)
