@@ -35,9 +35,11 @@ export class Run {
     }
   }
 
-  async start(from = 0) {
+  /** @param o.toBoss 웨이브를 건너뛰고 보스부터 (시험용) */
+  async start(from = 0, o = {}) {
     this.index = from - 1
     this.finished = false
+    this._skipWave = !!o.toBoss
     await this.next()
   }
 
@@ -48,6 +50,9 @@ export class Run {
   }
 
   async enter(stage) {
+    // 시험용으로 건너뛴 경우에만. 한 번 쓰고 끈다.
+    const skipWave = this._skipWave
+    this._skipWave = false
     const g = this.game
     this.stage = stage
     this.boss = null
@@ -66,7 +71,7 @@ export class Run {
       return
     }
 
-    if (stage.wave) {
+    if (stage.wave && !skipWave) {
       this.phase = 'wave'
       g.kills = 0
       await this.#scene(stage.wave, stage.wave.intro)

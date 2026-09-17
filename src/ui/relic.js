@@ -34,62 +34,70 @@ const shadeSVG = encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" wid
 </svg>`)
 
 const CSS = `
-#relic { position:absolute; inset:0; z-index:55; display:none; place-items:center;
-  pointer-events:none; font-family:var(--body); overflow:hidden;
+#relic { position:absolute; inset:0; z-index:55; display:none; pointer-events:none;
+  font-family:var(--body); overflow:hidden;
   background:
-    radial-gradient(ellipse 70% 50% at 50% 22%, rgba(120,92,180,.22), transparent 62%),
-    radial-gradient(ellipse 90% 60% at 50% 100%, rgba(150,40,50,.14), transparent 60%),
+    radial-gradient(ellipse 70% 50% at 50% 30%, rgba(120,92,180,.20), transparent 62%),
+    radial-gradient(ellipse 90% 55% at 50% 100%, rgba(150,40,60,.16), transparent 62%),
     linear-gradient(180deg, #06050a 0%, #0b0810 55%, #050408 100%); }
-#relic.on { display:grid; pointer-events:auto; cursor:default; }
+#relic.on { display:block; pointer-events:auto; cursor:default; }
 #relic .ash { position:absolute; inset:0; pointer-events:none; }
 #relic .ash i { position:absolute; width:3px; height:3px; border-radius:50%;
-  background:#c8b28a; opacity:.0; }
+  background:#c8b28a; opacity:0; }
 
-#relic .wrap { position:relative; text-align:center; width:min(1000px, 94vw); }
+/* 아래에서 솟아올라 화면 아래 절반을 덮는다 */
+#relic .shade { position:absolute; left:50%; bottom:-7vh; transform:translate(-50%, 26%);
+  height:102vh; opacity:0; transition:transform 1.1s cubic-bezier(.16,.9,.3,1), opacity .9s ease; }
+#relic.up .shade { transform:translate(-50%, 0); opacity:1; }
+#relic .shade img { height:100%; width:auto; max-width:none; display:block;
+  filter:contrast(1.06) brightness(.98) drop-shadow(0 0 60px rgba(140,110,200,.5)); }
+#relic .shade .glow { position:absolute; left:50%; top:42%; width:78vh; height:78vh;
+  transform:translate(-50%,-50%); pointer-events:none; z-index:-1;
+  background:radial-gradient(circle, rgba(140,110,200,.28), rgba(90,60,150,.10) 44%, transparent 68%); }
+
+/* 머리 위에 이름과 말 */
+#relic .said { position:absolute; left:50%; top:5.5vh; transform:translateX(-50%);
+  width:min(700px, 90vw); text-align:center; opacity:0; transition:opacity .7s ease .45s; }
+#relic.up .said { opacity:1; }
 #relic .band { height:14px; background-image:${meanderURI('#9b7bd0', 0.9)};
-  background-repeat:repeat-x; background-position:center; opacity:.45; }
+  background-repeat:repeat-x; background-position:center; opacity:.4; }
+#relic .said h2 { font-family:var(--serif); font-size:30px; font-weight:700;
+  letter-spacing:.24em; text-indent:.24em; color:#ded2ef; margin:16px 0 4px;
+  text-shadow:0 0 40px rgba(140,110,200,.55), 0 4px 22px #000; }
+#relic .said .t { font-size:11px; letter-spacing:.28em; color:#8a7bb0; margin-bottom:14px; }
+#relic .said p { font-size:14px; line-height:1.95; color:#b0a3c8;
+  text-shadow:0 2px 14px #000; }
+#relic .said p em { color:#efe6ff; font-style:normal; }
 
-#relic .who { display:flex; align-items:flex-end; justify-content:center; gap:22px; margin:14px 0 2px; }
-/* 액자에 넣으면 사진이 되고, 아래를 어둠에 녹이면 떠오른 형상이 된다 */
-#relic .frame { position:relative; width:250px; height:310px; flex:none; }
-#relic .frame img { position:relative; z-index:1; width:100%; height:100%;
-  object-fit:contain; object-position:50% 100%;
-  filter:grayscale(.2) contrast(1.06) brightness(.95) drop-shadow(0 0 28px rgba(140,110,200,.45));
-  -webkit-mask-image:linear-gradient(180deg, #000 0%, #000 74%, transparent 97%);
-  mask-image:linear-gradient(180deg, #000 0%, #000 74%, transparent 97%); }
-#relic .frame .glow { position:absolute; left:50%; top:46%; width:300px; height:300px;
-  transform:translate(-50%,-50%); pointer-events:none;
-  background:radial-gradient(circle, rgba(140,110,200,.34), rgba(90,60,150,.12) 46%, transparent 70%); }
-#relic .said { text-align:left; max-width:500px; padding-bottom:44px; }
-#relic .said h2 { font-family:var(--serif); font-size:28px; font-weight:700;
-  letter-spacing:.2em; color:#d9cdea; margin-bottom:6px;
-  text-shadow:0 0 34px rgba(140,110,200,.45); }
-#relic .said .t { font-size:11px; letter-spacing:.24em; color:#8a7bb0; margin-bottom:14px; }
-#relic .said p { font-size:14px; line-height:1.95; color:#a99cc0; }
-#relic .said p em { color:#e6dcf4; font-style:normal; }
-
-#relic .cards { display:flex; gap:20px; justify-content:center; margin-top:28px; }
-#relic button { width:266px; padding:0 0 24px; text-align:left; cursor:pointer;
-  color:var(--ivory); font:inherit; border:1px solid #4a3c66; border-radius:4px;
-  background:linear-gradient(180deg,#191426 0%,#120d1c 45%,#0a0711 100%);
-  box-shadow:inset 0 0 0 1px rgba(200,151,62,.12), 0 20px 52px rgba(0,0,0,.6);
+/* 벌린 양팔 사이 — 세 장이 여기 들어간다 */
+#relic .cards { position:absolute; left:50%; bottom:20vh; transform:translateX(-50%);
+  display:flex; gap:16px; justify-content:center; opacity:0;
+  transition:opacity .6s ease .75s, transform .6s cubic-bezier(.2,.8,.3,1) .75s; }
+#relic.up .cards { opacity:1; }
+#relic button { width:min(228px, 24vw); padding:0 0 20px; text-align:left; cursor:pointer;
+  color:var(--ivory); font:inherit; border:1px solid #57456f; border-radius:4px;
+  background:linear-gradient(180deg, rgba(31,24,45,.94) 0%, rgba(18,13,28,.96) 45%, rgba(10,7,17,.97) 100%);
+  backdrop-filter:blur(3px);
+  box-shadow:inset 0 0 0 1px rgba(200,151,62,.14), 0 24px 56px rgba(0,0,0,.72);
   transition:border-color .16s, transform .16s, box-shadow .16s; overflow:hidden; position:relative; }
-#relic button:hover { transform:translateY(-7px); border-color:var(--bronze);
-  box-shadow:inset 0 0 0 1px rgba(200,151,62,.45), 0 28px 62px rgba(0,0,0,.7), 0 0 44px rgba(155,123,208,.2); }
-#relic button .top { height:14px; background-image:${meanderURI('#c8973e', 0.9)};
+#relic button:hover { transform:translateY(-8px); border-color:var(--bronze);
+  box-shadow:inset 0 0 0 1px rgba(200,151,62,.5), 0 32px 70px rgba(0,0,0,.8), 0 0 50px rgba(155,123,208,.28); }
+#relic button .top { height:13px; background-image:${meanderURI('#c8973e', 0.9)};
   background-repeat:repeat-x; background-position:center; opacity:.45; }
-#relic button:hover .top { opacity:.95; }
-#relic .sigil { width:74px; height:74px; margin:20px auto 14px; }
-#relic .pad { padding:0 22px; }
-#relic .rname { font-family:var(--serif); font-size:21px; font-weight:700;
-  text-align:center; letter-spacing:.05em; margin-bottom:14px; color:#f0e4d0; }
-#relic .rdesc { font-size:12.5px; line-height:1.75; color:#e0bd85; font-weight:700; }
-#relic .rflavor { font-size:11.5px; line-height:1.7; color:#8a8074; margin-top:14px;
-  padding-top:13px; border-top:1px solid #33294a; }
-#relic .num { position:absolute; top:22px; right:16px; font-family:var(--serif);
-  font-size:10px; color:#6f5f90; border:1px solid #3d3358; border-radius:2px; padding:2px 7px; }
-#relic .foot { margin-top:26px; font-family:var(--serif); font-size:11px;
-  letter-spacing:.32em; color:#6f6580; }
+#relic button:hover .top { opacity:1; }
+#relic .sigil { width:62px; height:62px; margin:16px auto 10px; }
+#relic .pad { padding:0 18px; }
+#relic .rname { font-family:var(--serif); font-size:19px; font-weight:700;
+  text-align:center; letter-spacing:.04em; margin-bottom:11px; color:#f4e9d6; }
+#relic .rdesc { font-size:12px; line-height:1.7; color:#e4c391; font-weight:700; }
+#relic .rflavor { font-size:11px; line-height:1.65; color:#8f8478; margin-top:11px;
+  padding-top:10px; border-top:1px solid #3a2f52; }
+#relic .num { position:absolute; top:20px; right:14px; font-family:var(--serif);
+  font-size:10px; color:#7a6a9c; border:1px solid #453a63; border-radius:2px; padding:2px 6px; }
+#relic .foot { position:absolute; left:0; right:0; bottom:8vh; text-align:center;
+  font-family:var(--serif); font-size:11px; letter-spacing:.34em; color:#6f6580;
+  opacity:0; transition:opacity .6s ease 1s; }
+#relic.up .foot { opacity:1; }
 `
 
 /** 유물마다 다른 문장(紋章). 카드가 세 장 다 똑같아 보이지 않게. */
@@ -128,41 +136,42 @@ export class RelicScreen {
       this._resolve = resolve
       this._relics = relics
       this.el.innerHTML = `
-        <div class="ash">${Array.from({ length: 34 }, (_, i) => {
+        <div class="ash">${Array.from({ length: 34 }, () => {
           const l = Math.random() * 100, d = (Math.random() * 9).toFixed(1), s = (7 + Math.random() * 7).toFixed(1)
           return `<i style="left:${l.toFixed(1)}%;bottom:-8px;animation:ashUp ${s}s linear ${d}s infinite"></i>`
         }).join('')}</div>
-        <div class="wrap">
+
+        <div class="shade">
+          <div class="glow"></div>
+          <img src="${PORTRAIT}" alt=""
+            onerror="this.src='data:image/svg+xml;charset=utf-8,${shadeSVG}'">
+        </div>
+
+        <div class="said">
           <div class="band"></div>
-          <div class="who">
-            <div class="frame">
-              <div class="glow"></div>
-              <img src="${PORTRAIT}" alt=""
-                onerror="this.src='data:image/svg+xml;charset=utf-8,${shadeSVG}'">
-            </div>
-            <div class="said">
-              <h2>${name}</h2>
-              <div class="t">${title}</div>
-              <p>${said}</p>
-            </div>
-          </div>
-          <div class="cards">
-            ${relics.map((r, i) => `
-              <button data-i="${i}">
-                <div class="top"></div>
-                <span class="num">${i + 1}</span>
-                <div class="sigil">${SIGILS[r.id] ?? ''}</div>
-                <div class="pad">
-                  <div class="rname">${r.name}</div>
-                  <div class="rdesc">${r.desc}</div>
-                  <div class="rflavor">${r.flavor}</div>
-                </div>
-              </button>`).join('')}
-          </div>
-          <div class="foot">하나만 가져갈 수 있다</div>
-          <div class="band" style="margin-top:22px"></div>
-        </div>`
+          <h2>${name}</h2>
+          <div class="t">${title}</div>
+          <p>${said}</p>
+        </div>
+
+        <div class="cards">
+          ${relics.map((r, i) => `
+            <button data-i="${i}">
+              <div class="top"></div>
+              <span class="num">${i + 1}</span>
+              <div class="sigil">${SIGILS[r.id] ?? ''}</div>
+              <div class="pad">
+                <div class="rname">${r.name}</div>
+                <div class="rdesc">${r.desc}</div>
+                <div class="rflavor">${r.flavor}</div>
+              </div>
+            </button>`).join('')}
+        </div>
+        <div class="foot">하나만 가져갈 수 있다</div>`
       this.el.classList.add('on')
+      // 한 박자 뒤에 켜야 transition 이 먹는다 — 솟아오르는 게 보여야 한다.
+      // rAF 는 창이 숨겨져 있으면 안 돌아서 타이머를 쓴다.
+      setTimeout(() => this.el.classList.add('up'), 30)
       document.body.style.cursor = 'default'
       for (const b of this.el.querySelectorAll('button')) {
         b.addEventListener('click', () => this.pick(+b.dataset.i))
@@ -182,6 +191,7 @@ export class RelicScreen {
     this._resolve = null
     removeEventListener('keydown', this.onKey)
     this.el.classList.remove('on')
+    this.el.classList.remove('up')
     document.body.style.cursor = ''
     r(this._relics[i])
   }

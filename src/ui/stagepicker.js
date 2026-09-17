@@ -2,7 +2,7 @@ import { installTheme, meanderURI } from './theme.js'
 
 /**
  * 스테이지 고르기 (로컬 시험용).
- * Tab 으로 열고 숫자나 클릭으로 그 판부터 시작한다. 주소에 ?stage=3 을 붙여도 된다.
+ * Tab 으로 열고 숫자나 클릭으로 그 판부터 시작한다. 주소엔 ?stage=3 · 보스부터는 &boss=1.
  */
 const CSS = `
 #picker { position:absolute; inset:0; z-index:70; display:none; place-items:center;
@@ -56,8 +56,9 @@ export class StagePicker {
     this.el.innerHTML = `<div class="box">
       <div class="band"></div>
       <h3>스테이지 고르기</h3>
-      <div class="hint">숫자키 1–8 · 클릭 · Tab 으로 닫기 &nbsp;|&nbsp; 주소에 ?stage=3 을 붙여도 된다</div>
+      <div class="hint">숫자키 1–8 · 클릭 · Tab 으로 닫기 &nbsp;|&nbsp; 주소엔 ?stage=3 · 보스부터는 &boss=1</div>
       <label class="opt"><input type="checkbox" id="picker-bare"> 맨몸으로 (전리품·성장 없이)</label>
+      <label class="opt" style="margin-top:-10px"><input type="checkbox" id="picker-wave"> 웨이브부터 (기본은 보스전으로 바로)</label>
       <ol>${stages.map((s, i) => { const sh = shape(s); return `<li data-i="${i}">
         <span class="n">${i + 1}</span>
         <span class="nm">${s.name}</span>
@@ -68,19 +69,20 @@ export class StagePicker {
     root.appendChild(this.el)
 
     for (const li of this.el.querySelectorAll('li')) {
-      li.addEventListener('click', () => { this.close(); onPick(+li.dataset.i, { bare: this.bare }) })
+      li.addEventListener('click', () => { this.close(); onPick(+li.dataset.i, { bare: this.bare, toBoss: this.toBoss }) })
     }
     addEventListener('keydown', e => {
       if (e.code === 'Tab') { e.preventDefault(); this.toggle(); return }
       if (!this.open) return
       const n = ['Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','Digit7','Digit8','Digit9'].indexOf(e.code)
-      if (n >= 0 && n < stages.length) { e.preventDefault(); this.close(); onPick(n, { bare: this.bare }) }
+      if (n >= 0 && n < stages.length) { e.preventDefault(); this.close(); onPick(n, { bare: this.bare, toBoss: this.toBoss }) }
       if (e.code === 'Escape') this.close()
     })
   }
 
   get open() { return this.el.classList.contains('on') }
   get bare() { return this.el.querySelector('#picker-bare')?.checked ?? false }
+  get toBoss() { return !(this.el.querySelector('#picker-wave')?.checked ?? false) }
   toggle() { this.open ? this.close() : this.show() }
   show() { this.el.classList.add('on'); document.body.style.cursor = 'default' }
   close() { this.el.classList.remove('on'); document.body.style.cursor = '' }

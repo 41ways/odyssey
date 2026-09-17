@@ -91,7 +91,7 @@ class Game {
     const bare = q.get('bare') === '1'
     this.render3d.look = LOOKS[q.get('look')] ? q.get('look') : 'souls'
     this.paused = true
-    new TitleScreen(uiRoot).wait().then(() => { this.paused = false; this.jumpTo(startAt, { bare }) })
+    new TitleScreen(uiRoot).wait().then(() => { this.paused = false; this.jumpTo(startAt, { bare, toBoss: q.get('boss') === '1' }) })
   }
 
   /* ── 필드 ─────────────────────────────────────────────── */
@@ -250,7 +250,7 @@ class Game {
    * 맨몸 레벨1 로 900 체력짜리 보스를 만나면 체험이 안 된다.
    * 그 지점까지 왔다면 가졌을 만큼을 쥐여 주고 시작한다.
    */
-  async jumpTo(index, { bare = false } = {}) {
+  async jumpTo(index, { bare = false, toBoss = true } = {}) {
     this.paused = false
     this.equipFx = null
     this.equipCard.close()
@@ -285,7 +285,7 @@ class Game {
     p.hp = p.maxHp; p.dead = false; p.action.stop(); p.rolling = 0; p.stagger = 0
     p.invuln = 0; p._echo = null; p.rollCharges = 3
 
-    await this.run.start(index)
+    await this.run.start(index, { toBoss })
     if (!bare && index > 0) this.hud.toast(`연습 — 그 지점 차림으로 시작 (성장 ${this.taken.size}종)`, 3)
   }
 

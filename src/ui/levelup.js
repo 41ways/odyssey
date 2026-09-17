@@ -21,7 +21,31 @@ const CSS = `
 #levelup .sub::before { content:'“'; } #levelup .sub::after { content:'”'; }
 #levelup .unlocked { font-family:var(--serif); font-size:12px; letter-spacing:.2em;
   color:var(--bronze); margin:14px 0 4px; }
-#levelup .cards { display:flex; gap:18px; justify-content:center; margin-top:26px; }
+#levelup .cards { display:flex; gap:18px; justify-content:center; margin-top:26px;
+  perspective:1400px; }
+
+/* 등장 — 한 장씩 차례로 선다. 윗등급은 뒤집히며 열린다. */
+#levelup button { opacity:0; transform:translateY(22px);
+  transition:opacity .34s ease, transform .4s cubic-bezier(.2,.9,.3,1),
+             border-color .15s, box-shadow .15s; }
+#levelup button.in { opacity:1; transform:none; }
+#levelup button.sealed { opacity:1; transform:rotateY(90deg); }
+#levelup button.opening { transform:rotateY(0deg);
+  transition:transform .5s cubic-bezier(.2,.9,.25,1); }
+
+/* 윗등급이 열릴 때 뒤에서 터지는 빛 */
+#levelup .burst { position:absolute; left:50%; top:50%; width:340px; height:340px;
+  transform:translate(-50%,-50%) scale(.3); border-radius:50%; pointer-events:none;
+  opacity:0; transition:opacity .5s ease, transform .7s cubic-bezier(.1,.8,.3,1); }
+#levelup .burst.go { opacity:.85; transform:translate(-50%,-50%) scale(1); }
+#levelup .burst.fade { opacity:0; }
+
+/* 윗등급 카드 테두리가 한 번 번쩍인다 */
+#levelup button.flash { box-shadow:inset 0 0 0 2px currentColor, 0 0 60px currentColor; }
+
+/* 등급 도장이 찍히듯 들어온다 */
+#levelup .tier { opacity:0; transform:scale(1.9); transition:opacity .2s ease, transform .3s cubic-bezier(.2,.9,.2,1); }
+#levelup button.in .tier, #levelup button.opening .tier { opacity:1; transform:none; }
 
 #levelup button { width:224px; padding:0 0 22px; text-align:left; cursor:pointer;
   color:var(--ivory); font:inherit; border:1px solid #4a3623; border-radius:3px;
@@ -82,7 +106,8 @@ export class LevelUp {
           ${unlocked.length ? `<div class="unlocked">${unlocked.map(u => `${tiers[u.tier]?.label ?? ''} 해금 — ${u.name}`).join(' · ')}</div>` : ''}
           <div class="cards">
             ${choices.map((u, i) => `
-              <button data-i="${i}" class="t${u.tier ?? 0}">
+              <button data-i="${i}" class="t${u.tier ?? 0}" data-tier="${u.tier ?? 0}">
+                ${u.tier > 0 ? `<div class="burst" style="background:radial-gradient(circle, ${tiers[u.tier].color}88, ${tiers[u.tier].color}22 42%, transparent 68%)"></div>` : ''}
                 <div class="top"></div>
                 <div class="pad">
                   <div class="tag"><span>${u.tag ?? ''}</span><span class="num">${i + 1}</span></div>
@@ -100,8 +125,39 @@ export class LevelUp {
       for (const b of this.el.querySelectorAll('button')) {
         b.addEventListener('click', () => this.pick(+b.dataset.i))
       }
+      this.#reveal()
       addEventListener('keydown', this.onKey)
     })
+  }
+
+  /**
+   * 카드 등장.
+   * 일반은 차례로 서고, 윗등급은 한 박자 늦게 뒤집히며 열린다 —
+   * 무엇이 특별한지 눈이 먼저 안다.
+   * (rAF 는 창이 숨겨져 있으면 안 돌아서 전부 타이머로 돌린다)
+   */
+  #reveal() {
+    const cards = [...this.el.querySelectorAll('button')]
+    let t = 40
+    for (const b of cards) {
+      const tier = +b.dataset.tier
+      if (tier === 0) {
+        setTimeout(() => b.classList.add('in'), t)
+        t += 90
+      } else {
+        // 윗등급: 옆으로 세워 뒀다가 늦게 연다
+        b.classList.add('sealed')
+        const at = t + 260
+        setTimeout(() => {
+          const burst = b.querySelector('.burst')
+          burst?.classList.add('go')
+          b.classList.remove('sealed')
+          b.classList.add('opening', 'in', 'flash')
+          setTimeout(() => { b.classList.remove('flash'); burst?.classList.add('fade') }, 420)
+        }, at)
+        t = at + 140
+      }
+    }
   }
 
   onKey(e) {
