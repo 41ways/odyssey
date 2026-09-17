@@ -20,12 +20,77 @@ const FADE = Number(process.env.FADE_PX ?? 0)
 // 안 그러면 화면에 칼로 자른 듯한 직선이 남는다 (아가멤논의 망토가 그랬다).
 const EDGE = Number(process.env.FADE_EDGE ?? 0)
 const TRIM = process.env.TRIM === '1'   // 남은 여백을 잘라 낸다
+// FLAT=1: 격자가 아니라 '한 가지 색으로 평평한 배경' 을 걷어낸다.
+// 생성기에 투명을 달라고 하면 격자를 그려 버리므로, 아예 단색 배경으로
+// 뽑아 달라고 하고 그 색만 가장자리에서부터 번져 들어가며 지운다.
+const FLAT = process.env.FLAT === '1'
+const FLAT_TOL = Number(process.env.FLAT_TOL ?? 34)
 if (!src || !name) { console.error('쓰기: node tools/dechecker.mjs <png> <이름> [여유값] [폭]'); process.exit(1) }
 const TOL = Number(tolArg ?? 12)
 
 const img = sharp(src).ensureAlpha()
 const { width: W, height: H } = await img.metadata()
 const { data } = await img.raw().toBuffer({ resolveWithObject: true })
+
+if (FLAT) {
+  // 네 귀퉁이의 중앙값을 배경색으로 본다. 한쪽에 인물이 걸쳐 있어도 중앙값이면 버틴다.
+  const corner = (x, y) => { const o = (y * W + x) * 4; return [data[o], data[o + 1], data[o + 2]] }
+  const cs = [corner(3, 3), corner(W - 4, 3), corner(3, H - 4), corner(W - 4, H - 4)]
+  const med = k => cs.map(c => c[k]).sort((a, b) => a - b)[1]
+  const bgc = [med(0), med(1), med(2)]
+  console.log(`  단색 배경 rgb(${bgc.join(' ')}) 을 걷어낸다`)
+
+  const near = o => Math.abs(data[o] - bgc[0]) + Math.abs(data[o + 1] - bgc[1]) + Math.abs(data[o + 2] - bgc[2]) < FLAT_TOL * 3
+  const N2 = W * H
+  const bg2 = new Uint8Array(N2)
+  const st = []
+  const push2 = i => { if (!bg2[i] && near(i * 4)) { bg2[i] = 1; st.push(i) } }
+  for (let x = 0; x < W; x++) { push2(x); push2((H - 1) * W + x) }
+  for (let y = 0; y < H; y++) { push2(y * W); push2(y * W + W - 1) }
+  while (st.length) {
+    const i = st.pop(), x = i % W, y = (i / W) | 0
+    if (x > 0) push2(i - 1)
+    if (x < W - 1) push2(i + 1)
+    if (y > 0) push2(i - W)
+    if (y < H - 1) push2(i + W)
+  }
+
+  // 생성기 표식(✦) 처럼 인물과 안 붙은 작은 섬은 버린다
+  {
+    const seen = new Uint8Array(N2)
+    for (let i = 0; i < N2; i++) {
+      if (seen[i] || bg2[i]) continue
+      const comp = [i]; seen[i] = 1
+      for (let h = 0; h < comp.length && comp.length < 2500; h++) {
+        const j = comp[h], x = j % W, y = (j / W) | 0
+        const add = k => { if (!seen[k] && !bg2[k]) { seen[k] = 1; comp.push(k) } }
+        if (x > 0) add(j - 1)
+        if (x < W - 1) add(j + 1)
+        if (y > 0) add(j - W)
+        if (y < H - 1) add(j + W)
+      }
+      if (comp.length < 2500) for (const j of comp) bg2[j] = 1
+    }
+  }
+
+  const out2 = Buffer.alloc(N2 * 4)
+  let kept2 = 0
+  for (let i = 0; i < N2; i++) {
+    const o = i * 4
+    out2[o] = data[o]; out2[o + 1] = data[o + 1]; out2[o + 2] = data[o + 2]
+    out2[o + 3] = bg2[i] ? 0 : 255
+    if (!bg2[i]) kept2++
+  }
+  let pipe2 = sharp(out2, { raw: { width: W, height: H, channels: 4 } }).blur(0.5)
+  if (TRIM) pipe2 = sharp(await pipe2.png().toBuffer()).trim({ threshold: 1 })
+  if (widthArg) pipe2 = pipe2.resize({ width: Number(widthArg) })
+  const dst2 = `public/img/${name}.webp`
+  await pipe2.webp({ quality: 88, alphaQuality: 92 }).toFile(dst2)
+  const m2 = await sharp(dst2).metadata()
+  console.log(`✔ ${name}.webp  ${m2.width}×${m2.height}  ${Math.round((await sharp(dst2).toBuffer()).length / 1024)} KB`)
+  console.log(`  배경 ${(100 - kept2 / N2 * 100).toFixed(0)}% 지움`)
+  process.exit(0)
+}
 
 // 귀퉁이에서 격자의 두 밝기를 읽는다. 값에 잡티가 섞여 있어 색 그대로는
 // 세어 봐야 흩어진다 — 밝기 기둥을 세우고 봉우리 두 개를 고른다.

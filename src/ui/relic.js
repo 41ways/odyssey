@@ -62,12 +62,12 @@ const CSS = `
   background:radial-gradient(ellipse, rgba(120,88,190,.22), rgba(70,44,120,.08) 42%, transparent 70%); }
 
 /* 머리 위에 이름과 말 */
-#relic .said { position:absolute; left:50%; top:3.5vh; transform:translateX(-50%);
+#relic .said { position:absolute; left:50%; top:7vh; transform:translateX(-50%);
   width:min(700px, 90vw); text-align:center; opacity:0; transition:opacity .7s ease .45s; }
 #relic.up .said { opacity:1; }
 #relic .band { height:14px; background-image:${meanderURI('#9b7bd0', 0.9)};
   background-repeat:repeat-x; background-position:center; opacity:.4; }
-#relic .said h2 { font-family:var(--serif); font-size:52px; font-weight:700;
+#relic .said h2 { font-family:var(--serif); font-size:clamp(30px, 3.4vw, 46px); font-weight:700;
   letter-spacing:.26em; text-indent:.26em; color:#e8dcf8; margin:18px 0 8px;
   text-shadow:0 0 70px rgba(150,118,215,.7), 0 0 28px rgba(150,118,215,.5), 0 6px 26px #000; }
 #relic .said .t { font-size:12.5px; letter-spacing:.34em; color:#9a89c4; margin-bottom:18px; }

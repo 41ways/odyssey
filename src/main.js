@@ -401,11 +401,15 @@ class Game {
     this.hud?.toast?.(this.god ? '무적 켜짐' : '무적 꺼짐', 1.6)
   }
 
-  /** 막간 — 판과 판 사이의 한 호흡. */
-  async playInterlude(spec) {
+  /**
+   * 막간 — 판과 판 사이의 한 호흡.
+   * keepOpen 이면 글이 끝나도 화면을 켠 채로 둔다. 다음 판의 막이 내려온 뒤에
+   * 닫아야, 그 사이로 '지나온 판' 이 한 박자 비치지 않는다.
+   */
+  async playInterlude(spec, { keepOpen = false } = {}) {
     this.#freeze()
-    await this.interlude.play(spec)
-    this.#thaw()
+    await this.interlude.play({ ...spec, keepOpen })
+    if (!keepOpen) this.#thaw()
   }
 
   /**
@@ -459,6 +463,8 @@ class Game {
     veil.style.opacity = '1'
     await new Promise(r => setTimeout(r, out * 1000))
 
+    // 막이 다 내려온 뒤에야 막간 화면을 걷는다
+    this.interlude?.close()
     await apply?.()
     await new Promise(r => setTimeout(r, hold * 1000))
 

@@ -195,7 +195,8 @@ export class Run {
     if (afterBoss) await g.grantBlessing(this.stage)
     if (afterBoss) await g.offerUpgrade(`${this.stage.name} 통과`, '가져갈 것을 하나 고른다')
     const lude = interludeFor(this.index)
-    if (lude) await g.playInterlude(lude)
+    // 막간은 켜 둔 채로 넘긴다 — 다음 판의 막이 내려오면 그때 닫힌다
+    if (lude) await g.playInterlude(lude, { keepOpen: true })
     this.busy = false
     await this.next()
   }

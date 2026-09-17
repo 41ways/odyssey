@@ -118,18 +118,30 @@ const CSS = `
 #lude .night .col { position:absolute; bottom:0; width:38px; top:34%;
   background:linear-gradient(180deg, rgba(20,15,12,.0), rgba(14,10,8,.92) 30%); }
 
-#lude .plate { position:relative; text-align:center; width:min(760px, 88vw); }
+/* 글 뒤에 그늘 한 겹. 그림이 밝으면 흰 글씨가 그대로 묻힌다 —
+   화면 전체를 어둡게 하면 그림이 죽으니 글 있는 띠만 눌러 준다. */
+#lude .plate { position:relative; text-align:center; width:min(760px, 88vw);
+  padding:34px 40px; opacity:1;
+  transition:opacity 1.0s ease, transform 1.2s ease; }
+#lude .plate::before { content:''; position:absolute; inset:-10% -22%;
+  background:radial-gradient(ellipse 62% 58% at 50% 50%,
+    rgba(4,3,6,.80) 0%, rgba(4,3,6,.56) 46%, transparent 82%);
+  pointer-events:none; }
+#lude .plate > * { position:relative; }
+/* 마지막 글줄이 뚝 끊기지 않게 한 번 접고 나간다 */
+#lude .plate.out { opacity:0; transform:translateY(-8px); }
 #lude .band { height:14px; background-image:${meanderURI('#c8973e', 0.85)};
   background-repeat:repeat-x; background-position:center; opacity:.35; }
 #lude .line { min-height:6.6em; display:grid; place-items:center; margin:30px 0; }
-#lude .line span { display:block; font-family:var(--serif); font-size:26px; line-height:1.9;
-  letter-spacing:.06em; color:#ece0c8; opacity:0; transform:translateY(12px);
+#lude .line span { display:block; font-family:var(--serif); font-size:27px; line-height:1.9;
+  letter-spacing:.06em; color:#f4ead6; opacity:0; transform:translateY(12px);
   transition:opacity .8s ease, transform .9s cubic-bezier(.2,.8,.3,1);
-  text-shadow:0 4px 30px #000; }
+  text-shadow:0 2px 6px rgba(0,0,0,.95), 0 4px 22px rgba(0,0,0,.9), 0 0 60px rgba(0,0,0,.8); }
 #lude .line span.in { opacity:1; transform:none; }
 #lude .line span em { color:#ffd9a0; font-style:normal; }
 #lude .dest { font-family:var(--serif); font-size:13px; letter-spacing:.44em;
-  text-indent:.44em; color:#c8973e; opacity:0; transition:opacity .8s ease; }
+  text-indent:.44em; color:#e0b264; opacity:0; transition:opacity .8s ease;
+  text-shadow:0 2px 10px rgba(0,0,0,.95); }
 #lude .dest.in { opacity:1; }
 #lude .skip { position:absolute; right:26px; bottom:22px; font-family:var(--serif);
   font-size:11px; letter-spacing:.26em; text-indent:.26em; color:#7d7160;
@@ -211,7 +223,13 @@ export class Interlude {
    * @param o.art      배경 그림. 한 장이면 문자열, 글줄마다 갈려면 배열.
    *                    없거나 못 불러오면 조용히 CSS 장면이 남는다
    */
-  play({ lines, dest, scene = 'sea', art = null }) {
+  /** 막이 내려온 뒤에 닫는다 — 곧바로 닫으면 그 틈으로 지난 판이 보인다. */
+  close() {
+    this.el.classList.remove('on')
+    document.body.style.cursor = ''
+  }
+
+  play({ lines, dest, scene = 'sea', art = null, keepOpen = false }) {
     return new Promise(resolve => {
       const arts = art ? (Array.isArray(art) ? art : [art]) : []
       const back = (SCENES[scene] ? SCENES[scene]() : SCENES.sea())
@@ -258,8 +276,8 @@ export class Interlude {
         done = true
         timers.forEach(clearTimeout)
         removeEventListener('keydown', skip)
-        this.el.classList.remove('on')
-        document.body.style.cursor = ''
+        // keepOpen 이면 화면을 켠 채로 넘긴다. 다음 판의 막이 내려온 뒤 close() 가 닫는다.
+        if (!keepOpen) this.close()
         resolve()
       }
       const skip = e => {
@@ -280,7 +298,10 @@ export class Interlude {
         t += (l.hold ?? 2600)
       })
       if (destEl) timers.push(setTimeout(() => destEl.classList.add('in'), Math.max(600, t - 1400)))
-      timers.push(setTimeout(finish, t + 300))
+      // 마지막 글줄을 한 번 접고 나간다. 그대로 끊으면 읽다 만 것처럼 남는다.
+      const plate = this.el.querySelector('.plate')
+      timers.push(setTimeout(() => plate?.classList.add('out'), t + 200))
+      timers.push(setTimeout(finish, t + 1300))
     })
   }
 }
