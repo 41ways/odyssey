@@ -14,7 +14,10 @@ const CSS = `
   background-repeat:repeat-x; background-position:center; opacity:.45; }
 #picker h3 { font-family:var(--serif); font-size:15px; letter-spacing:.4em;
   text-indent:.4em; color:var(--bronze); margin:20px 0 4px; }
-#picker .hint { font-size:11.5px; color:#6f6455; margin-bottom:20px; letter-spacing:.04em; }
+#picker .hint { font-size:11.5px; color:#6f6455; margin-bottom:12px; letter-spacing:.04em; }
+#picker .opt { font-size:12px; color:#9c8156; margin-bottom:18px; letter-spacing:.04em;
+  display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer; }
+#picker .opt input { accent-color:#c8973e; cursor:pointer; }
 #picker ol { list-style:none; display:grid; gap:6px; margin-bottom:22px; }
 #picker li { display:flex; align-items:center; gap:14px; padding:10px 16px; cursor:pointer;
   border:1px solid #33291f; border-radius:2px; background:rgba(26,18,12,.7);
@@ -41,6 +44,7 @@ export class StagePicker {
       <div class="band"></div>
       <h3>스테이지 고르기</h3>
       <div class="hint">숫자키 1–9 · 클릭 · Tab 으로 닫기 &nbsp;|&nbsp; 주소에 ?stage=3 을 붙여도 된다</div>
+      <label class="opt"><input type="checkbox" id="picker-bare"> 맨몸으로 (전리품·성장 없이)</label>
       <ol>${stages.map((s, i) => `<li data-i="${i}">
         <span class="n">${i + 1}</span>
         <span class="nm">${s.name}</span>
@@ -51,18 +55,19 @@ export class StagePicker {
     root.appendChild(this.el)
 
     for (const li of this.el.querySelectorAll('li')) {
-      li.addEventListener('click', () => { this.close(); onPick(+li.dataset.i) })
+      li.addEventListener('click', () => { this.close(); onPick(+li.dataset.i, { bare: this.bare }) })
     }
     addEventListener('keydown', e => {
       if (e.code === 'Tab') { e.preventDefault(); this.toggle(); return }
       if (!this.open) return
       const n = ['Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','Digit7','Digit8','Digit9'].indexOf(e.code)
-      if (n >= 0 && n < stages.length) { e.preventDefault(); this.close(); onPick(n) }
+      if (n >= 0 && n < stages.length) { e.preventDefault(); this.close(); onPick(n, { bare: this.bare }) }
       if (e.code === 'Escape') this.close()
     })
   }
 
   get open() { return this.el.classList.contains('on') }
+  get bare() { return this.el.querySelector('#picker-bare')?.checked ?? false }
   toggle() { this.open ? this.close() : this.show() }
   show() { this.el.classList.add('on'); document.body.style.cursor = 'default' }
   close() { this.el.classList.remove('on'); document.body.style.cursor = '' }

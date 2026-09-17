@@ -68,7 +68,7 @@ class Game {
     })
 
     // 스테이지 고르기 — Tab 또는 주소의 ?stage=N
-    this.picker = new StagePicker(uiRoot, STAGES, i => this.jumpTo(i))
+    this.picker = new StagePicker(uiRoot, STAGES, (i, o) => this.jumpTo(i, o))
 
     this.loop = createLoop({
       update: dt => this.update(dt),
@@ -77,10 +77,13 @@ class Game {
     })
     this.loop.start()
     // 시작 화면을 먼저 보여 주고, 아무 키나 누르면 첫 판이 열린다
-    const from = Number(new URLSearchParams(location.search).get('stage'))
+    // ?stage=3 으로 그 판부터, ?bare=1 이면 맨몸으로
+    const q = new URLSearchParams(location.search)
+    const from = Number(q.get('stage'))
     const startAt = Number.isFinite(from) && from >= 1 ? Math.min(from, STAGES.length) - 1 : 0
+    const bare = q.get('bare') === '1'
     this.paused = true
-    new TitleScreen(uiRoot).wait().then(() => { this.paused = false; this.run.start(startAt) })
+    new TitleScreen(uiRoot).wait().then(() => { this.paused = false; this.jumpTo(startAt, { bare }) })
   }
 
   /* ── 필드 ─────────────────────────────────────────────── */
@@ -213,15 +216,49 @@ class Game {
     this.run.start()
   }
 
-  /** 시험용 — 아무 판이나 그 자리에서 연다. */
-  async jumpTo(index) {
+  /**
+   * 시험용 — 아무 판이나 그 자리에서 연다.
+   *
+   * 맨몸 레벨1 로 900 체력짜리 보스를 만나면 체험이 안 된다.
+   * 그 지점까지 왔다면 가졌을 만큼을 쥐여 주고 시작한다.
+   */
+  async jumpTo(index, { bare = false } = {}) {
     this.paused = false
     this.equipFx = null
     this.equipCard.close()
     this.hud.hideCredits()
+
     const p = this.player
+    p.gear.reset()
+    p.stats = newStats()
+    this.taken.clear()
+    this.kills = 0
+
+    if (!bare && index > 0) {
+      // 전리품은 두 번째 판부터 한 벌 다 갖춘 것으로 본다
+      for (const k of KIT) p.equip(k.id)
+      // 성장은 판마다 두 장씩. 한 계열로 몰아 줘서 등급도 열리게 한다
+      const picks = Math.min(index * 2, 12)
+      for (let i = 0; i < picks; i++) {
+        const pool = rollChoices(1, this.taken)
+        if (!pool.length) break
+        const u = pool[0]
+        u.apply(p.stats)
+        this.taken.set(u.id, (this.taken.get(u.id) ?? 0) + 1)
+      }
+      // 저승을 지난 뒤라면 유물도 하나
+      if (index > 4) {
+        const relic = RELICS[Math.floor(Math.random() * RELICS.length)]
+        relic.apply(p.stats)
+        this.taken.set(relic.id, 1)
+      }
+    }
+    p.applyStats()
     p.hp = p.maxHp; p.dead = false; p.action.stop(); p.rolling = 0; p.stagger = 0
+    p.invuln = 0; p._echo = null; p.rollCharges = 3
+
     await this.run.start(index)
+    if (!bare && index > 0) this.hud.toast(`연습 — 그 지점 차림으로 시작 (성장 ${this.taken.size}종)`, 3)
   }
 
   /**
