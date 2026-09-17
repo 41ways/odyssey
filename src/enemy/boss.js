@@ -136,6 +136,56 @@ export const spray = cfg => base(cfg,
   })
 
 /**
+ * 던지기.
+ *
+ * 직선으로 쏘면 로켓처럼 보인다. 던진 것은 포물선으로 날아가 바닥에 떨어져야 한다.
+ * 떨어질 자리에 미리 원을 깔아 두면 읽고 피할 수 있다 — 던지는 공격의 기본 문법이다.
+ */
+export const lob = cfg => base(cfg,
+  (b, run) => {
+    run.spots = []
+    const n = cfg.count ?? 1
+    for (let i = 0; i < n; i++) {
+      const sx = n === 1 ? 0 : rand(-(cfg.scatter ?? 3.5), cfg.scatter ?? 3.5)
+      const sz = n === 1 ? 0 : rand(-(cfg.scatter ?? 3.5), cfg.scatter ?? 3.5)
+      const spot = { x: run.aim.x + sx, z: run.aim.z + sz }
+      run.spots.push(spot)
+      // 첫 자리는 base 가 그려 주고, 나머지는 여기서 직접 깐다
+      if (i > 0) {
+        b.fx.telegraph.show({
+          x: spot.x, z: spot.z, facing: 0, range: cfg.radius ?? 2.4, halfAngle: Math.PI,
+          duration: (cfg.startup + (cfg.flight ?? 0.9)) / (b.actionRate ?? 1),
+          color: cfg.color ?? '#e8a860',
+        })
+      }
+    }
+    const first = run.spots[0]
+    return { x: first.x, z: first.z, facing: 0, range: cfg.radius ?? 2.4, halfAngle: Math.PI,
+      duration: cfg.startup + (cfg.flight ?? 0.9) }
+  },
+  (b, run) => {
+    for (const spot of run.spots) {
+      b.world.projectiles.spawn({
+        x: run.origin.x, z: run.origin.z, y: 2.4,
+        dir: Math.atan2(spot.x - run.origin.x, spot.z - run.origin.z),
+        kind: cfg.kind ?? 'sheep', color: cfg.bullet ?? '#efe9dc',
+        damage: 0, team: 'enemy', radius: cfg.bulletSize ?? 0.6,
+        lob: { from: { x: run.origin.x, z: run.origin.z }, to: spot, time: cfg.flight ?? 0.9, height: cfg.height ?? 5.5 },
+        onLand: (x, z) => {
+          b.fx.ring(x, z, { color: '#e8a860', radius: (cfg.radius ?? 2.4) * 1.4, life: 0.5 })
+          b.fx.shake(0.32)
+          b.world.particles?.burst({ x, y: 0.4, z, count: 22, color: '#c9ad82', speed: 6, size: 0.18, life: 0.7, gravity: 11 })
+          const p = b.world.player
+          if (circleHit(x, z, cfg.radius ?? 2.4, p)) {
+            p.hurt(cfg.damage, { from: { x, z }, knockback: cfg.knockback ?? 10, hitstop: 0.1,
+              stagger: cfg.stagger ?? 0.32, color: '#ff6b5a' })
+          }
+        },
+      })
+    }
+  })
+
+/**
  * 빨아들이기. 시전 동안 플레이어를 가운데로 끈다.
  * 걸어서는 못 벗어나고 구르기로 끊어야 한다. 끝나면 잠잠해지고, 그때가 근접 창이다.
  */
@@ -305,8 +355,14 @@ export class Boss extends Actor {
     this.groggy = 0
     this.hp = Math.max(this.hp, this.maxHp * (phase.below ?? 0.5))   // 더 안 깎이게
     this.world.onBossDown?.(this, phase)
-    this.fx.shake(0.8)
-    this.fx.ring(this.pos.x, this.pos.z, { color: '#ffd166', radius: this.radius * 5, life: 0.9 })
+    // 무너지는 무게 — 흔들림, 정지, 흙먼지
+    this.fx.freeze(0.2)
+    this.fx.shake(1.1)
+    this.fx.ring(this.pos.x, this.pos.z, { color: '#e8c884', radius: this.radius * 5.5, life: 1.0 })
+    this.world.particles?.burst({
+      x: this.pos.x, y: 0.4, z: this.pos.z, count: 40,
+      color: '#c9ad82', speed: 9, size: 0.22, life: 0.9, gravity: 10,
+    })
   }
 
   /** 약점이 맞았다. 일어나면서 다음 페이즈로 간다. */
@@ -314,6 +370,7 @@ export class Boss extends Actor {
     if (!this.downed) return false
     this.downed = null
     this.weakPointDone = true
+    this.nextAt = 1.1              // 일어나는 동안은 때리지 않는다
     this.world.onBossWeakHit?.(this)
     this.fx.shake(1.0)
     this.fx.freeze(0.16)
@@ -357,8 +414,15 @@ export class Boss extends Actor {
       t: this.animT, run: this._run, attack, draw: null, roll: 0,
       attackId: run.def?.id, attackDuration: run.active ? run.total : 1,
       dead: this.dead,
+      down: !!this.downed,
       flinch: this.groggy > 0 ? 1 : 0,
     }, dt)
+
+    // 쓰러진 동안에는 몸을 앞으로 기울이고 낮춘다. 애니메이션만으로는 덜 읽힌다.
+    const want = this.downed ? 1 : 0
+    this._downLean = (this._downLean ?? 0) + (want - (this._downLean ?? 0)) * Math.min(1, dt * 5)
+    this.rig.root.rotation.x = this._downLean * 0.26
+    this.rig.root.position.y = -this._downLean * 0.45
   }
 }
 

@@ -10,46 +10,47 @@ const CSS = `
 #hud .bottom { position:absolute; left:50%; bottom:34px; transform:translateX(-50%);
   display:flex; flex-direction:column; align-items:center; gap:10px; }
 /* 체력 — 도기 띠 하나. 청동 테두리 두 줄 사이에 테라코타. */
-#hud .hp { width:380px; height:22px; background:#160f0c; border:1px solid #6a4a24;
+#hud .hp { width:380px; height:22px; background:#120f0b; border:1px solid var(--line);
   border-radius:2px; overflow:hidden; position:relative;
-  box-shadow:inset 0 0 0 1px rgba(200,151,62,.22), 0 8px 26px rgba(0,0,0,.65); }
+  box-shadow:inset 0 1px 0 rgba(232,200,132,.3), inset 0 0 0 1px rgba(232,200,132,.1), 0 8px 26px rgba(0,0,0,.7); }
 #hud .hp i { position:absolute; inset:0; transform-origin:left center; display:block;
-  background:linear-gradient(180deg,#c85a3a,#7a2216); transition:transform .08s linear; }
+  background:linear-gradient(180deg,#b8402c,#5f1410); transition:transform .08s linear; }
 #hud .hp b { position:absolute; inset:0; transform-origin:left center; display:block;
   background:#f5d7a0; opacity:.5; transition:transform .5s cubic-bezier(.2,.7,.3,1) .12s; }
 #hud .hp span { position:absolute; inset:0; display:grid; place-items:center;
   font-family:var(--serif); font-size:12px; font-weight:700; letter-spacing:.1em;
   text-shadow:0 1px 3px #000; }
-#hud .xp { width:380px; height:5px; background:#181208; border:1px solid #4a3620;
+#hud .xp { width:380px; height:5px; background:#120f0b; border:1px solid var(--line-dim);
   border-radius:2px; overflow:hidden; position:relative; }
 #hud .xp i { display:block; height:100%; width:100%; transform-origin:left center;
-  background:linear-gradient(90deg,#9c6f2e,#ffd27a); transition:transform .22s ease-out; }
+  background:linear-gradient(90deg,var(--gold-dim),var(--gold)); transition:transform .22s ease-out; }
 #hud .lv { position:absolute; left:0; top:9px; width:380px; text-align:center;
   font-size:11px; color:#8b7a60; letter-spacing:.05em; white-space:nowrap; }
 #hud .pips { display:flex; gap:8px; }
-#hud .pip { width:56px; height:8px; border-radius:1px; background:#16120d;
-  border:1px solid #4a3620; overflow:hidden;
-  box-shadow:inset 0 0 0 1px rgba(200,151,62,.12); }
+#hud .pip { width:56px; height:8px; border-radius:1px; background:#120f0b;
+  border:1px solid var(--line-dim); overflow:hidden;
+  box-shadow:inset 0 1px 0 rgba(232,200,132,.18); }
 #hud .pip i { display:block; height:100%; width:100%; transform-origin:left center;
-  background:linear-gradient(90deg,#8a6a2e,#e8c98a); }
-#hud .pip.empty i { background:#3a3128; }
+  background:linear-gradient(90deg,var(--gold-dim),var(--gold)); }
+#hud .pip.empty i { background:#2e281f; }
 #hud .keys { position:absolute; left:22px; bottom:20px; font-size:11.5px; line-height:1.9;
   color:#7d7264; letter-spacing:.02em; }
 #hud .keys .grown { color:#c8a16a; margin-top:4px; font-size:11.5px; letter-spacing:.03em; }
 #hud .keys .dev { margin-top:7px; font-size:10.5px; color:#5f564c; letter-spacing:.02em; }
 #hud .keys .dev kbd { font-size:9.5px; padding:1px 5px; color:#8a7c66; border-color:#332b24; }
-#hud .keys kbd { background:#1c1611; border:1px solid #4a3a28; border-radius:2px;
-  padding:1px 7px; color:#d8c39b; font-family:var(--serif); font-size:10.5px; letter-spacing:.06em; }
+#hud .keys kbd { background:#191510; border:1px solid var(--line-dim); border-radius:2px;
+  padding:1px 7px; color:var(--text); font-family:var(--serif); font-size:10.5px; letter-spacing:.06em; }
 #hud .stats { position:absolute; right:20px; top:18px; font-size:11px; text-align:right;
   color:#7d7264; font-variant-numeric:tabular-nums; line-height:1.8;
   font-family:var(--serif); letter-spacing:.16em; }
-#hud .stats b { color:var(--bronze); font-size:24px; font-weight:700; letter-spacing:.02em; }
+#hud .stats b { color:var(--gold); font-size:25px; font-weight:700; letter-spacing:.02em;
+  text-shadow:0 0 26px rgba(232,200,132,.4); }
 #hud .banner { position:absolute; left:0; right:0; top:19%; text-align:center; opacity:0;
   transition:opacity .5s, transform .5s; transform:translateY(10px); pointer-events:none; }
 #hud .banner.on { opacity:1; transform:none; }
-#hud .banner h1 { font-family:var(--serif); font-size:44px; font-weight:700;
+#hud .banner h1 { font-family:var(--serif); font-size:46px; font-weight:700;
   letter-spacing:.28em; text-indent:.28em; color:var(--ivory);
-  text-shadow:0 0 50px rgba(200,151,62,.35), 0 4px 34px rgba(0,0,0,.95); }
+  text-shadow:0 0 60px rgba(232,200,132,.5), 0 2px 0 #4a3a1c, 0 4px 34px rgba(0,0,0,.95); }
 #hud .banner p { margin-top:14px; font-size:14px; letter-spacing:.06em; color:#b09a74; }
 #hud .banner .rule { height:14px; width:min(520px,72vw); margin:16px auto 0;
   background-image:${MEANDER}; background-repeat:repeat-x; background-position:center; opacity:.4; }
@@ -60,7 +61,7 @@ const CSS = `
 #hud .wave { position:absolute; left:50%; top:20px; transform:translateX(-50%);
   font-family:var(--serif); font-size:12px; letter-spacing:.22em; color:#8f8172;
   font-variant-numeric:tabular-nums; }
-#hud .wave b { color:var(--bronze); font-weight:700; }
+#hud .wave b { color:var(--gold); font-weight:700; }
 #hud .boss { position:absolute; left:50%; top:52px; transform:translateX(-50%);
   width:min(620px, 72vw); opacity:0; transition:opacity .4s; }
 #hud .boss.on { opacity:1; }
@@ -69,11 +70,11 @@ const CSS = `
 #hud .boss .who b { font-family:var(--serif); font-size:18px; font-weight:700;
   letter-spacing:.18em; color:var(--ivory); }
 #hud .boss .who span { font-size:11px; letter-spacing:.16em; color:#9a8a72; }
-#hud .boss .bar { height:12px; background:#140b09; border:1px solid #6a3a24;
+#hud .boss .bar { height:13px; background:#120c09; border:1px solid var(--line);
   border-radius:1px; overflow:hidden; position:relative;
   box-shadow:inset 0 0 0 1px rgba(200,151,62,.18), 0 6px 22px rgba(0,0,0,.6); }
 #hud .boss .bar i { position:absolute; inset:0; transform-origin:left center; display:block;
-  background:linear-gradient(180deg,#c03a26,#5f140e); transition:transform .1s linear; }
+  background:linear-gradient(180deg,#b8402c,#4f1109); transition:transform .1s linear; }
 #hud .boss .bar u { position:absolute; inset:0; transform-origin:left center; display:block;
   background:#f5d7a0; opacity:.4; transition:transform .6s cubic-bezier(.2,.7,.3,1) .15s; }
 #hud .boss.down .bar { border-color:#c8973e; box-shadow:inset 0 0 0 1px rgba(255,200,90,.5), 0 0 34px rgba(255,190,60,.45); }

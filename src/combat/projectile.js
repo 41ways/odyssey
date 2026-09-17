@@ -138,9 +138,12 @@ const KINDS = {
     hit: { color: '#a08a6a', count: 16, speed: 4.5, size: 0.16, life: 0.6, gravity: 12 },
   },
 
-  /** 던져지는 양. 폴리페모스가 집어 던진다. */
+  /**
+   * 던져지는 양. 폴리페모스가 집어 던진다.
+   * 살아 있는 짐승이므로 뻣뻣하게 돌면 안 된다 — 뒹굴면서 다리를 버둥거린다.
+   */
   sheep: {
-    trail: { width: 0.18, opacity: 0.3 },
+    trail: { width: 0.16, opacity: 0.22 },
     build() {
       const g = new THREE.Group()
       const wool = mat('#efe9dc', { roughness: 1 })
@@ -149,19 +152,37 @@ const KINDS = {
       body.scale.set(1.25, 0.95, 1)
       body.castShadow = true
       g.add(body)
-      const head = new THREE.Mesh(new THREE.SphereGeometry(0.19, 10, 8), dark)
+      const head = new THREE.Group()
+      const skull = new THREE.Mesh(new THREE.SphereGeometry(0.19, 10, 8), dark)
+      skull.scale.set(1.2, 1, 0.9)
+      head.add(skull)
       head.position.set(0.52, 0.06, 0)
-      head.scale.set(1.2, 1, 0.9)
       g.add(head)
+      const legs = []
       for (const [sx, sz] of [[0.28, 0.24], [0.28, -0.24], [-0.3, 0.24], [-0.3, -0.24]]) {
+        const pivot = new THREE.Group()
+        pivot.position.set(sx, -0.24, sz)
         const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.045, 0.34, 5), dark)
-        leg.position.set(sx, -0.42, sz)
-        g.add(leg)
+        leg.position.y = -0.18
+        pivot.add(leg)
+        g.add(pivot)
+        legs.push(pivot)
       }
+      g.userData.legs = legs
+      g.userData.head = head
       return g
     },
-    anim(g, t) { g.rotation.set(t * 3.4, t * 1.3, t * 2.1) },
-    hit: { color: '#efe9dc', count: 20, speed: 4, size: 0.17, life: 0.7, gravity: 8, up: 1.1 },
+    anim(g, t) {
+      g.rotation.set(t * 2.2, t * 0.8, t * 1.4)             // 천천히 뒹군다
+      const legs = g.userData.legs ?? []
+      for (let i = 0; i < legs.length; i++) {                // 네 다리가 제각각 버둥거린다
+        legs[i].rotation.x = Math.sin(t * 13 + i * 1.9) * 0.85
+        legs[i].rotation.z = Math.cos(t * 11 + i * 2.4) * 0.5
+      }
+      const h = g.userData.head
+      if (h) h.rotation.z = Math.sin(t * 9) * 0.35
+    },
+    hit: { color: '#efe9dc', count: 24, speed: 4.5, size: 0.19, life: 0.8, gravity: 9, up: 1.2 },
   },
 
   /** 던지는 창. */
@@ -224,12 +245,24 @@ export class Projectiles {
 
     const trail = this.trails.take({ color, width: spec.trail.width, opacity: spec.trail.opacity })
 
+    // 포물선으로 날아가는 것은 바닥에 그림자를 둔다 — 어디 떨어질지가 보여야 한다
+    let shadow = null
+    if (o.lob) {
+      shadow = new THREE.Mesh(
+        new THREE.CircleGeometry(o.radius ?? 0.6, 20),
+        new THREE.MeshBasicMaterial({ color: '#000', transparent: true, opacity: 0.3, depthWrite: false })
+      )
+      shadow.rotation.x = -Math.PI / 2
+      shadow.position.set(o.x, 0.04, o.z)
+      this.scene.add(shadow)
+    }
+
     // 발사 섬광 — 어디서 날아왔는지 눈에 남는다
     this.particles?.burst({ x: o.x, y, z: o.z, count: 7, color, speed: 3.4, size: 0.11, life: 0.24, gravity: 2 })
     this.fx?.ring(o.x, o.z, { color, radius: 0.8, life: 0.16, y: 0.4 })
 
     this.live.push({
-      kind, spec, mesh, trail, color,
+      kind, spec, mesh, trail, color, shadow,
       pos: new THREE.Vector3(o.x, y, o.z),
       dir: o.dir, speed: o.speed, damage: o.damage, team: o.team,
       radius: o.radius ?? 0.3, pierce: o.pierce ?? 0,
@@ -237,6 +270,11 @@ export class Projectiles {
       traveled: 0, range: o.range ?? 34, t: rand(0, 6),
       ricochet: o.ricochet ?? 0, ricochetLevel: o.ricochetLevel ?? 0,
       ignite: o.ignite ?? null, shedAt: 0,
+      // 포물선 — 목표 지점까지 정해진 시간에 날아가 떨어진다.
+      // 직선으로 쏘면 로켓처럼 보인다. 던진 것은 던진 것처럼 날아야 한다.
+      lob: o.lob ?? null,
+      lobT: 0,
+      onLand: o.onLand ?? null,
       homing: o.homing ?? 0,          // 초당 몇 라디안까지 꺾이는가
       parryable: !!o.parryable,       // 구르기 무적에 스치면 튕겨 나가는가
       onParry: o.onParry ?? null,
@@ -248,8 +286,38 @@ export class Projectiles {
   update(dt, actors, arenaRadius, camera) {
     for (let i = this.live.length - 1; i >= 0; i--) {
       const p = this.live[i]
-      const step = p.speed * dt
       p.t += dt
+
+      // 포물선으로 던진 것은 따로 움직인다
+      if (p.lob) {
+        p.lobT += dt
+        const k = Math.min(p.lobT / p.lob.time, 1)
+        p.pos.x = p.lob.from.x + (p.lob.to.x - p.lob.from.x) * k
+        p.pos.z = p.lob.from.z + (p.lob.to.z - p.lob.from.z) * k
+        p.pos.y = 0.6 + Math.sin(k * Math.PI) * p.lob.height
+        p.dir = Math.atan2(p.lob.to.x - p.lob.from.x, p.lob.to.z - p.lob.from.z)
+        p.mesh.position.copy(p.pos)
+        p.spec.anim?.(p.mesh, p.t)
+        if (camera) this.trails.update(p.trail, p.pos, camera)
+        if (p.shadow) {
+          p.shadow.position.set(p.pos.x, 0.04, p.pos.z)
+          const s = 1 - Math.sin(k * Math.PI) * 0.45
+          p.shadow.scale.setScalar(s)
+          p.shadow.material.opacity = 0.34 * s
+        }
+        if (k >= 1) {
+          p.onLand?.(p.pos.x, p.pos.z)
+          this.#impact(p)
+          this.scene.remove(p.mesh)
+          if (p.shadow) { this.scene.remove(p.shadow); p.shadow.material.dispose(); p.shadow.geometry.dispose() }
+          this.#give(p.kind, p.mesh)
+          this.trails.give(p.trail)
+          this.live.splice(i, 1)
+        }
+        continue
+      }
+
+      const step = p.speed * dt
 
       // 유도 — 느리게 따라온다. 걸어서는 못 떨구고 구르기로 끊어야 한다.
       if (p.homing) {
@@ -330,6 +398,7 @@ export class Projectiles {
       if (gone) {
         this.#impact(p)
         this.scene.remove(p.mesh)
+        if (p.shadow) { this.scene.remove(p.shadow); p.shadow.material.dispose(); p.shadow.geometry.dispose() }
         this.#give(p.kind, p.mesh)
         this.trails.give(p.trail)
         this.live.splice(i, 1)
@@ -385,7 +454,11 @@ export class Projectiles {
   }
 
   clear() {
-    for (const p of this.live) { this.scene.remove(p.mesh); this.#give(p.kind, p.mesh); this.trails.give(p.trail) }
+    for (const p of this.live) {
+      this.scene.remove(p.mesh)
+      if (p.shadow) { this.scene.remove(p.shadow); p.shadow.material.dispose(); p.shadow.geometry.dispose() }
+      this.#give(p.kind, p.mesh); this.trails.give(p.trail)
+    }
     this.live.length = 0
   }
 }

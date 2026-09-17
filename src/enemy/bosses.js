@@ -1,4 +1,4 @@
-import { Boss, slam, stomp, ring, lance, volley, spray, summon, suck } from './boss.js'
+import { Boss, slam, stomp, ring, lance, volley, spray, summon, suck, lob } from './boss.js'
 import { rand } from '../core/math.js'
 
 /**
@@ -13,8 +13,10 @@ import { rand } from '../core/math.js'
    2페는 앞이 안 보이니 아무 데나 던진다. */
 export const POLYPHEMOS = {
   id: 'polyphemos', name: '폴리페모스', title: '외눈의 목자',
-  hp: 900, radius: 1.9, mass: 200, speed: 2.4, keepRange: [3.6, 7], gap: [1.0, 1.8],
-  barHeight: 6, groggyMult: 2.2,
+  // 5미터짜리는 느리게 움직이고 오래 쉰다. 빠르면 커 보이지 않는다.
+  hp: 900, radius: 1.9, mass: 200, speed: 1.5, keepRange: [4.0, 8], gap: [2.4, 3.8],
+  turnHalf: 0.55,        // 고개를 천천히 돌린다. 스치듯 따라붙지 못한다
+  barHeight: 6, groggyMult: 2.4, pace: 1.0,
   // 눈. 쓰러졌을 때만 드러나고, 화살로만 찌를 수 있다.
   weakPoint: { y: 4.3, z: 0.9, r: 1.15, requires: 'arrow' },
   look: { height: 5.2, bulk: 1.5, tint: '#c9a07a', gear: ['legs', 'feet'] },
@@ -23,17 +25,19 @@ export const POLYPHEMOS = {
       below: 1,
       say: '동굴이 울린다. 무언가 거대한 것이 일어섰다',
       patterns: [
-        slam({ id: 'swing', startup: 0.95, active: 0.12, recovery: 0.9, range: 7.5, halfAngle: 0.8,
-          damage: 26, knockback: 14, pick: { max: 8.5, weight: 3, cooldown: 2.4 } }),
-        stomp({ id: 'crush', startup: 1.15, active: 0.12, recovery: 1.5, radius: 4.6,
-          damage: 32, knockback: 16, groggy: 1.6, shake: 0.6,
-          pick: { max: 7, weight: 2, cooldown: 5 } }),
-        volley({ id: 'sheep', kind: 'sheep', startup: 1.0, active: 0.1, recovery: 0.8, count: 1, spread: 0,
-          damage: 22, speed: 15, bullet: '#e8e0d0', bulletSize: 0.7, range: 26,
-          pick: { min: 5, weight: 3, cooldown: 2.8 } }),
-        ring({ id: 'roar', startup: 0.85, active: 0.1, recovery: 1.1, inner: 3.2, outer: 11,
+        slam({ id: 'swing', startup: 1.35, active: 0.14, recovery: 1.4, range: 7.5, halfAngle: 0.85,
+          damage: 26, knockback: 16, shake: 0.35, pick: { max: 8.5, weight: 3, cooldown: 4.5 } }),
+        stomp({ id: 'crush', startup: 1.55, active: 0.14, recovery: 2.2, radius: 5.0,
+          damage: 32, knockback: 18, groggy: 2.0, shake: 0.7,
+          pick: { max: 7, weight: 2, cooldown: 8 } }),
+        // 양을 던진다 — 포물선으로 날아가 떨어진 자리에서 터진다
+        lob({ id: 'sheep', kind: 'sheep', startup: 1.25, active: 0.12, recovery: 1.3,
+          count: 1, radius: 2.6, flight: 1.15, height: 6.0,
+          damage: 24, knockback: 12, bulletSize: 0.62, shake: 0.25,
+          pick: { min: 5, weight: 3, cooldown: 5 } }),
+        ring({ id: 'roar', startup: 1.1, active: 0.12, recovery: 1.6, inner: 3.4, outer: 11,
           damage: 18, knockback: 6, stagger: 0.9, color: '#ffd166', shake: 0.5,
-          pick: { weight: 2, cooldown: 7 } }),
+          pick: { weight: 2, cooldown: 10 } }),
       ],
     },
     {
@@ -41,17 +45,20 @@ export const POLYPHEMOS = {
       // 체력이 절반이 되면 쓰러진다. 눈을 화살로 쏴야 다음으로 넘어간다.
       needsWeakPoint: true,
       weakHint: '눈 — 활로',
+      downSay: '무릎을 꿇었다. 지금이다 — 눈을 쏴라',
       say: '눈이 멀었다. 이제 아무 데나 던진다',
       patterns: [
-        volley({ id: 'sheep_wild', kind: 'sheep', startup: 0.62, active: 0.1, recovery: 0.5, count: 3, spread: 0.75,
-          damage: 20, speed: 14, bullet: '#e8e0d0', bulletSize: 0.62, range: 26,
-          pick: { weight: 5, cooldown: 1.6 } }),
-        slam({ id: 'blind_swing', startup: 0.62, active: 0.12, recovery: 0.85, range: 8.5, halfAngle: 1.5,
-          damage: 28, knockback: 15, pick: { max: 9.5, weight: 3, cooldown: 2.2 } }),
-        stomp({ id: 'crush2', startup: 0.9, active: 0.12, recovery: 1.4, radius: 5.4,
-          damage: 34, knockback: 18, groggy: 1.4, shake: 0.7, pick: { weight: 2, cooldown: 5 } }),
-        ring({ id: 'roar2', startup: 0.7, active: 0.1, recovery: 0.9, inner: 2.6, outer: 13,
-          damage: 20, stagger: 1.0, color: '#ffd166', shake: 0.6, pick: { weight: 2, cooldown: 6 } }),
+        // 눈이 멀었으니 겨냥이 안 된다 — 세 마리를 흩뿌린다
+        lob({ id: 'sheep_wild', kind: 'sheep', startup: 0.95, active: 0.12, recovery: 1.0,
+          count: 3, scatter: 4.2, radius: 2.4, flight: 1.0, height: 5.2,
+          damage: 22, knockback: 11, bulletSize: 0.58, shake: 0.28,
+          pick: { weight: 5, cooldown: 3.4 } }),
+        slam({ id: 'blind_swing', startup: 0.95, active: 0.14, recovery: 1.15, range: 8.5, halfAngle: 1.6,
+          damage: 28, knockback: 16, shake: 0.4, pick: { max: 9.5, weight: 3, cooldown: 3.6 } }),
+        stomp({ id: 'crush2', startup: 1.25, active: 0.14, recovery: 1.9, radius: 5.6,
+          damage: 34, knockback: 20, groggy: 1.8, shake: 0.8, pick: { weight: 2, cooldown: 7 } }),
+        ring({ id: 'roar2', startup: 0.9, active: 0.12, recovery: 1.3, inner: 2.8, outer: 13,
+          damage: 20, stagger: 1.0, color: '#ffd166', shake: 0.6, pick: { weight: 2, cooldown: 8 } }),
       ],
     },
   ],

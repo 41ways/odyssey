@@ -7,8 +7,8 @@ import { installTheme, meanderURI, laurelURI } from './theme.js'
 const CSS = `
 #title { position:absolute; inset:0; z-index:80; display:grid; place-items:center;
   background:
-    radial-gradient(ellipse 120% 80% at 50% 40%, rgba(140,58,36,.20), transparent 70%),
-    linear-gradient(180deg, #0b0705 0%, #150d08 45%, #0a0604 100%);
+    radial-gradient(ellipse 110% 70% at 50% 42%, rgba(232,200,132,.10), transparent 68%),
+    linear-gradient(180deg, #0a0907 0%, #17140f 46%, #080705 100%);
   font-family:var(--body); opacity:1; transition:opacity .6s; }
 #title.gone { opacity:0; pointer-events:none; }
 #title .plate { text-align:center; padding:0 28px; max-width:760px; }
@@ -18,18 +18,18 @@ const CSS = `
 #title .laurel { width:26px; height:62px; background-image:${laurelURI()};
   background-repeat:no-repeat; }
 #title .laurel.r { transform:scaleX(-1); }
-#title h1 { font-family:var(--serif); font-size:64px; font-weight:900;
-  letter-spacing:.3em; text-indent:.3em; color:var(--ivory);
-  text-shadow:0 0 44px rgba(200,151,62,.35), 0 6px 26px #000; }
-#title .greek { font-family:var(--serif); font-size:14px; letter-spacing:.52em;
-  text-indent:.52em; color:var(--bronze); opacity:.7; margin-top:6px; }
-#title .line { margin:26px auto 0; max-width:520px; font-size:14.5px; line-height:2;
-  color:var(--ivory-dim); }
-#title .line em { color:var(--ivory); font-style:normal; }
+#title h1 { font-family:var(--serif); font-size:66px; font-weight:700;
+  letter-spacing:.32em; text-indent:.32em; color:var(--ivory);
+  text-shadow:0 0 60px rgba(232,200,132,.5), 0 2px 0 #5a4520, 0 6px 30px #000; }
+#title .greek { font-family:var(--serif); font-size:15px; letter-spacing:.54em;
+  text-indent:.54em; color:var(--gold); opacity:.72; margin-top:10px; }
+#title .line { margin:30px auto 0; max-width:540px; font-size:14.5px; line-height:2.1;
+  color:var(--text); }
+#title .line em { color:var(--gold); font-style:normal; }
 #title .go { margin-top:40px; font-family:var(--serif); font-size:13px; letter-spacing:.34em;
   text-indent:.34em; color:var(--ivory); animation:pulse 2.1s ease-in-out infinite; }
 #title .keys { margin-top:22px; font-size:12px; color:#6f6455; letter-spacing:.06em; line-height:2; }
-#title .keys b { color:var(--bronze); font-weight:700; }
+#title .keys b { color:var(--gold); font-weight:700; }
 @keyframes pulse { 0%,100%{opacity:.45} 50%{opacity:1} }
 `
 
