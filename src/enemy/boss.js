@@ -22,10 +22,12 @@ const base = (cfg, shape, onFire) => ({
   startup: cfg.startup, active: cfg.active ?? 0.1, recovery: cfg.recovery,
   pick: cfg.pick,                       // { min, max, cooldown, weight }
   groggy: cfg.groggy ?? 0,              // 끝나고 멍한 시간. 반격 창이다
+  pulls: cfg.pulls ?? 0,                // 초당 몇 유닛으로 끌어당기는가
   onStart(b, run) {
     run.origin = { x: b.pos.x, z: b.pos.z }
     run.lockFacing = b.facing
     run.aim = { x: b.world.player.pos.x, z: b.world.player.pos.z }
+    if (cfg.say) b.world.onBossSay?.(cfg.say)
     const t = shape(b, run)
     run.telegraph = b.fx.telegraph.show({
       ...t, duration: cfg.startup / (b.actionRate ?? 1), color: cfg.color ?? '#ff3a2e',
@@ -108,6 +110,10 @@ export const volley = cfg => base(cfg,
         dir: a, speed: cfg.speed ?? 12, damage: cfg.damage, team: 'enemy',
         knockback: 5, color: cfg.bullet ?? '#ff5a2e', range: cfg.range ?? 26,
         radius: cfg.bulletSize ?? 0.34, kind: cfg.kind ?? 'rock',
+        homing: cfg.homing ?? 0, parryable: !!cfg.parryable,
+        // 변신 마법은 맞으면 느려지고, 쳐내면 오히려 시전자가 휘청인다
+        onHitExtra: cfg.hex ? (target => target.world?.onHex?.() ?? target.onHex?.()) : null,
+        onParry: cfg.parryable ? () => { b.setGroggy(1.4) } : null,
       })
     }
   })
@@ -127,6 +133,18 @@ export const spray = cfg => base(cfg,
         kind: cfg.kind ?? 'orb',
       })
     }
+  })
+
+/**
+ * 빨아들이기. 시전 동안 플레이어를 가운데로 끈다.
+ * 걸어서는 못 벗어나고 구르기로 끊어야 한다. 끝나면 잠잠해지고, 그때가 근접 창이다.
+ */
+export const suck = cfg => base(cfg,
+  (b, run) => ({ x: b.pos.x, z: b.pos.z, facing: 0, range: cfg.radius ?? 15, inner: cfg.eye ?? 2.2, halfAngle: Math.PI, color: cfg.color ?? '#6fa8ff' }),
+  (b, run) => {
+    b.fx.ring(b.pos.x, b.pos.z, { color: '#8fd6ff', radius: (cfg.radius ?? 15) * 0.5, life: 0.5 })
+    const p = b.world.player
+    if (circleHit(b.pos.x, b.pos.z, cfg.eye ?? 2.2, p)) landed(b, run, cfg, b.pos.x, b.pos.z)
   })
 
 /** 잡졸 소환. */
@@ -155,6 +173,8 @@ export class Boss extends Actor {
     this.animT = rand(0, 4)
     this._run = 0
     this._moved = 0
+    this.downed = null      // { weak: '약점 이름', hp } — 여기 맞아야 다음 페이즈로 간다
+    this.fleeing = false
 
     const built = buildBossBody(cfg.look)
     this.rig = built.rig
@@ -180,12 +200,30 @@ export class Boss extends Actor {
     const p = this.world.player
     if (this.dead || p.dead) return
 
+    // 쓰러져 있는 동안은 아무것도 안 한다. 약점을 맞아야 일어난다.
+    if (this.downed) {
+      this.downedT = (this.downedT ?? 0) + dt
+      if (this.downedT % 0.5 < dt) {
+        this.fx.number(this.pos.clone().setY((this.cfg.barHeight ?? 3) + 0.6),
+          this.downed.hint ?? '약점', { color: '#ffd166', size: 20 })
+      }
+      return
+    }
+
     // 페이즈 전환
     const ratio = this.hp / this.maxHp
     let want = 0
     for (let i = 0; i < this.cfg.phases.length; i++) {
       if (ratio <= (this.cfg.phases[i].below ?? 1)) want = i
     }
+
+    // 다음 페이즈가 '쓰러진 뒤 약점을 맞아야' 열리는 것이면 여기서 멈춘다
+    const nextPhase = this.cfg.phases[want]
+    if (want > this.phaseIndex && nextPhase?.needsWeakPoint && !this.weakPointDone) {
+      this.#goDown(nextPhase)
+      return
+    }
+
     if (want !== this.phaseIndex) {
       this.phaseIndex = want
       this.action.stop()
@@ -196,6 +234,18 @@ export class Boss extends Actor {
       this.fx.ring(this.pos.x, this.pos.z, { color: '#ffd166', radius: this.radius * 4, life: 0.7 })
       this.fx.shake(0.5)
       this.nextAt = 0.9
+    }
+
+    // 빨아들이는 동안은 매 프레임 끌어당긴다. 구르기 무적 중엔 안 끌린다.
+    const run = this.action
+    if (run.active && run.def.pulls && run.phase !== 'recovery') {
+      const dx = this.pos.x - p.pos.x, dz = this.pos.z - p.pos.z
+      const d0 = Math.hypot(dx, dz) || 1
+      const force = run.def.pulls * (run.phase === 'active' ? 1 : 0.45)
+      if (p.invuln <= 0 && p.rolling <= 0) {
+        p.pos.x += (dx / d0) * force * dt
+        p.pos.z += (dz / d0) * force * dt
+      }
     }
 
     if (this.groggy > 0) { this.groggy -= dt; return }
@@ -218,16 +268,56 @@ export class Boss extends Actor {
       }
     }
 
-    // 간격 유지
+    // 간격 유지. 도망치는 보스는 가까워지면 더 세게 물러난다.
     const [near, far] = this.cfg.keepRange ?? [3, 6]
     let fwd = 0
-    if (d > far) fwd = 1
+    if (this.cfg.flees && d < near) fwd = -1.6
+    else if (d > far) fwd = 1
     else if (d < near) fwd = -0.6
     const sp = this.cfg.speed ?? 2.6
     const dx = Math.sin(want2) * fwd * sp * dt
     const dz = Math.cos(want2) * fwd * sp * dt
     this.pos.x += dx; this.pos.z += dz
     this._moved = Math.hypot(dx, dz) / Math.max(dt, 1e-4) / Math.max(sp, 1e-4)
+  }
+
+  /**
+   * 드러난 약점. 쓰러져 있을 때만 있다.
+   * requires 가 있으면 그 종류의 투사체만 통한다 — 폴리페모스의 눈은 화살로만 찌른다.
+   */
+  getWeakPoint() {
+    if (!this.downed) return null
+    const w = this.cfg.weakPoint ?? {}
+    return {
+      x: this.pos.x + Math.sin(this.facing) * (w.z ?? 0.6),
+      y: w.y ?? 1.6,
+      z: this.pos.z + Math.cos(this.facing) * (w.z ?? 0.6),
+      r: w.r ?? 0.9,
+      requires: w.requires ?? null,
+    }
+  }
+
+  /** 쓰러진다. 이제 약점이 드러나고, 그걸 맞혀야 일어난다. */
+  #goDown(phase) {
+    this.downed = { hint: phase.weakHint ?? '약점' }
+    this.downedT = 0
+    this.action.stop()
+    this.groggy = 0
+    this.hp = Math.max(this.hp, this.maxHp * (phase.below ?? 0.5))   // 더 안 깎이게
+    this.world.onBossDown?.(this, phase)
+    this.fx.shake(0.8)
+    this.fx.ring(this.pos.x, this.pos.z, { color: '#ffd166', radius: this.radius * 5, life: 0.9 })
+  }
+
+  /** 약점이 맞았다. 일어나면서 다음 페이즈로 간다. */
+  weakPointHit() {
+    if (!this.downed) return false
+    this.downed = null
+    this.weakPointDone = true
+    this.world.onBossWeakHit?.(this)
+    this.fx.shake(1.0)
+    this.fx.freeze(0.16)
+    return true
   }
 
   #choose(d) {

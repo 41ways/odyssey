@@ -50,6 +50,9 @@ export class Actor {
 
   get alive() { return !this.dead }
 
+  /** 드러난 약점. 있으면 투사체가 몸통보다 먼저 여기를 본다. */
+  getWeakPoint() { return null }
+
   /** 화상. 같은 불이 겹치면 시간만 갱신하고 더 센 불이면 갈아탄다. */
   ignite({ dps, seconds, level = 1, from = null }) {
     if (this.dead) return

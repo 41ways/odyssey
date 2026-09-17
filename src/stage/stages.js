@@ -169,6 +169,8 @@ export const STAGES = [
 
   {
     id: 'ithaca', name: '이타카', title: '구혼자들',
+    // 거지 차림으로 들어간다. 아무도 그를 알아보지 못한다.
+    beggar: { until: 'boss', say: '누더기를 걸치고 문턱을 넘었다. 아무도 알아보지 못한다' },
     wave: {
       ...HALL,
       intro: '스무 해 만에 문을 열었다. 홀 안이 가득 차 있다.',
@@ -194,6 +196,45 @@ export const STAGES = [
 ]
 
 export const STAGE_BY_ID = new Map(STAGES.map(s => [s.id, s]))
+
+/* ── 막간 ────────────────────────────────────────────────
+   판이 끝나자마자 다음 판이 시작되면 아홉 번 싸운 기억만 남는다.
+   사이에 한 호흡을 넣어야 '돌아가는 길' 이 된다. */
+
+/** 맨 처음. 왜 바다에 있는지부터 말한다. */
+export const OPENING = {
+  scene: 'fire',
+  lines: [
+    { text: '십 년이 걸렸다. <em>트로이가 불탔다.</em>', hold: 3000 },
+    { text: '열두 척으로 떠났다.<br>집까지는 며칠이면 되는 거리였다.', hold: 3400 },
+    { text: '바다가 <em>스무 해</em>를 붙들었다.', hold: 3000 },
+  ],
+  dest: '이스마로스 — 첫 항구',
+}
+
+/** 판과 판 사이. 다음 뭍으로 간다. */
+export const SAILING = {
+  ismaros: ['돛을 올렸다. 동굴에서 나온 배는 한 척 가벼워져 있었다.', '노를 저으면 저을수록 뭍이 멀어졌다.'],
+  telepylos: ['좁은 만을 빠져나왔다. 열한 척이 그 안에 남았다.', '남은 배 한 척으로 계속 간다.'],
+  aiaia: ['마녀가 길을 알려 주었다. 먼저 <em>죽은 자에게</em> 물으라고.', '바다 끝에 해가 들지 않는 곳이 있다.'],
+  underworld: ['망자의 말을 들고 돌아왔다.', '이제 무엇이 기다리는지 안다. 그래도 간다.'],
+  sirens: ['밀랍을 파냈다. 귀가 다시 열렸다.', '앞쪽에서 물이 돌아가는 소리가 난다.'],
+  messina: ['해협을 지났다. 남은 것은 <em>집</em> 하나뿐이다.', '이십 년 만에 이타카가 보인다.'],
+  ithaca: ['홀이 조용해졌다.', '그런데도 끝나지 않았다.'],
+}
+
+/** 다음 판으로 넘어갈 때 쓸 막간. */
+export function interludeFor(fromIndex) {
+  const from = STAGES[fromIndex]
+  const to = STAGES[fromIndex + 1]
+  if (!from || !to) return null
+  const lines = SAILING[from.id] ?? ['배를 밀었다.']
+  return {
+    scene: to.id === 'underworld' ? 'fire' : 'sea',
+    lines: lines.map((text, i) => ({ text, hold: i === lines.length - 1 ? 3000 : 2800 })),
+    dest: `${to.name} — ${to.title}`,
+  }
+}
 
 /* ── 저승의 유물 ─────────────────────────────────────────
    딱 하나만 고른다. 셋 다 특수공격(E)을 여는데, 여는 방식이 다르다. */

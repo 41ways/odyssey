@@ -161,13 +161,13 @@ export class World {
    */
   /** 톤 시안을 바꾼다. 다음 applyStage 부터 반영된다. */
   setLook(name) {
-    this.look = LOOKS[name] ? name : 'souls'
+    this.look = LOOKS[name] ? name : 'marble'
     if (this._lastStage) this.applyStage(this._lastStage)
   }
 
   async applyStage(stage) {
     this._lastStage = stage
-    const look = LOOKS[this.look ?? 'souls'] ?? {}
+    const look = LOOKS[this.look ?? 'marble'] ?? {}
     // 스테이지가 정한 것 위에 톤을 덮는다. 톤이 말 안 한 건 스테이지 것을 쓴다.
     const e = { ...(stage.env ?? {}), ...look }
     const a = { ...(stage.arena ?? {}) }

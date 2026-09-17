@@ -207,6 +207,7 @@ export class Player extends Actor {
     this.world = world
     this.input = input
     this.projectiles = projectiles
+    this.isPlayer = true
 
     const built = buildOdysseus()
     this.fig = built.fig ?? null          // 코드 인체일 때만 있다
@@ -228,6 +229,7 @@ export class Player extends Actor {
     this._run = 0
 
     this.stats = newStats()
+    this.maxRollCharges = TUNING.roll.charges
     this.rollCharges = TUNING.roll.charges
     this.rollTimer = 0
     this.rolling = 0
@@ -254,6 +256,9 @@ export class Player extends Actor {
     this.actionRate = this.stats.actionRate
     const want = 120 + this.stats.bonusHp
     if (want > this.maxHp) { this.hp += want - this.maxHp; this.maxHp = want }
+    // 은총이 구르기 충전과 무적 길이를 건드린다
+    this.maxRollCharges = Math.max(1, TUNING.roll.charges + (this.stats.rollChargeMod ?? 0))
+    this.rollCharges = Math.min(this.rollCharges, this.maxRollCharges)
   }
 
   update(dt, aim) {
@@ -261,7 +266,7 @@ export class Player extends Actor {
     if (this.dead) { this.step(dt, this.world.arenaRadius); return }
 
     // 구르기 충전 회복 — 하나씩 순서대로 찬다
-    if (this.rollCharges < TUNING.roll.charges) {
+    if (this.rollCharges < (this.maxRollCharges ?? TUNING.roll.charges)) {
       this.rollTimer += dt * this.stats.rollRegen
       if (this.rollTimer >= TUNING.roll.regen) { this.rollTimer -= TUNING.roll.regen; this.rollCharges++ }
     } else this.rollTimer = 0
@@ -274,7 +279,8 @@ export class Player extends Actor {
       const t = 1 - this.rolling / R.duration
       const elapsed = t * R.duration
       // 무적은 구르기 전체가 아니라 가운데 구간만. 여기가 실력의 자리다.
-      this.invuln = (elapsed >= R.iframeStart && elapsed <= R.iframeEnd) ? 0.05 : 0
+      const iEnd = R.iframeEnd * (this.stats.iframeMul ?? 1)
+      this.invuln = (elapsed >= R.iframeStart && elapsed <= iEnd) ? 0.05 : 0
       const ease = 1 - Math.pow(1 - Math.min(t * 1.35, 1), 2.2)
       const prevEase = this._prevEase ?? 0
       const step = (ease - prevEase) * R.distance

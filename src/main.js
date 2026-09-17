@@ -21,6 +21,9 @@ import { KIT, kitProgress } from './player/gear.js'
 import { Run } from './stage/run.js'
 import { RELICS } from './stage/stages.js'
 import { RelicScreen } from './ui/relic.js'
+import { BlessingScreen } from './ui/blessing.js'
+import { Interlude } from './ui/interlude.js'
+import { rollBlessings } from './player/blessings.js'
 import { startUnderworldIntro } from './stage/underworld.js'
 import { models } from './render/models.js'
 import { preloadCharacter } from './render/character.js'
@@ -48,6 +51,9 @@ class Game {
     this.levelUp = new LevelUp(uiRoot)
     this.equipCard = new EquipCard(uiRoot)
     this.relicScreen = new RelicScreen(uiRoot)
+    this.blessScreen = new BlessingScreen(uiRoot)
+    this.interlude = new Interlude(uiRoot)
+    this.blessed = new Set()
     this.uiRoot = uiRoot
     this.cutscene = null
     this.equipFx = null
@@ -89,7 +95,7 @@ class Game {
     const from = Number(q.get('stage'))
     const startAt = Number.isFinite(from) && from >= 1 ? Math.min(from, STAGES.length) - 1 : 0
     const bare = q.get('bare') === '1'
-    this.render3d.look = LOOKS[q.get('look')] ? q.get('look') : 'souls'
+    this.render3d.look = LOOKS[q.get('look')] ? q.get('look') : 'marble'   // 기본 톤: 정오의 대리석
     this.paused = true
     new TitleScreen(uiRoot).wait().then(() => { this.paused = false; this.jumpTo(startAt, { bare, toBoss: q.get('boss') === '1' }) })
   }
@@ -165,7 +171,7 @@ class Game {
     this.#freeze()
     const before = new Map(this.taken)
     const pick = await this.levelUp.show({
-      heading, sub, choices: rollChoices(3, this.taken),
+      heading, sub, choices: rollChoices(this.player.stats.choiceCount ?? 3, this.taken, [], this.player.stats.unlockEase ?? 0),
       unlocked: this._pendingUnlocks ?? [], tiers: TIERS,
     })
     this._pendingUnlocks = null
@@ -175,6 +181,42 @@ class Game {
     const opened = newlyUnlocked(before, this.taken)
     if (opened.length) this._pendingUnlocks = opened
     this.fx.ring(this.player.pos.x, this.player.pos.z, { color: '#9fe0ff', radius: 3.0, life: 0.5 })
+    this.#thaw()
+    return pick
+  }
+
+  /** 막간 — 판과 판 사이의 한 호흡. */
+  async playInterlude(spec) {
+    this.#freeze()
+    await this.interlude.play(spec)
+    this.#thaw()
+  }
+
+  /**
+   * 아테나의 은총. 보스를 눕힐 때마다 한 번.
+   * 성장 선택지보다 훨씬 세다 — 판 하나를 넘긴 값이 수치 몇 퍼센트여서는 안 된다.
+   */
+  async grantBlessing(stage) {
+    this.#freeze()
+    const p = this.player
+    // 빛이 내려온다
+    this.fx.shaft(p.pos.x, p.pos.z, { color: '#ffe6b8', radius: 1.6, height: 9, life: 2.2 })
+    this.fx.meanderRing(p.pos.x, p.pos.z, { color: '#ffe0a0', radius: 3.0, life: 2.0, spin: 0.7 })
+    this.particles.converge({ x: p.pos.x, y: 1.0, z: p.pos.z, count: 40, radius: 4.0, color: '#ffe6b8', size: 0.16, life: 0.8 })
+    this.fx.shake(0.3)
+    await new Promise(r => setTimeout(r, 700))
+
+    const pick = await this.blessScreen.show({
+      said: `<em>${stage.name}</em>을 지났구나.<br>`
+        + '나는 네 편이다. 처음부터 그랬고, 끝까지 그럴 것이다 — <em>하나를 받아라.</em>',
+      choices: rollBlessings(this.blessed),
+    })
+    this.blessed.add(pick.id)
+    pick.apply(p.stats)
+    p.applyStats()
+    if (p.stats.healFull) { p.hp = p.maxHp; p.stats.healFull = false }
+    this.particles.burst({ x: p.pos.x, y: 1.0, z: p.pos.z, count: 40, color: '#fff0c8', speed: 7, size: 0.17, life: 0.8, gravity: 2, up: 1.3 })
+    this.hud.banner(pick.name, pick.flavor, 2.8)
     this.#thaw()
     return pick
   }
@@ -255,7 +297,7 @@ class Game {
    * 지금 / 정오의 대리석 / 황금빛 오후 / 에게해 / 도기 채색 / 프레스코
    */
   cycleLook(name) {
-    const cur = LOOK_KEYS.indexOf(this.render3d.look ?? 'souls')
+    const cur = LOOK_KEYS.indexOf(this.render3d.look ?? 'marble')
     const next = name ?? LOOK_KEYS[(cur + 1) % LOOK_KEYS.length]
     this.render3d.setLook(next)
     const l = LOOKS[next]
@@ -369,8 +411,61 @@ class Game {
     }
   }
 
+  /**
+   * 거지 차림.
+   * 들어갈 땐 전리품을 전부 감추고, 정체를 드러낼 땐 한 벌씩 다시 입는다 —
+   * 그 순간이 이 판의 절정이다.
+   */
+  async setBeggar(on, say) {
+    const p = this.player
+    if (on) {
+      this._beggarWorn = KIT.filter(k => p.gear.has(k.id)).map(k => k.id)
+      p.gear.reset()
+      if (say) this.hud.toast(say, 4)
+      return
+    }
+    const worn = this._beggarWorn ?? []
+    this._beggarWorn = null
+    if (!worn.length) return
+    this.paused = true
+    this.hud.banner('“내가 오디세우스다”', '누더기가 벗겨진다', 3.2)
+    for (const id of worn) {
+      const meshes = p.equip(id)
+      const { x, z } = p.pos
+      this.fx.meanderRing(x, z, { color: '#f0d49a', radius: 2.2, life: 0.9, spin: 1.4 })
+      this.particles.converge({ x, y: 0.95, z, count: 16, radius: 2.4, color: '#ffd9a0', size: 0.15, life: 0.35 })
+      for (const m of meshes) {
+        const mats = Array.isArray(m.material) ? m.material : [m.material]
+        for (const mat of mats) if (mat?.emissive) mat.emissive.setRGB(1.2, 0.85, 0.35)
+      }
+      this.fx.shake(0.3)
+      await new Promise(r => setTimeout(r, 340))
+    }
+    // 달아오른 것을 식힌다
+    for (const id of worn) for (const m of p.equip(id)) {
+      const mats = Array.isArray(m.material) ? m.material : [m.material]
+      for (const mat of mats) if (mat?.emissive) mat.emissive.setRGB(0, 0, 0)
+    }
+    this.fx.shaft(p.pos.x, p.pos.z, { color: '#ffe6b8', radius: 1.2, height: 7, life: 1.4 })
+    await new Promise(r => setTimeout(r, 700))
+    this.paused = false
+  }
+
   onWaveSay(text) { this.hud.toast(text) }
   onBossSay(text) { this.hud.toast(text, 2.8) }
+
+  /** 보스가 쓰러져 약점이 드러났다. */
+  onBossDown(boss, phase) {
+    this.hud.toast(phase.downSay ?? `쓰러졌다 — ${phase.weakHint ?? '약점'}`, 4)
+    this.hud.setBossDown(true)
+  }
+
+  onBossWeakHit(boss) {
+    this.hud.setBossDown(false)
+    this.hud.toast('찔렀다', 1.6)
+    this.particles.burst({ x: boss.pos.x, y: (boss.cfg.weakPoint?.y ?? 2), z: boss.pos.z,
+      count: 40, color: '#ffe08a', speed: 11, size: 0.22, life: 0.8, gravity: 5, up: 1.4 })
+  }
 
   /** 키르케의 변신 마법 — 죽지는 않지만 느려진다. */
   onHex() {

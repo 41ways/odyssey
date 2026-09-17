@@ -1,4 +1,4 @@
-import { STAGES, RELICS } from './stages.js'
+import { STAGES, RELICS, OPENING, interludeFor } from './stages.js'
 import { WaveRunner } from './waves.js'
 import { makeBoss } from '../enemy/bosses.js'
 
@@ -40,6 +40,8 @@ export class Run {
     this.index = from - 1
     this.finished = false
     this._skipWave = !!o.toBoss
+    // 맨 처음은 왜 바다에 있는지부터 말하고 시작한다
+    if (from === 0 && !o.noIntro) await this.game.playInterlude(OPENING)
     await this.next()
   }
 
@@ -75,6 +77,8 @@ export class Run {
       this.phase = 'wave'
       g.kills = 0
       await this.#scene(stage.wave, stage.wave.intro)
+      // 이타카는 거지 차림으로 들어간다 — 보스전에서 정체를 드러낸다
+      if (stage.beggar) g.setBeggar(true, stage.beggar.say)
       this.waves = new WaveRunner({ goal: stage.wave.goal, waves: stage.wave.steps }, g)
       return
     }
@@ -110,6 +114,9 @@ export class Run {
       this.busy = false
       cfg = { ...stage.fork, id: pick.boss, intro: pick.line }
     }
+
+    // 거지 차림이었다면 여기서 벗는다
+    if (stage.beggar) await g.setBeggar(false)
 
     await this.#scene(cfg, cfg.intro)
     const b = makeBoss(cfg.id, g, g.fx)
@@ -148,15 +155,21 @@ export class Run {
     setTimeout(() => this.#afterStage(true), 1800)
   }
 
-  /** 판 사이의 성장 선택. 저승은 유물을 이미 줬으므로 건너뛴다. */
-  async #afterStage(offerChoice) {
+  /**
+   * 판이 끝난 뒤.
+   *   1) 보스를 눕혔으면 아테나의 은총
+   *   2) 성장 선택지 한 장
+   *   3) 다음 뭍으로 가는 막간
+   */
+  async #afterStage(afterBoss) {
     const g = this.game
     if (this.finished) return
-    if (offerChoice) {
-      this.busy = true
-      await g.offerUpgrade(`${this.stage.name} 통과`, '가져갈 것을 하나 고른다')
-      this.busy = false
-    }
+    this.busy = true
+    if (afterBoss) await g.grantBlessing(this.stage)
+    if (afterBoss) await g.offerUpgrade(`${this.stage.name} 통과`, '가져갈 것을 하나 고른다')
+    const lude = interludeFor(this.index)
+    if (lude) await g.playInterlude(lude)
+    this.busy = false
     await this.next()
   }
 

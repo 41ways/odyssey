@@ -8,9 +8,9 @@
  *   ?look=marble  로 바로 볼 수 있고, L 키로 돌려 가며 본다.
  */
 export const LOOKS = {
-  /** 지금 것. 비교 기준. */
+  /** 처음 잡았던 톤. 비교용으로 남겨 둔다. */
   souls: {
-    name: '지금 (소울라이크)',
+    name: '소울라이크 (옛 톤)',
     line: '어둡고 따뜻한 화염. 대비가 세고 그림자가 깊다',
     exposure: 1.05, bloom: 0.85, threshold: 0.62, vignette: 0.55,
   },
@@ -71,4 +71,5 @@ export const LOOKS = {
   },
 }
 
-export const LOOK_KEYS = Object.keys(LOOKS)
+// 기본은 정오의 대리석. 옛 톤은 목록 끝으로 보낸다.
+export const LOOK_KEYS = ['marble', 'golden', 'aegean', 'pottery', 'fresco', 'souls']

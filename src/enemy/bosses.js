@@ -1,4 +1,4 @@
-import { Boss, slam, stomp, ring, lance, volley, spray, summon } from './boss.js'
+import { Boss, slam, stomp, ring, lance, volley, spray, summon, suck } from './boss.js'
 import { rand } from '../core/math.js'
 
 /**
@@ -15,6 +15,8 @@ export const POLYPHEMOS = {
   id: 'polyphemos', name: '폴리페모스', title: '외눈의 목자',
   hp: 900, radius: 1.9, mass: 200, speed: 2.4, keepRange: [3.6, 7], gap: [1.0, 1.8],
   barHeight: 6, groggyMult: 2.2,
+  // 눈. 쓰러졌을 때만 드러나고, 화살로만 찌를 수 있다.
+  weakPoint: { y: 4.3, z: 0.9, r: 1.15, requires: 'arrow' },
   look: { height: 5.2, bulk: 1.5, tint: '#c9a07a', gear: ['legs', 'feet'] },
   phases: [
     {
@@ -36,6 +38,9 @@ export const POLYPHEMOS = {
     },
     {
       below: 0.5,
+      // 체력이 절반이 되면 쓰러진다. 눈을 화살로 쏴야 다음으로 넘어간다.
+      needsWeakPoint: true,
+      weakHint: '눈 — 활로',
       say: '눈이 멀었다. 이제 아무 데나 던진다',
       patterns: [
         volley({ id: 'sheep_wild', kind: 'sheep', startup: 0.62, active: 0.1, recovery: 0.5, count: 3, spread: 0.75,
@@ -107,11 +112,11 @@ export const KIRKE = {
         volley({ id: 'fireball', kind: 'fire', startup: 0.75, active: 0.08, recovery: 0.6, count: 3, spread: 0.32,
           damage: 18, speed: 13, bullet: '#ff7a3a', bulletSize: 0.42,
           pick: { weight: 4, cooldown: 2.6 } }),
-        lance({ id: 'hex', startup: 1.1, active: 0.08, recovery: 0.9, range: 20, halfAngle: 0.1,
-          damage: 10, stagger: 0.2, color: '#c77dff',
-          // 변신 마법 — 맞으면 느려진다. 죽지는 않지만 피하기가 어려워진다
-          onEnd(b) { b.world.onHex?.() },
-          pick: { weight: 3, cooldown: 8 } }),
+        // 변신 마법 — 느리게 따라온다. 걸어서는 못 떨구고 구르기로 쳐내야 한다.
+        volley({ id: 'hex', kind: 'orb', startup: 1.05, active: 0.08, recovery: 0.8,
+          count: 1, spread: 0, damage: 12, speed: 4.6, bullet: '#c77dff', bulletSize: 0.5,
+          range: 60, homing: 1.5, parryable: true, hex: true,
+          pick: { weight: 3, cooldown: 7 } }),
       ],
     },
     {
@@ -125,6 +130,10 @@ export const KIRKE = {
           pick: { weight: 4, cooldown: 2 } }),
         summon({ id: 'pigs2', startup: 0.85, active: 0.1, recovery: 0.6, kind: 'pig', count: 3, radius: 7,
           pick: { weight: 3, cooldown: 8 } }),
+        volley({ id: 'hex2', kind: 'orb', startup: 0.8, active: 0.08, recovery: 0.6,
+          count: 2, spread: 0.5, damage: 12, speed: 5.0, bullet: '#c77dff', bulletSize: 0.5,
+          range: 60, homing: 1.8, parryable: true, hex: true,
+          pick: { weight: 3, cooldown: 6 } }),
         ring({ id: 'ward', startup: 0.7, active: 0.1, recovery: 0.8, inner: 2.0, outer: 6.5,
           damage: 20, color: '#c77dff', pick: { weight: 2, cooldown: 6 } }),
       ],
@@ -233,9 +242,10 @@ export const CHARYBDIS = {
       patterns: [
         spray({ id: 'gyre', kind: 'water', startup: 0.8, active: 0.08, recovery: 0.6, count: 18, damage: 14,
           speed: 6.5, bullet: '#8fd6ff', warn: 3.6, pick: { weight: 5, cooldown: 2.6 } }),
-        ring({ id: 'pull', startup: 1.0, active: 0.12, recovery: 0.9, inner: 4.5, outer: 15,
-          damage: 20, knockback: -14, color: '#6fa8ff', shake: 0.4,
-          pick: { weight: 3, cooldown: 5 } }),
+        // 빨아들이기 — 걸어서는 못 벗어난다. 구르기로 끊고, 끝난 뒤 잠잠할 때 붙는다.
+        suck({ id: 'pull', startup: 0.9, active: 1.6, recovery: 1.8, radius: 16, eye: 2.6,
+          damage: 26, pulls: 7.5, groggy: 2.2, color: '#6fa8ff', shake: 0.35,
+          pick: { weight: 4, cooldown: 7 } }),
         volley({ id: 'spout', kind: 'water', startup: 0.7, active: 0.08, recovery: 0.5, count: 7, spread: 0.75,
           damage: 15, speed: 11, bullet: '#bfe4ff', pick: { weight: 4, cooldown: 2.2 } }),
       ],
@@ -246,8 +256,9 @@ export const CHARYBDIS = {
       patterns: [
         spray({ id: 'gyre2', kind: 'water', startup: 0.55, active: 0.08, recovery: 0.45, count: 26, damage: 15,
           speed: 8, bullet: '#8fd6ff', warn: 3.2, pick: { weight: 6, cooldown: 1.8 } }),
-        ring({ id: 'pull2', startup: 0.75, active: 0.12, recovery: 0.7, inner: 3.5, outer: 16,
-          damage: 24, color: '#6fa8ff', pick: { weight: 3, cooldown: 4 } }),
+        suck({ id: 'pull2', startup: 0.65, active: 1.9, recovery: 1.5, radius: 17, eye: 3.0,
+          damage: 30, pulls: 10, groggy: 1.8, color: '#6fa8ff', shake: 0.45,
+          pick: { weight: 4, cooldown: 5.5 } }),
         volley({ id: 'spout2', kind: 'water', startup: 0.5, active: 0.08, recovery: 0.4, count: 11, spread: 1.0,
           damage: 16, speed: 12, bullet: '#bfe4ff', pick: { weight: 5, cooldown: 1.6 } }),
       ],
@@ -289,7 +300,8 @@ export const TELEGONOS = {
    사람이라 크지 않고, 대신 빠르고 부하를 계속 부른다. */
 export const ANTINOOS = {
   id: 'antinoos', name: '안티노오스', title: '구혼자들의 우두머리',
-  hp: 700, radius: 0.55, mass: 38, speed: 5.4, keepRange: [2.8, 6], gap: [0.5, 0.9],
+  hp: 700, radius: 0.55, mass: 38, speed: 6.2, keepRange: [5.5, 9], gap: [0.5, 0.9],
+  flees: true,          // 붙으면 도망친다. 쫓아가서 잡아야 한다
   barHeight: 2.4, groggyMult: 1.9, turnHalf: 0.07,
   look: { height: 1.82, bulk: 1.0, tint: '#d0b070', gear: ['legs', 'feet', 'body', 'arms', 'pauldron'] },
   phases: [
@@ -302,8 +314,10 @@ export const ANTINOOS = {
         volley({ id: 'a_bow', kind: 'arrow', startup: 0.55, active: 0.08, recovery: 0.45, count: 3, spread: 0.3,
           damage: 15, speed: 26, bullet: '#ffd27a', bulletSize: 0.3,
           pick: { min: 3.5, weight: 4, cooldown: 2.2 } }),
-        summon({ id: 'a_call', startup: 0.85, active: 0.1, recovery: 0.7, kind: 'warrior', count: 2, radius: 7,
-          pick: { weight: 3, cooldown: 8 } }),
+        // 고함 — 홀 전체가 들린다. 사방에서 몰려온다.
+        summon({ id: 'a_shout', startup: 0.8, active: 0.1, recovery: 0.9, kind: 'warrior', count: 3, radius: 10,
+          shake: 0.5, color: '#ffd166', say: '“여기다! 놈이 여기 있다!”',
+          pick: { weight: 4, cooldown: 7 } }),
       ],
     },
     {
@@ -317,8 +331,9 @@ export const ANTINOOS = {
         volley({ id: 'a_rain', kind: 'arrow', startup: 0.5, active: 0.08, recovery: 0.4, count: 5, spread: 0.55,
           damage: 15, speed: 28, bullet: '#ffd27a', bulletSize: 0.3,
           pick: { weight: 4, cooldown: 1.8 } }),
-        summon({ id: 'a_call2', startup: 0.7, active: 0.1, recovery: 0.55, kind: 'warrior', count: 3, radius: 8,
-          pick: { weight: 3, cooldown: 7 } }),
+        summon({ id: 'a_shout2', startup: 0.62, active: 0.1, recovery: 0.7, kind: 'warrior', count: 4, radius: 11,
+          shake: 0.6, color: '#ffd166', say: '“전부 들어와라!”',
+          pick: { weight: 5, cooldown: 5.5 } }),
       ],
     },
   ],

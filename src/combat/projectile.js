@@ -237,6 +237,10 @@ export class Projectiles {
       traveled: 0, range: o.range ?? 34, t: rand(0, 6),
       ricochet: o.ricochet ?? 0, ricochetLevel: o.ricochetLevel ?? 0,
       ignite: o.ignite ?? null, shedAt: 0,
+      homing: o.homing ?? 0,          // 초당 몇 라디안까지 꺾이는가
+      parryable: !!o.parryable,       // 구르기 무적에 스치면 튕겨 나가는가
+      onParry: o.onParry ?? null,
+      onHitExtra: o.onHitExtra ?? null,
       hitSet: new Set(),
     })
   }
@@ -246,6 +250,20 @@ export class Projectiles {
       const p = this.live[i]
       const step = p.speed * dt
       p.t += dt
+
+      // 유도 — 느리게 따라온다. 걸어서는 못 떨구고 구르기로 끊어야 한다.
+      if (p.homing) {
+        const target = actors.find(a => !a.dead && a.team !== p.team && a.isPlayer)
+          ?? actors.find(a => !a.dead && a.team !== p.team)
+        if (target) {
+          const want = Math.atan2(target.pos.x - p.pos.x, target.pos.z - p.pos.z)
+          let d = (want - p.dir) % (Math.PI * 2)
+          if (d > Math.PI) d -= Math.PI * 2
+          if (d < -Math.PI) d += Math.PI * 2
+          p.dir += Math.max(-p.homing * dt, Math.min(p.homing * dt, d))
+        }
+      }
+
       p.pos.x += Math.sin(p.dir) * step
       p.pos.z += Math.cos(p.dir) * step
       p.traveled += step
@@ -265,12 +283,42 @@ export class Projectiles {
       let gone = p.traveled > p.range || Math.hypot(p.pos.x, p.pos.z) > arenaRadius + 1.5
 
       if (!gone) {
+        // 드러난 약점이 먼저다. 몸통보다 작고, 정해진 종류만 통한다.
+        for (const a of actors) {
+          if (a.dead || a.team === p.team) continue
+          const w = a.getWeakPoint?.()
+          if (!w) continue
+          if (w.requires && p.kind !== w.requires) continue
+          const d3 = Math.hypot(p.pos.x - w.x, p.pos.y - w.y, p.pos.z - w.z)
+          if (d3 > w.r + p.radius) continue
+          a.weakPointHit?.()
+          a.hurt(p.damage * 2.5, { from: p.pos, knockback: 0, hitstop: 0.16, color: '#ffd166', crit: true })
+          this.particles?.burst({ x: w.x, y: w.y, z: w.z, count: 34, color: '#ffe08a', speed: 9, size: 0.2, life: 0.7, gravity: 4, up: 1.3 })
+          this.fx?.ring(p.pos.x, p.pos.z, { color: '#ffd166', radius: 3.4, life: 0.6 })
+          gone = true
+          break
+        }
+      }
+
+      if (!gone) {
         for (const a of actors) {
           if (a.dead || a.team === p.team || p.hitSet.has(a)) continue
           if (!circleHit(p.pos.x, p.pos.z, p.radius, a)) continue
           p.hitSet.add(a)
+
+          // 패링 — 구르기 무적에 스치면 맞는 대신 튕겨 나간다
+          if (p.parryable && a.invuln > 0) {
+            this.fx?.freeze(0.1)
+            this.fx?.shake(0.3)
+            this.fx?.number(p.pos.clone(), '쳐냄', { color: '#9fe0ff', size: 30, crit: true })
+            this.particles?.burst({ x: p.pos.x, y: p.pos.y, z: p.pos.z, count: 24, color: '#bfe4ff', speed: 8, size: 0.16, life: 0.5, gravity: 2, up: 1.2 })
+            p.onParry?.(a)
+            gone = true
+            break
+          }
           a.hurt(p.damage, { from: p.pos, knockback: p.knockback, hitstop: p.hitstop, color: '#ffd27a' })
           if (p.ignite) a.ignite(p.ignite)
+          p.onHitExtra?.(a)
           this.#impact(p)
           if (p.pierce > 0) { p.pierce--; break }
           if (p.ricochet > 0 && this.#bounce(p, actors)) break

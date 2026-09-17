@@ -196,12 +196,13 @@ function hasTier(taken, lineage, tier) {
  * 윗등급은 같은 계열 아랫등급을 UNLOCK_AT 번 이상 골라야 열린다.
  * 특수 효과는 한 번만 먹으면 되므로 이미 가진 건 빠진다.
  */
-export function availableUpgrades(taken = new Map()) {
+export function availableUpgrades(taken = new Map(), ease = 0) {
   return UPGRADES.filter(u => {
     if (u.tier === 0) return true
     if (taken.has(u.id)) return false                      // 특수는 중복해서 먹을 게 없다
     const rule = UNLOCK[u.tier]
-    if (lineagePicks(taken, u.lineage) < rule.picks) return false
+    // 아테나의 조언이 문턱을 한 계단 낮춘다
+    if (lineagePicks(taken, u.lineage) < Math.max(1, rule.picks - ease)) return false
     if (rule.needsTier != null && !hasTier(taken, u.lineage, rule.needsTier)) return false
     return true
   })
@@ -214,8 +215,8 @@ export function newlyUnlocked(before, after) {
 }
 
 /** 가중 추첨으로 서로 다른 n 개. 새로 열린 등급은 반드시 한 장 끼워 준다. */
-export function rollChoices(n = 3, taken = new Map(), forced = []) {
-  const pool = availableUpgrades(taken)
+export function rollChoices(n = 3, taken = new Map(), forced = [], ease = 0) {
+  const pool = availableUpgrades(taken, ease)
   const out = []
   for (const f of forced) {
     const u = pool.find(p => p.id === f.id)

@@ -76,6 +76,10 @@ const CSS = `
   background:linear-gradient(180deg,#c03a26,#5f140e); transition:transform .1s linear; }
 #hud .boss .bar u { position:absolute; inset:0; transform-origin:left center; display:block;
   background:#f5d7a0; opacity:.4; transition:transform .6s cubic-bezier(.2,.7,.3,1) .15s; }
+#hud .boss.down .bar { border-color:#c8973e; box-shadow:inset 0 0 0 1px rgba(255,200,90,.5), 0 0 34px rgba(255,190,60,.45); }
+#hud .boss .weak { margin-top:7px; text-align:center; font-family:var(--serif);
+  font-size:12.5px; letter-spacing:.2em; color:#ffd166; opacity:0; transition:opacity .3s; }
+#hud .boss.down .weak { opacity:1; }
 #hud .boss .phases { position:absolute; inset:0; display:flex; pointer-events:none; }
 #hud .boss .phases s { flex:1; border-right:1px solid rgba(0,0,0,.6); }
 #hud .boss .phases s:last-child { border:0; }
@@ -133,7 +137,8 @@ export class Hud {
       </div>
       <div class="wave"></div>
       <div class="boss"><div class="who"><b></b><span></span></div>
-        <div class="bar"><u></u><i></i><div class="phases"></div></div></div>
+        <div class="bar"><u></u><i></i><div class="phases"></div></div>
+        <div class="weak"></div></div>
       <div class="credits"><div class="in">
         <div class="band"></div>
         <h1></h1><p class="sub2"></p>
@@ -198,6 +203,15 @@ export class Hud {
     this.bossEl.querySelector('.who span').textContent = boss.cfg.title ?? ''
     const marks = this.bossEl.querySelector('.phases')
     marks.innerHTML = boss.cfg.phases.map(() => '<s></s>').join('')
+  }
+
+  /** 보스가 쓰러져 약점이 드러난 상태. */
+  setBossDown(on, hint) {
+    this.bossEl.classList.toggle('down', !!on)
+    if (on && this.boss) {
+      this.bossEl.querySelector('.weak').textContent =
+        hint ?? `쓰러졌다 — ${this.boss.cfg.phases.find(p => p.needsWeakPoint)?.weakHint ?? '약점'}`
+    }
   }
 
   credits(damage, taken, run) {
