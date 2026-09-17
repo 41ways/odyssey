@@ -1,0 +1,195 @@
+import * as THREE from 'three'
+import { damp, rand } from '../core/math.js'
+
+/** 로스트아크식 쿼터뷰 리그. 스테이지마다 값만 갈아끼우면 된다. */
+export const CAMERA_RIG = {
+  pitch: THREE.MathUtils.degToRad(40),  // 수평에서 올려다본 각
+  yaw: 0,                                // 고정. 방향키 축이 화면 축과 그대로 맞는다
+  distance: 26,
+  fov: 32,                               // 좁게 → 원근이 눌려서 장판이 잘 읽힌다
+  lead: 0.18,                            // 마우스 쪽으로 시선이 끌려가는 정도
+  leadMax: 3.2,
+  follow: 0.10,                          // 추적 감쇠 반감기(초)
+}
+
+function stoneTexture() {
+  const c = document.createElement('canvas')
+  c.width = c.height = 512
+  const g = c.getContext('2d')
+  g.fillStyle = '#3b3129'
+  g.fillRect(0, 0, 512, 512)
+  // 얼룩 — 바닥에 결이 없으면 이동이 미끄러지는 느낌이 난다
+  for (let i = 0; i < 2600; i++) {
+    const r = rand(2, 26)
+    g.fillStyle = `rgba(${rand(20, 90) | 0},${rand(16, 74) | 0},${rand(12, 58) | 0},${rand(0.05, 0.3)})`
+    g.beginPath(); g.arc(rand(0, 512), rand(0, 512), r, 0, Math.PI * 2); g.fill()
+  }
+  // 돌 틈
+  g.strokeStyle = 'rgba(12,9,7,0.45)'
+  for (let i = 0; i < 90; i++) {
+    g.lineWidth = rand(0.6, 2.4)
+    g.beginPath()
+    const x = rand(0, 512), y = rand(0, 512)
+    g.moveTo(x, y)
+    g.lineTo(x + rand(-70, 70), y + rand(-70, 70))
+    g.stroke()
+  }
+  const t = new THREE.CanvasTexture(c)
+  t.wrapS = t.wrapT = THREE.RepeatWrapping
+  t.repeat.set(7, 7)
+  t.anisotropy = 8
+  t.colorSpace = THREE.SRGBColorSpace
+  return t
+}
+
+export class World {
+  constructor(container) {
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' })
+    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping
+    this.renderer.toneMappingExposure = 1.05
+    this.renderer.shadowMap.enabled = true
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
+    container.appendChild(this.renderer.domElement)
+    this.canvas = this.renderer.domElement
+
+    this.scene = new THREE.Scene()
+    this.scene.background = new THREE.Color('#0a0a10')
+    this.scene.fog = new THREE.FogExp2('#0d0b12', 0.018)
+
+    this.camera = new THREE.PerspectiveCamera(CAMERA_RIG.fov, 1, 0.5, 220)
+    this.camTarget = new THREE.Vector3()
+    this.shake = 0
+    this._shakeOff = new THREE.Vector3()
+
+    this.#lights()
+    this.arenaRadius = 16
+    this.#arena()
+    this.#composer()
+
+    addEventListener('resize', () => this.resize())
+    this.resize()
+  }
+
+  #lights() {
+    this.scene.add(new THREE.HemisphereLight('#3a4a74', '#140f0a', 0.55))
+
+    // 이스마로스 — 불타는 해안. 따뜻한 주광 + 차가운 역광으로 실루엣을 딴다.
+    const key = new THREE.DirectionalLight('#ffb478', 2.4)
+    key.position.set(10, 17, 7)
+    key.castShadow = true
+    key.shadow.mapSize.set(2048, 2048)
+    const d = 24
+    key.shadow.camera.left = -d; key.shadow.camera.right = d
+    key.shadow.camera.top = d; key.shadow.camera.bottom = -d
+    key.shadow.camera.near = 1; key.shadow.camera.far = 60
+    key.shadow.bias = -0.0008
+    key.shadow.normalBias = 0.02
+    this.scene.add(key)
+    this.keyLight = key
+
+    const rim = new THREE.DirectionalLight('#6f8cff', 1.1)
+    rim.position.set(-9, 6, -11)
+    this.scene.add(rim)
+  }
+
+  #arena() {
+    const R = 16
+    const ground = new THREE.Mesh(
+      new THREE.CircleGeometry(R + 2, 96),
+      new THREE.MeshStandardMaterial({ map: stoneTexture(), roughness: 0.95, metalness: 0 })
+    )
+    ground.rotation.x = -Math.PI / 2
+    ground.receiveShadow = true
+    this.scene.add(ground)
+
+    // 투기장 테두리 — 경계가 눈에 보여야 몰리는 느낌이 난다
+    const wall = new THREE.Mesh(
+      new THREE.CylinderGeometry(R + 2, R + 2.4, 3.2, 96, 1, true),
+      new THREE.MeshStandardMaterial({ color: '#2a2018', roughness: 1, side: THREE.BackSide })
+    )
+    wall.position.y = 1.6
+    wall.receiveShadow = true
+    this.scene.add(wall)
+
+    // 잡석 — 이동 속도를 눈으로 가늠할 기준점
+    const rockGeo = new THREE.DodecahedronGeometry(1, 0)
+    const rockMat = new THREE.MeshStandardMaterial({ color: '#544738', roughness: 1 })
+    const rocks = new THREE.InstancedMesh(rockGeo, rockMat, 46)
+    rocks.castShadow = rocks.receiveShadow = true
+    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler()
+    for (let i = 0; i < 46; i++) {
+      const a = rand(0, Math.PI * 2), r = rand(6, R + 1.2)
+      const s = rand(0.2, 0.65)
+      e.set(rand(0, 3), rand(0, 3), rand(0, 3)); q.setFromEuler(e)
+      m.compose(new THREE.Vector3(Math.cos(a) * r, s * 0.35, Math.sin(a) * r), q, new THREE.Vector3(s, s * 0.6, s))
+      rocks.setMatrixAt(i, m)
+    }
+    this.scene.add(rocks)
+  }
+
+  async #composer() {
+    this.composer = null
+    try {
+      const pp = await import('postprocessing')
+      const composer = new pp.EffectComposer(this.renderer, { multisampling: 4 })
+      composer.addPass(new pp.RenderPass(this.scene, this.camera))
+      composer.addPass(new pp.EffectPass(this.camera,
+        new pp.BloomEffect({ intensity: 0.85, luminanceThreshold: 0.62, luminanceSmoothing: 0.25, mipmapBlur: true }),
+        new pp.VignetteEffect({ darkness: 0.55, offset: 0.32 }),
+      ))
+      this.composer = composer
+      this.resize()
+    } catch (err) {
+      console.warn('[world] 포스트프로세싱 없이 간다:', err)
+    }
+  }
+
+  resize() {
+    const w = innerWidth, h = innerHeight
+    this.camera.aspect = w / h
+    this.camera.updateProjectionMatrix()
+    this.renderer.setSize(w, h)
+    this.composer?.setSize(w, h)
+  }
+
+  addShake(amount) { this.shake = Math.min(this.shake + amount, 1.4) }
+
+  /** focus = 플레이어 위치, aim = 마우스 지점. 시선이 조준 쪽으로 살짝 끌려간다. */
+  updateCamera(focus, aim, dt) {
+    const rig = CAMERA_RIG
+    const want = this._want ??= new THREE.Vector3()
+    want.copy(focus)
+    if (aim) {
+      const dx = (aim.x - focus.x) * rig.lead
+      const dz = (aim.z - focus.z) * rig.lead
+      const len = Math.hypot(dx, dz)
+      const k = len > rig.leadMax ? rig.leadMax / len : 1
+      want.x += dx * k; want.z += dz * k
+    }
+    this.camTarget.x = damp(this.camTarget.x, want.x, rig.follow, dt)
+    this.camTarget.y = damp(this.camTarget.y, want.y, rig.follow, dt)
+    this.camTarget.z = damp(this.camTarget.z, want.z, rig.follow, dt)
+
+    const hor = Math.cos(rig.pitch) * rig.distance
+    const off = this._off ??= new THREE.Vector3()
+    off.set(Math.sin(rig.yaw) * hor, Math.sin(rig.pitch) * rig.distance, Math.cos(rig.yaw) * hor)
+
+    // 흔들림은 카메라 위치에만 준다. 타겟까지 흔들면 화면이 멀미난다.
+    this.shake = Math.max(0, this.shake - dt * 3.2)
+    const s = this.shake * this.shake * 0.9
+    this._shakeOff.set(rand(-s, s), rand(-s, s) * 0.6, rand(-s, s))
+
+    this.camera.position.copy(this.camTarget).add(off).add(this._shakeOff)
+    this.camera.lookAt(this.camTarget)
+    this.keyLight.position.copy(this.camTarget).add(new THREE.Vector3(10, 17, 7))
+    this.keyLight.target.position.copy(this.camTarget)
+    this.keyLight.target.updateMatrixWorld()
+  }
+
+  render() {
+    if (this.composer) this.composer.render()
+    else this.renderer.render(this.scene, this.camera)
+  }
+}
