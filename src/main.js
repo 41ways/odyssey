@@ -30,6 +30,7 @@ import { Reel } from './ui/reel.js'
 import { Music } from './core/music.js'
 import { Level, BOSS_XP } from './player/level.js'
 import { Sfx } from './core/sfx.js'
+import { promote, eliteChance } from './enemy/elite.js'
 import { CUT_TROY, CUT_CAVE, CUT_UNDER, CUT_WHIRL, CUT_ITHACA, ALL_CUTS, cutArt } from './stage/cuts.js'
 import { rollBlessings } from './player/blessings.js'
 import { models } from './render/models.js'
@@ -80,6 +81,7 @@ class Game {
     this.paused = false
     this.taken = new Map()
     this.level = new Level()      // 경험치 → 성장 선택 (player/level.js)
+    this.hazards = []             // 바닥에 남는 불 (leaveFire)
 
     this.reticle = makeReticle()
     this.render3d.scene.add(this.reticle)
@@ -204,7 +206,59 @@ class Game {
     const away = Math.atan2(-p.x, -p.z) + rand(-1.1, 1.1)
     const arena = this.render3d.arena
     const r = (arena ? arena.radiusAt(away) : this.arenaRadius) - rand(0.6, 2.2)
-    return this.spawnMinion(kind, Math.sin(away) * r, Math.cos(away) * r)
+    const e = this.spawnMinion(kind, Math.sin(away) * r, Math.cos(away) * r)
+
+    // 무리 안에 다르게 싸워야 하는 한 마리를 섞는다 (enemy/elite.js).
+    // 웨이브가 수만 늘리면 판이 어려워지는 게 아니라 길어질 뿐이다.
+    const deep = Math.max(0, this.run?.index ?? 0)
+    if (e && Math.random() < eliteChance(deep)) {
+      const t = promote(e)
+      if (t) {
+        this.hud.toast(`${t.name} ${e.label ?? '것'} — ${t.hint}`, 2.6)
+        this.fx.ring(e.pos.x, e.pos.z, { color: t.color, radius: 2.6, life: 0.7 })
+        this.sfx?.chime()
+      }
+    }
+    return e
+  }
+
+  /**
+   * 바닥에 불을 남긴다.
+   *
+   * 역병을 진 정예가 죽은 자리에 깔린다 (enemy/elite.js). 이게 있어야
+   * "어디서 죽일지" 가 판단이 된다 — 붙어서 잡으면 그 불을 내가 밟는다.
+   *
+   * 적은 안 태운다. 적까지 태우면 불을 깔아 주는 게 이득이 되어,
+   * 위험이 아니라 보상이 된다.
+   */
+  leaveFire(x, z, { radius = 2.6, seconds = 5, dps = 9 } = {}) {
+    this.hazards.push({ x, z, r: radius, left: seconds, dps, tick: 0 })
+  }
+
+  #tickHazards(dt) {
+    const p = this.player
+    for (let i = this.hazards.length - 1; i >= 0; i--) {
+      const h = this.hazards[i]
+      h.left -= dt
+      if (h.left <= 0) { this.hazards.splice(i, 1); continue }
+      // 불꽃 몇 점. 매 프레임 뿌리면 예산을 먹으므로 간격을 둔다.
+      h.tick -= dt
+      if (h.tick <= 0) {
+        h.tick = 0.22
+        this.fx.ring(h.x, h.z, { color: '#9ae06a', radius: h.r, life: 0.32 })
+        this.particles.burst({ x: h.x + rand(-h.r * 0.6, h.r * 0.6), y: 0.2,
+          z: h.z + rand(-h.r * 0.6, h.r * 0.6), count: 4,
+          color: '#9ae06a', speed: 2.2, size: 0.13, life: 0.5, gravity: -1.2 })
+      }
+      // 구르는 중에는 안 밟는다. 무적 프레임이 불에도 통해야 일관된다.
+      if (p.dead || p.invuln > 0 || p.rolling > 0) continue
+      if (Math.hypot(p.pos.x - h.x, p.pos.z - h.z) > h.r + p.radius) continue
+      h.hit = (h.hit ?? 0) - dt
+      if (h.hit <= 0) {
+        h.hit = 0.4
+        p.hurt(h.dps * 0.4, { from: { x: h.x, z: h.z }, knockback: 0, hitstop: 0.02, color: '#9ae06a' })
+      }
+    }
   }
 
   clearField() {
@@ -212,6 +266,7 @@ class Game {
     for (const c of this.corpses) this.render3d.scene.remove(c.group)
     this.enemies.length = 0
     this.corpses.length = 0
+    this.hazards.length = 0
     this.pickups.clear()
     this.projectiles.clear()
     this.particles.clear()
@@ -897,6 +952,8 @@ class Game {
     separate(all, dt)
     this.projectiles.update(dt, all, this.arenaRadius, this.render3d.camera)
     this.particles.update(dt)
+
+    this.#tickHazards(dt)
 
     const looted = this.pickups.update(dt, p)
     if (looted.length && !p.dead) this.#openLoot(looted)

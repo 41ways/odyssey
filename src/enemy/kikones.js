@@ -307,6 +307,7 @@ class Kikones extends Actor {
     this._moved = 0
     this.attachBar(1.2, '#e0443a', cfg.barHeight)
     this.xpValue = cfg.xp ?? 3
+    this.label = cfg.label ?? '것'      // 정예 이름에 쓴다 (enemy/elite.js)
     this.cooldown = rand(0.4, 1.6)
     this.strafe = Math.random() < 0.5 ? 1 : -1
     this.strafeTimer = rand(0.8, 2.0)
@@ -394,6 +395,7 @@ class Kikones extends Actor {
 
 export function kikonesWarrior(world, fx) {
   return new Kikones(world, fx, {
+    label: '전사',
     hp: 58, radius: 0.46, mass: 1.6, speed: 4.2, keepRange: [2.4, 3.1], barHeight: 2.05, xp: 4,
     look: {
       weapon: 'spear', scale: 0.98, bulk: 1.0, model: 'kikonesWarrior',
@@ -410,6 +412,7 @@ export function kikonesWarrior(world, fx) {
 
 export function kikonesArcher(world, fx) {
   return new Kikones(world, fx, {
+    label: '활잡이',
     hp: 40, radius: 0.42, mass: 1.2, speed: 4.6, keepRange: [7.5, 10.5], barHeight: 1.95, xp: 5,
     look: {
       weapon: 'bow', scale: 0.95, bulk: 0.92, model: 'kikonesArcher',
@@ -433,6 +436,7 @@ export function circePig(world, fx) {
     // xp 는 2 였다. 짐승 판(아이아이에)은 처치 목표가 제일 높은데 마리당 값이
     // 제일 낮아서, 같은 수를 잡고도 레벨이 한 번 덜 올랐다 — 판마다 두 번이
     // 안 되면 곡선이 어긋난다. 돼지·늑대·사자를 한 칸씩 올려 사람 판과 맞췄다.
+    label: '돼지',
     hp: 34, radius: 0.44, mass: 1.3, speed: 5.6, keepRange: [4.2, 6.4], barHeight: 1.3, xp: 3,
     weapon: null, scale: 0.75, bulk: 1.25,
     look: {
@@ -458,6 +462,7 @@ export function circePig(world, fx) {
 export function circeWolf(world, fx) {
   return new Kikones(world, fx, {
     // 늑대도 같은 이유로 물린다. 뛰어서 붙는 놈이 걸어와 붙으면 안 된다.
+    label: '늑대',
     hp: 44, radius: 0.42, mass: 1.1, speed: 6.4, keepRange: [4.0, 6.2], barHeight: 1.4, xp: 4,
     weapon: null, scale: 0.8, bulk: 1.0,
     look: {
@@ -483,6 +488,7 @@ export function circeWolf(world, fx) {
  */
 export function circeLion(world, fx) {
   return new Kikones(world, fx, {
+    label: '사자',
     hp: 96, radius: 0.54, mass: 2.2, speed: 4.0, keepRange: [2.6, 4.2], barHeight: 1.7, xp: 8,
     weapon: null, scale: 0.95, bulk: 1.35,
     look: {
@@ -517,6 +523,7 @@ const WOLF_BITE = meleeAttack({
  */
 export function kikonesShield(world, fx) {
   const e = new Kikones(world, fx, {
+    label: '방패병',
     hp: 96, radius: 0.5, mass: 3.2, speed: 3.2, keepRange: [2.0, 2.6], barHeight: 2.1, xp: 6,
     weapon: 'spear', scale: 1.02, bulk: 1.2,
     look: {
