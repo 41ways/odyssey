@@ -27,8 +27,11 @@ export class Run {
   /** HUD 가 쓰는 현재 구간 정보. */
   get view() {
     if (!this.stage) return null
+    const here = this.phase === 'boss'
+      ? (this.stage.fork?.name ?? this.stage.boss?.name)
+      : this.stage.wave?.name
     return {
-      name: this.stage.name,
+      name: here ?? this.stage.name,
       goal: this.phase === 'wave' ? this.stage.wave.goal : 0,
       phase: this.phase,
       bossName: this.boss?.cfg.name ?? null,
@@ -105,7 +108,8 @@ export class Run {
       g.player.action.stop()
       g.render3d.camTarget.copy(g.player.pos)
     })
-    if (banner) g.hud.banner(this.stage.name, intro, 3.4)
+    // 구간이 제 이름을 들고 있으면 그걸 쓴다 (해안 → 동굴처럼 자리가 바뀔 때)
+    if (banner) g.hud.banner(part.name ?? this.stage.name, intro, 3.4)
   }
 
   /** 웨이브를 다 치우면 보스방으로 넘어간다. */
@@ -137,7 +141,7 @@ export class Run {
     // 만나는 장면. 체력바는 이 뒤에 붙여야 이름이 두 번 나오지 않는다
     await g.cinema({ title: b.cfg.name, sub: b.cfg.title ?? '', at: b.pos, zoom: 0.5, hold: 2.3 })
     g.hud.setBoss(b)
-    if (cfg.intro) g.hud.banner(this.stage.name, cfg.intro, 2.4)
+    if (cfg.intro) g.hud.banner(cfg.name ?? this.stage.name, cfg.intro, 2.4)
   }
 
   update(dt) {

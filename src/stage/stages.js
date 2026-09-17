@@ -101,7 +101,10 @@ export const STAGES = [
       ],
       clear: '해안이 조용해졌다. 바람이 동굴 쪽에서 불어온다.',
     },
-    boss: { ...CAVE, id: 'polyphemos', intro: '입구를 바위가 막았다. 나갈 길은 저것을 눕히는 것뿐이다.' },
+    // 웨이브와 보스방은 다른 곳이다. 해안에서 싸우다 동굴로 들어간다 —
+    // 현판에 같은 이름이 뜨면 걸어 들어간 것이 아니라 그 자리에 머문 것이 된다.
+    boss: { ...CAVE, name: '폴리페모스의 동굴', id: 'polyphemos',
+      intro: '입구를 바위가 막았다. 나갈 길은 저것을 눕히는 것뿐이다.' },
     clear: '“아무도 나를 해치지 않았다”  그가 그렇게 외쳤다.',
   },
 
@@ -118,7 +121,8 @@ export const STAGES = [
       ],
       clear: '항구 안쪽에서 거대한 그림자가 걸어 나온다.',
     },
-    boss: { ...CLIFF, camDistance: 26, id: 'antiphates', intro: '항구 전체가 우리를 향해 돌아섰다.' },
+    boss: { ...CLIFF, camDistance: 26, name: '라이스트리고네스의 항구', id: 'antiphates',
+      intro: '항구 전체가 우리를 향해 돌아섰다.' },
     clear: '배 한 척만 남았다.',
   },
 
@@ -135,7 +139,8 @@ export const STAGES = [
       ],
       clear: '집 문이 열렸다.',
     },
-    boss: { ...FOREST, camDistance: 21, id: 'kirke', intro: '술잔을 든 여자가 웃는다.' },
+    boss: { ...FOREST, camDistance: 21, name: '키르케의 집', id: 'kirke',
+      intro: '술잔을 든 여자가 웃는다.' },
     clear: '돼지가 다시 사람이 되었다.',
   },
 
@@ -159,7 +164,8 @@ export const STAGES = [
       ],
       clear: '갑판이 비었다. 그때 노래가 시작된다.',
     },
-    boss: { ...DECK(14, 22), id: 'siren', intro: '노래가 들린다. 귀를 막을 수 없다.' },
+    boss: { ...DECK(14, 22), name: '세이렌의 바위', id: 'siren',
+      intro: '노래가 들린다. 귀를 막을 수 없다.' },
     clear: '노래가 멎었다.',
   },
 
@@ -177,6 +183,7 @@ export const STAGES = [
     },
     fork: {
       ...STORM,
+      name: '메시나 해협',
       intro: '어느 쪽으로도 갈 수 있다. 어느 쪽도 무사하지 않다.',
       options: [
         { boss: 'skylla', label: '절벽 쪽으로', line: '스킬라 — 여섯 머리가 배 위로 내려온다' },
@@ -201,13 +208,15 @@ export const STAGES = [
       ],
       clear: '한 사람만 남았다.',
     },
-    boss: { ...HALL, camDistance: 20, id: 'antinoos', intro: '술잔을 내려놓고 칼을 뽑는다.' },
+    boss: { ...HALL, camDistance: 20, name: '이타카의 홀', id: 'antinoos',
+      intro: '술잔을 내려놓고 칼을 뽑는다.' },
     clear: '홀이 비었다.',
   },
 
   {
     id: 'death', name: '죽음', title: '텔레고노스',
-    boss: { ...BEACH, id: 'telegonos', intro: '해변에 선 젊은이가 같은 창을 들고 있다.' },
+    boss: { ...BEACH, name: '이타카의 해변', id: 'telegonos',
+      intro: '해변에 선 젊은이가 같은 창을 들고 있다.' },
     endless: true,
     intro: '해변에 선 젊은이가 같은 창을 들고 있다.',
     clear: '',
