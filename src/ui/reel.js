@@ -34,6 +34,12 @@ const CSS = `
   transition:opacity var(--fade, 900ms) ease;
   will-change:opacity, transform; }
 #reel .plate.in { opacity:1; }
+/* 세로로 긴 그림(보스 초상 — 760x1007).
+   cover 로 깔면 16:9 화면에서 가로만 맞추고 위아래를 잘라내므로, 남는 건
+   가슴 높이의 가로 띠 하나다. 그런데 초상에서 봐야 하는 건 얼굴이다 —
+   "그것이 우리를 세어 보았다" 를 읽는 순간 화면에 몸통만 있으면 안 된다.
+   그래서 세로를 넉넉히 넘치게 깔고 시선을 위쪽(28%)으로 올린다. */
+#reel .plate.tall { background-size:auto 132%; background-position:center 26%; }
 /* 켄 번스 — 아주 느리게 밀고 당긴다. 장마다 방향을 달리해서 리듬이 생긴다. */
 @keyframes reelPush {
   from { transform:scale(1.0) translate3d(0,0,0); }
@@ -209,7 +215,10 @@ export class Reel {
         // 속성이 거기서 끝나 버려서 background-image 가 통째로 빈다 —
         // 실제로 그래서 그림이 안 보이고 색조와 불티만 나왔다.
         const bg = s.art ? `background-image:url('${s.art}');` : ''
-        return `<div class="plate" data-i="${i}" style="${bg}--zoom:${zoom.toFixed(3)};--px:${px.toFixed(0)}px;--py:${py.toFixed(0)}px"></div>`
+        // 보스 초상은 세로가 길다. 판판한 배경 그림과 같은 방식으로 깔면
+        // 얼굴이 잘려 나간다 (.plate.tall 주석 참고).
+        const tall = (s.tall ?? /\/(boss|rise)\//.test(s.art ?? '')) ? ' tall' : ''
+        return `<div class="plate${tall}" data-i="${i}" style="${bg}--zoom:${zoom.toFixed(3)};--px:${px.toFixed(0)}px;--py:${py.toFixed(0)}px"></div>`
       }).join('')
 
       this.el.style.setProperty('--flame', M.flame)

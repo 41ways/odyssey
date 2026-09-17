@@ -1,0 +1,74 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>art drop</title>
+<!--
+  그림 받는 창 — 개발용.
+
+  컷신 그림은 제미나이에서 만든다. 그런데 만든 그림을 이 프로젝트로
+  옮기는 길이 다 막혀 있었다:
+
+    · 내려받기 — 같은 탭에서 두 장 이상 연달아 저장하면 크롬이 막는다.
+      한 번 막히면 그 사이트는 사용자가 손으로 허용해 줘야 풀린다.
+    · fetch  — 구글 페이지의 CSP(connect-src) 가 localhost 로 가는 요청을
+      끊는다. 서버에서 CORS 를 다 열어도, 사설망 헤더를 붙여도 안 뚫린다.
+      막는 쪽이 서버가 아니라 보내는 페이지라서 그렇다.
+
+  postMessage 는 **네트워크 요청이 아니다.** 창과 창이 직접 주고받는
+  것이라 CSP 가 볼 것이 없다. 그래서 이 창을 localhost 로 열어 두고,
+  제미나이 쪽에서 Blob 을 그대로 던진다. 받는 건 이 창이고, 이 창은
+  자기 출처의 /__drop 으로 저장하면 되니 아무것도 안 막힌다.
+
+  쓰는 법 (제미나이 탭 콘솔에서) —
+    const w = window.open('http://localhost:5180/drop.html', 'drop')
+    // 창이 뜬 뒤
+    w.postMessage({ name: 'cave-01.png', blob }, 'http://localhost:5180')
+
+  받은 파일은 art/gen/ 으로 떨어진다 (vite.config.js 의 dropEndpoint).
+-->
+<style>
+  body { margin:0; font:13px/1.7 ui-monospace,monospace; background:#14120e; color:#c8a16a; padding:18px 20px }
+  h1 { font-size:14px; letter-spacing:.14em; color:#e8c884; margin:0 0 12px }
+  ul { margin:0; padding-left:18px } li { margin:2px 0 }
+  .err { color:#e0705a }
+</style>
+<h1>ART DROP — art/gen/</h1>
+<ul id="log"><li>기다리는 중…</li></ul>
+<script>
+  const log = document.getElementById('log')
+  let first = true
+  const say = (text, bad) => {
+    if (first) { log.innerHTML = ''; first = false }
+    const li = document.createElement('li')
+    li.textContent = text
+    if (bad) li.className = 'err'
+    log.appendChild(li)
+  }
+
+  addEventListener('message', async e => {
+    // 보내는 쪽 출처는 확인하지 않는다 — 이 창은 개발 서버에만 있고,
+    // 하는 일이 art/gen/ 에 파일 하나 쓰는 것뿐이다.
+    const { name, blob } = e.data ?? {}
+    if (!blob) return
+    try {
+      // Blob → data URL. 서버가 받는 형식이 그렇다 (__shot 과 같은 모양).
+      const data = await new Promise((ok, no) => {
+        const r = new FileReader()
+        r.onload = () => ok(r.result)
+        r.onerror = no
+        r.readAsDataURL(blob)
+      })
+      const res = await fetch('/__drop', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ name, data }),
+      })
+      const out = await res.json()
+      say(`${out.file} — ${Math.round(out.bytes / 1024)} KB`)
+      // 보낸 쪽에 결과를 돌려준다. 여러 장을 줄줄이 보낼 때 다음 장을
+      // 언제 보내도 되는지 알아야 한다.
+      e.source?.postMessage({ dropped: out.file, bytes: out.bytes }, e.origin)
+    } catch (err) {
+      say(String(err), true)
+      e.source?.postMessage({ dropError: String(err) }, e.origin)
+    }
+  })
+</script>
