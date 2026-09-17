@@ -159,10 +159,23 @@ export const STAGES = [
       ...CLIFF,
       intro: '좁은 만에 배를 댔다. 절벽 위에서 바위가 날아왔다.',
       goal: 16,
+      /**
+       * 여기는 **거인족의 마을**이다.
+       *
+       * 전에는 사람 크기 키코네스족이 나왔다 — 거인 마을에 사람이 살고
+       * 있었고 거인은 왕 하나뿐이었다. 판 이름이 '라이스트리고네스의
+       * 항구' 인데 라이스트리고네스가 없었다.
+       *
+       * 이야기에서 열한 척을 가라앉힌 건 온 마을이 절벽 위에서 던진
+       * 돌이다. 그래서 이 판은 **하늘에서 떨어지는 걸 보고 피하면서
+       * 거리를 좁히는** 판이 된다 — 몰려오는 걸 베는 다른 판들과 리듬이
+       * 다르다. 거인은 멀리서 던지므로 수를 적게(maxAlive) 두어야 한다.
+       * 던지는 놈 일곱이 동시에 던지면 바닥이 통째로 장판이 된다.
+       */
       steps: [
-        { untilKills: 5, maxAlive: 4, interval: 1.5, mix: { warrior: 3, archer: 1 } },
-        { untilKills: 11, maxAlive: 6, interval: 1.2, mix: { warrior: 3, archer: 2 }, say: '절벽 위가 새까맣다' },
-        { untilKills: 16, maxAlive: 7, interval: 1.0, mix: { warrior: 3, archer: 2 }, say: '배가 하나씩 부서진다' },
+        { untilKills: 5, maxAlive: 3, interval: 1.9, mix: { giant: 1 } },
+        { untilKills: 11, maxAlive: 4, interval: 1.6, mix: { giant: 3, warrior: 1 }, say: '절벽 위가 새까맣다' },
+        { untilKills: 16, maxAlive: 5, interval: 1.4, mix: { giant: 3, warrior: 1, archer: 1 }, say: '배가 하나씩 부서진다' },
       ],
       clear: '항구 안쪽에서 거대한 그림자가 걸어 나온다.',
     },

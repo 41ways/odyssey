@@ -107,8 +107,10 @@ export const ANTIPHATES = {
       // 처음부터 둘을 세워 둔다. 시작하자마자 "왕이 안 깎인다" 를 배워야
       // 그 다음부터 부름 패턴이 위협으로 읽힌다.
       onEnter: b => {
+        // 같은 종족이 지킨다. 사람 둘이 거인 왕을 지키고 있으면
+        // '부름꾼' 이 왕의 백성으로 안 읽힌다.
         for (let i = 0; i < 2; i++) {
-          const e = b.world.spawnMinion?.('warrior', b.pos.x + rand(-4, 4), b.pos.z + rand(-4, 4))
+          const e = b.world.spawnMinion?.('giant', b.pos.x + rand(-5, 5), b.pos.z + rand(-5, 5))
           if (e) e.guardsBoss = b
         }
       },
@@ -119,7 +121,9 @@ export const ANTIPHATES = {
           damage: 24, pick: { min: 4, weight: 3, cooldown: 3 } }),
         // 부름. 활잡이 둘이 절벽 쪽에 선다 — 살아 있으면 왕이 안 깎이니
         // 이 패턴이 나온 순간 표적이 바뀐다.
-        summon({ id: 'call', startup: 1.2, active: 0.1, recovery: 0.9, kind: 'archer', count: 2, radius: 7,
+        // 부름. 절벽 위의 제 백성을 부른다 — 살아 있으면 왕이 안 깎이니
+        // 이 패턴이 나온 순간 표적이 바뀐다. 그리고 그놈들이 돌을 던진다.
+        summon({ id: 'call', startup: 1.2, active: 0.1, recovery: 0.9, kind: 'giant', count: 2, radius: 8,
           guards: true, say: '왕이 절벽 위를 부른다', pick: { weight: 3, cooldown: 11 } }),
       ],
     },
@@ -412,7 +416,14 @@ export const TELEGONOS = {
   id: 'telegonos', name: '텔레고노스', title: '멀리서 태어난 아들',
   hp: 1e9, radius: 0.55, mass: 40, speed: 6.4, keepRange: [2.6, 5], gap: [0.35, 0.7],
   barHeight: 2.4, groggyMult: 1, turnHalf: 0.05, endless: true,
-  look: { height: 1.84, bulk: 1.02, tint: '#8fa0c8', gear: ['legs', 'feet', 'body', 'arms', 'pauldron'] },
+  /**
+   * 후드를 쓴 자. 바다에서 온 모르는 아들이다 — 오디세우스가 끝까지
+   * 누군지 모르고 죽는 상대라, 얼굴이 보이지 않는 쪽이 맞다.
+   *
+   * 전에는 안티노오스와 **똑같은 몸에 색만 달랐다.** 마지막 두 보스가
+   * 서로 구분이 안 됐고 잡졸과도 구분이 안 됐다.
+   */
+  look: { model: 'hooded', height: 1.84, bulk: 1.02, tint: '#8fa0c8', gear: [] },
   phases: [
     {
       below: 1,
@@ -463,7 +474,13 @@ export const ANTINOOS = {
   // 문턱은 '얼마나 당겼나' 로 본다. 피해량으로 보면 활 성장을 쌓은 사람은
   // 탭 사격으로도 넘어서, 시험이 아니라 성장 검사가 된다 (Boss.hurt).
   bowMin: 0.72, bowHint: '활을 꽉 당겨라', breakGroggy: 4.0,
-  look: { height: 1.82, bulk: 1.0, tint: '#d0b070', gear: ['legs', 'feet', 'body', 'arms', 'pauldron'] },
+  /**
+   * 금과 청동을 두른 귀족. 남의 집에서 왕처럼 굴던 자다.
+   *
+   * 전에는 텔레고노스와 **똑같은 몸에 색만 달랐다** — 마지막 두 보스가
+   * 서로도, 잡졸과도 구분이 안 됐다. 이름이 다르면 몸도 달라야 한다.
+   */
+  look: { model: 'king', height: 1.88, bulk: 1.0, tint: null, gear: [] },
   phases: [
     {
       below: 1,

@@ -63,6 +63,21 @@ export const MANIFEST = {
    * 촉수와 같은 단위 어긋남이 있어 scale 을 박는다 (MANIFEST.scale 주석 참고).
    */
   snake: { url: '/models/snake.glb', scale: 0.4, center: false },
+  /**
+   * 구혼자들의 우두머리와 오디세우스의 아들.
+   *
+   * 둘이 여태 **똑같이 생겼다.** 공용 사람 몸에 같은 장비를 입히고 색만
+   * 달랐으니, 마지막 두 보스가 잡졸과도 구분이 안 됐다. 이름이 다르면
+   * 몸도 달라야 한다.
+   *
+   * 같은 모듈러 팩의 두 캐릭터라 뼈대가 같고 (Quaternius, CC0) 클립
+   * 스물넷을 공유한다 — Idle_Sword · Sword_Slash · Run · Roll · HitRecieve ·
+   * Death 가 다 있어서, 공용 사람 몸보다 오히려 동작이 많다.
+   *   왕(금·청동을 두른 귀족)  → 안티노오스, 남의 집에서 왕처럼 굴던 자
+   *   후드를 쓴 자             → 텔레고노스, 바다에서 온 모르는 아들
+   */
+  king: { url: '/models/king.glb', height: 1.88 },
+  hooded: { url: '/models/hooded.glb', height: 1.84 },
 }
 
 /** 클립 이름이 제각각이라 느슨하게 맞춘다. 앞에 있는 후보일수록 우선. */

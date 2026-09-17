@@ -7,7 +7,7 @@ import { Projectiles } from './combat/projectile.js'
 import { Particles } from './render/particles.js'
 import { separate } from './combat/actor.js'
 import { Player } from './player/player.js'
-import { kikonesWarrior, kikonesArcher, kikonesShield, circePig, circeWolf, circeLion } from './enemy/kikones.js'
+import { kikonesWarrior, kikonesArcher, kikonesShield, circePig, circeWolf, circeLion, laistrygon } from './enemy/kikones.js'
 import { Hud } from './ui/hud.js'
 import { meanderURI } from './ui/theme.js'
 import { TitleScreen } from './ui/title.js'
@@ -38,7 +38,7 @@ import { preloadCharacter } from './render/character.js'
 import { rand } from './core/math.js'
 
 const MINIONS = { warrior: kikonesWarrior, archer: kikonesArcher, shield: kikonesShield,
-  pig: circePig, wolf: circeWolf, lion: circeLion }
+  pig: circePig, wolf: circeWolf, lion: circeLion, giant: laistrygon }
 
 /**
  * 오디세이 — 아홉 판을 이어 달리는 한 번의 귀향.

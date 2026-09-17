@@ -521,6 +521,47 @@ const WOLF_BITE = meleeAttack({
  * 앞에서 막아 주는 놈이 하나 있으면 뒤의 활잡이를 먼저 칠지, 방패를 돌아갈지
  * 고를 거리가 생긴다. 정면으로는 거의 안 깎이고 옆·뒤는 그대로 맞는다.
  */
+/**
+ * 라이스트리고네스 — 거인족.
+ *
+ * ── 왜 만들었나 ──
+ * 텔레필로스는 **거인족의 마을**이다. 그런데 그 판의 잡졸이 사람 크기
+ * 키코네스족이었고, 거인은 왕 하나뿐이었다. 거인 마을에 사람이 살고
+ * 있었던 것이다. 판의 이름이 '라이스트리고네스의 항구' 인데.
+ *
+ * ── 어떻게 싸우나 ──
+ * 이야기에서 열한 척을 가라앉힌 건 왕의 창이 아니라 **온 마을이 절벽
+ * 위에서 던진 돌**이다. 그래서 이 잡졸은 붙지 않는다 — 멀리서(8~13)
+ * 바위를 던진다. 붙으면 발로 밀어낸다.
+ *
+ * 그래서 이 판만 리듬이 다르다. 다른 판은 몰려오는 걸 베는 판인데,
+ * 여기는 **떨어지는 자리를 보고 피하면서 거리를 좁히는** 판이다.
+ * 왕의 파훼(부름꾼을 먼저 치운다)와도 맞는다 — 부름꾼이 던지는 놈들이라
+ * 내버려 두면 계속 하늘에서 돌이 떨어진다.
+ *
+ * 몸은 왕과 같은 거인 모델을 쓰되 키를 낮춘다 (4.6 → 2.9). 같은 종족이
+ * 같은 실루엣이어야 '왕과 그 백성' 으로 읽히고, 키 차이로 왕이 왕이 된다.
+ */
+export function laistrygon(world, fx) {
+  return new Kikones(world, fx, {
+    label: '거인',
+    hp: 78, radius: 0.62, mass: 4.2, speed: 3.4, keepRange: [8, 13], barHeight: 3.2, xp: 7,
+    weapon: null, scale: 1.0, bulk: 1.3,
+    look: {
+      model: 'giant',
+      weapon: null, scale: 1.0, bulk: 1.3,
+      gltf: { height: 2.9, bulk: 1.0, tint: '#8f9aa4', gear: [] },
+      palette: { skin: '#8f9aa4', cloth: '#5a6068', leather: '#3e444a', bronze: '#8c7a4c', accent: '#6a7078', dark: '#242a30' },
+    },
+    pickAction(e, d) {
+      // 멀면 던지고, 붙으면 밟는다. 거리마다 다른 답이 있어야 거리 조절이 실력이 된다.
+      if (d > 6.5 && d < 20) return { def: ROCK_HURL, cooldown: rand(2.8, 4.4) }
+      if (d < 3.4) return { def: GIANT_STOMP, cooldown: rand(1.4, 2.2) }
+      return null
+    },
+  })
+}
+
 export function kikonesShield(world, fx) {
   const e = new Kikones(world, fx, {
     label: '방패병',
@@ -564,6 +605,67 @@ const PIG_CHARGE = meleeAttack({
 })
 
 /** 돼지의 돌진. 멀리서 머리를 숙이고 길을 깔고 밀고 들어온다. */
+/**
+ * 바위 던지기 — 라이스트리고네스의 수법.
+ *
+ * 이야기에서 열한 척을 가라앉힌 건 왕의 창이 아니라 **온 마을이 절벽
+ * 위에서 던진 돌**이었다. 그러니 이 판의 잡졸은 붙어서 때리는 놈이
+ * 아니라 멀리서 던지는 놈이어야 한다.
+ *
+ * 떨어질 자리를 미리 깔아 두고 포물선으로 날린다 — 직선으로 쏘면
+ * 로켓이 되고, 예고가 없으면 하늘에서 떨어지는 걸 피할 방법이 없다.
+ */
+function rockThrow(cfg) {
+  return {
+    id: cfg.id,
+    startup: cfg.startup, active: cfg.active, recovery: cfg.recovery,
+    onStart(e, run) {
+      const p = e.world.player
+      run.spot = { x: p.pos.x, z: p.pos.z }
+      run.origin = { x: e.pos.x, z: e.pos.z }
+      run.lockFacing = Math.atan2(run.spot.x - e.pos.x, run.spot.z - e.pos.z)
+      e.facing = run.lockFacing
+      run.telegraph = e.fx.telegraph.show({
+        x: run.spot.x, z: run.spot.z, facing: 0,
+        range: cfg.radius, halfAngle: Math.PI, inner: 0,
+        duration: (cfg.startup + (cfg.flight ?? 0.85)) / (e.actionRate ?? 1),
+        color: cfg.color ?? '#e8a860',
+      })
+    },
+    onActive(e, run) {
+      e.fx.shake(0.16)
+      e.world.projectiles.spawn({
+        x: run.origin.x, z: run.origin.z, y: 2.6,
+        dir: run.lockFacing, kind: 'rock', color: '#b8a894',
+        damage: 0, team: 'enemy', radius: cfg.radius * 0.5,
+        lob: { from: run.origin, to: run.spot, time: cfg.flight ?? 0.85, height: cfg.height ?? 6 },
+        onLand: (x, z) => {
+          e.fx.ring(x, z, { color: '#e8a860', radius: cfg.radius * 1.3, life: 0.45 })
+          e.fx.shake(0.3)
+          e.world.particles?.burst({ x, y: 0.4, z, count: 18, color: '#c9ad82',
+            speed: 6, size: 0.17, life: 0.6, gravity: 10 })
+          const p = e.world.player
+          if (p.dead) return
+          if (Math.hypot(p.pos.x - x, p.pos.z - z) > cfg.radius + p.radius) return
+          p.hurt(cfg.damage, { from: { x, z }, knockback: cfg.knockback ?? 10,
+            hitstop: 0.09, stagger: cfg.stagger ?? 0.3, color: '#ff6b5a' })
+        },
+      })
+    },
+  }
+}
+
+const ROCK_HURL = rockThrow({
+  id: 'hurl_rock', startup: 1.05, active: 0.1, recovery: 0.95,
+  radius: 2.5, damage: 19, knockback: 12, flight: 0.9, height: 7,
+})
+
+/** 거인의 발길질. 붙으면 이걸로 밀어낸다 — 거인은 칼을 안 쓴다. */
+const GIANT_STOMP = meleeAttack({
+  id: 'g_stomp', startup: 0.78, active: 0.12, recovery: 0.9,
+  range: 3.6, halfAngle: 0.9, damage: 22, knockback: 14, stagger: 0.34, color: '#e8a860',
+})
+
 const PIG_RUSH = dashAttack({
   id: 'rush', startup: 0.72, active: 0.34, recovery: 0.66,
   distance: 7.2, range: 2.0, halfAngle: 0.30,
