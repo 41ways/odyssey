@@ -35,6 +35,7 @@ export class Actor {
     this.invuln = 0        // 무적 시간
     this.stagger = 0       // 경직. 남아있으면 행동 불가
     this.actionRate = 1    // 공격속도 배수. 액션 프레임 전체가 이 비율로 빨라진다
+    this.takeMul = 1       // 받는 피해 배수. 난이도가 여기를 건드린다
     this.hurtFlash = 0
     this.burn = null       // { left, dps, tick, level, from }
     this.action = new ActionRunner(this)
@@ -70,6 +71,7 @@ export class Actor {
       this.fx?.number(this.group.position.clone().setY(1.9), '흘림', { color: '#8fb6ff', size: 20 })
       return 'iframe'
     }
+    amount *= this.takeMul
     const dealt = Math.min(amount, this.hp)
     this.hp = Math.max(0, this.hp - amount)
     this.onHurt?.(dealt, this)

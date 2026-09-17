@@ -61,6 +61,7 @@ export function installTheme() {
   link.rel = 'stylesheet'
   link.href = 'https://fonts.googleapis.com/css2'
     + '?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,600;0,6..96,700;1,6..96,400'
+    + '&family=Playfair+Display:ital,wght@0,400;0,500;0,700;1,400'
     + '&family=Song+Myung'
     + '&family=Gowun+Batang:wght@400;700'
     + '&display=swap'
@@ -82,6 +83,8 @@ export function installTheme() {
   --ivory-dim:${PALETTE.textDim}; --bronze:${PALETTE.gold};
 
   --serif:'Bodoni Moda','Song Myung',"Apple SD Gothic Neo",serif;
+  /* 제목 한 줄만 — 획 굵기 차이가 큰 디도네. 크게 뽑을수록 산다 */
+  --display:'Playfair Display','Bodoni Moda','Song Myung',serif;
   --body:'Song Myung','Gowun Batang',"Apple SD Gothic Neo",serif;
 }
 

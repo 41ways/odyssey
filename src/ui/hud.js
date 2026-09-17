@@ -9,30 +9,78 @@ const CSS = `
   font-family:var(--body); color:var(--ivory); }
 #hud .bottom { position:absolute; left:50%; bottom:34px; transform:translateX(-50%);
   display:flex; flex-direction:column; align-items:center; gap:10px; }
-/* 체력 — 도기 띠 하나. 청동 테두리 두 줄 사이에 테라코타. */
-#hud .hp { width:380px; height:22px; background:#120f0b; border:1px solid var(--line);
-  border-radius:2px; overflow:hidden; position:relative;
-  box-shadow:inset 0 1px 0 rgba(232,200,132,.3), inset 0 0 0 1px rgba(232,200,132,.1), 0 8px 26px rgba(0,0,0,.7); }
+/* 체력 — 청동 판에 박아 넣은 도기 띠.
+   테두리 하나로 끝내면 브라우저 진행바처럼 보인다. 판을 깔고, 뇌문을 얹고,
+   네 귀에 못을 박고, 홈 안에 테라코타를 채운다. */
+#hud .hpwrap { position:relative; padding:7px 9px 8px; border-radius:3px;
+  background:linear-gradient(180deg,#4a3d27 0%,#33291a 34%,#241c11 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,225,165,.32), inset 0 -1px 0 rgba(0,0,0,.6),
+    inset 0 0 0 1px rgba(232,200,132,.22),
+    0 10px 30px rgba(0,0,0,.75); }
+/* 위아래로 뇌문 한 줄씩 — 얇게, 배경으로만 */
+#hud .hpwrap::before, #hud .hpwrap::after { content:''; position:absolute; left:10px; right:10px;
+  height:6px; background-image:${MEANDER}; background-repeat:repeat-x;
+  background-size:auto 6px; background-position:center; opacity:.34; pointer-events:none; }
+#hud .hpwrap::before { top:0.5px; }
+#hud .hpwrap::after { bottom:0.5px; transform:scaleY(-1); }
+/* 네 귀의 못 */
+#hud .rivet { position:absolute; width:5px; height:5px; border-radius:50%;
+  background:radial-gradient(circle at 35% 30%, #ffe6b4, #a3843f 55%, #4a3a1c 100%);
+  box-shadow:0 1px 1px rgba(0,0,0,.8); }
+#hud .rivet.tl { left:3px; top:3px } #hud .rivet.tr { right:3px; top:3px }
+#hud .rivet.bl { left:3px; bottom:3px } #hud .rivet.br { right:3px; bottom:3px }
+
+#hud .hp { width:368px; height:19px; position:relative; overflow:hidden; border-radius:1px;
+  background:linear-gradient(180deg,#0d0a07,#17120c);
+  box-shadow:inset 0 2px 5px rgba(0,0,0,.9), inset 0 0 0 1px rgba(0,0,0,.8),
+             0 0 0 1px rgba(232,200,132,.28); }
 #hud .hp i { position:absolute; inset:0; transform-origin:left center; display:block;
-  background:linear-gradient(180deg,#b8402c,#5f1410); transition:transform .08s linear; }
+  background:
+    linear-gradient(180deg, rgba(255,210,170,.5) 0 2px, transparent 2px),
+    linear-gradient(180deg,#d8583a 0%,#a6321f 46%,#6a1610 100%);
+  transition:transform .08s linear; }
+/* 맞은 만큼은 상아색으로 잠깐 남았다가 따라 내려온다 — 얼마나 깎였는지 보인다 */
 #hud .hp b { position:absolute; inset:0; transform-origin:left center; display:block;
-  background:#f5d7a0; opacity:.5; transition:transform .5s cubic-bezier(.2,.7,.3,1) .12s; }
+  background:#f5d7a0; opacity:.42; transition:transform .5s cubic-bezier(.2,.7,.3,1) .12s; }
 #hud .hp span { position:absolute; inset:0; display:grid; place-items:center;
-  font-family:var(--serif); font-size:12px; font-weight:700; letter-spacing:.1em;
-  text-shadow:0 1px 3px #000; }
-#hud .xp { width:380px; height:5px; background:#120f0b; border:1px solid var(--line-dim);
-  border-radius:2px; overflow:hidden; position:relative; }
+  font-family:var(--serif); font-size:11.5px; font-weight:700; letter-spacing:.12em;
+  font-variant-numeric:tabular-nums; text-shadow:0 1px 3px #000, 0 0 10px rgba(0,0,0,.9); }
+/* 얼마 안 남으면 판 전체가 달아오른다 */
+#hud .hpwrap.low { box-shadow:
+    inset 0 1px 0 rgba(255,225,165,.32), inset 0 -1px 0 rgba(0,0,0,.6),
+    inset 0 0 0 1px rgba(255,120,80,.5),
+    0 10px 30px rgba(0,0,0,.75), 0 0 34px rgba(200,60,30,.4); }
+#hud .hpwrap.low .hp i { background:
+    linear-gradient(180deg, rgba(255,220,180,.6) 0 2px, transparent 2px),
+    linear-gradient(180deg,#ff7a4a 0%,#c23a1e 46%,#7a1a10 100%); }
+
+#hud .xp { width:368px; height:5px; background:#0d0a07; border-radius:2px;
+  overflow:hidden; position:relative;
+  box-shadow:inset 0 1px 3px rgba(0,0,0,.9), 0 0 0 1px rgba(232,200,132,.18); }
 #hud .xp i { display:block; height:100%; width:100%; transform-origin:left center;
   background:linear-gradient(90deg,var(--gold-dim),var(--gold)); transition:transform .22s ease-out; }
-#hud .lv { position:absolute; left:0; top:9px; width:380px; text-align:center;
+#hud .lv { position:absolute; left:0; top:9px; width:368px; text-align:center;
   font-size:11px; color:#8b7a60; letter-spacing:.05em; white-space:nowrap; }
-#hud .pips { display:flex; gap:8px; }
-#hud .pip { width:56px; height:8px; border-radius:1px; background:#120f0b;
-  border:1px solid var(--line-dim); overflow:hidden;
-  box-shadow:inset 0 1px 0 rgba(232,200,132,.18); }
-#hud .pip i { display:block; height:100%; width:100%; transform-origin:left center;
-  background:linear-gradient(90deg,var(--gold-dim),var(--gold)); }
-#hud .pip.empty i { background:#2e281f; }
+
+/* 구르기 — 청동 방패 세 닢. 차오르는 중인 것은 시계 방향으로 채워진다 */
+#hud .pips { display:flex; gap:11px; margin-top:2px; }
+#hud .pip { --k:1; position:relative; width:19px; height:19px; border-radius:50%;
+  background:radial-gradient(circle at 34% 28%, #2b2317, #15100a 70%);
+  box-shadow:inset 0 1px 2px rgba(0,0,0,.9), 0 0 0 1px rgba(232,200,132,.3),
+             0 3px 8px rgba(0,0,0,.6); }
+#hud .pip i { position:absolute; inset:2.5px; border-radius:50%; display:block;
+  background:conic-gradient(from 180deg, #ffe0a2 0deg, #c8973e calc(var(--k) * 360deg),
+    rgba(40,33,22,.85) calc(var(--k) * 360deg)); }
+/* 가운데 청동 보스(umbo) — 방패처럼 보이게 하는 건 이 한 점이다 */
+#hud .pip::after { content:''; position:absolute; left:50%; top:50%; width:6px; height:6px;
+  margin:-3px 0 0 -3px; border-radius:50%;
+  background:radial-gradient(circle at 34% 30%, #ffeec4, #a3843f 60%, #43340f 100%);
+  box-shadow:0 1px 2px rgba(0,0,0,.8); }
+#hud .pip.full { box-shadow:inset 0 1px 2px rgba(0,0,0,.9), 0 0 0 1px rgba(255,210,130,.55),
+             0 3px 8px rgba(0,0,0,.6), 0 0 14px rgba(232,200,132,.35); }
+#hud .pip.empty i { background:rgba(40,33,22,.85); }
+
 #hud .keys { position:absolute; left:22px; bottom:20px; font-size:11.5px; line-height:1.9;
   color:#7d7264; letter-spacing:.02em; }
 #hud .keys .grown { color:#c8a16a; margin-top:4px; font-size:11.5px; letter-spacing:.03em; }
@@ -122,7 +170,11 @@ export class Hud {
     el.id = 'hud'
     el.innerHTML = `
       <div class="bottom">
-        <div class="hp"><b></b><i></i><span></span></div>
+        <div class="hpwrap">
+          <i class="rivet tl"></i><i class="rivet tr"></i>
+          <i class="rivet bl"></i><i class="rivet br"></i>
+          <div class="hp"><b></b><i></i><span></span></div>
+        </div>
         <div class="xp"><i></i><span class="lv"></span></div>
         <div class="pips"></div>
       </div>
@@ -152,6 +204,7 @@ export class Hud {
       <div class="dead"><p>죽음</p></div>`
     root.appendChild(el)
 
+    this.hpWrap = el.querySelector('.hpwrap')
     this.hpFill = el.querySelector('.hp i')
     this.hpGhost = el.querySelector('.hp b')
     this.hpText = el.querySelector('.hp span')
@@ -250,14 +303,17 @@ export class Hud {
     this.hpFill.style.transform = `scaleX(${k})`
     this.hpGhost.style.transform = `scaleX(${k})`
     this.hpText.textContent = `${Math.ceil(player.hp)} / ${player.maxHp}`
+    this.hpWrap?.classList.toggle('low', k <= 0.3)
 
     this.setCharges(TUNING.roll.charges)
     for (let i = 0; i < this.pipEls.length; i++) {
       const filled = i < player.rollCharges
       const charging = i === player.rollCharges && player.rollCharges < TUNING.roll.charges
-      this.pipEls[i].classList.toggle('empty', !filled)
-      const f = this.pipEls[i].firstChild
-      f.style.transform = `scaleX(${filled ? 1 : charging ? (player.rollTimer / TUNING.roll.regen) : 0})`
+      this.pipEls[i].classList.toggle('empty', !filled && !charging)
+      this.pipEls[i].classList.toggle('full', filled)
+      // 원형이라 가로로 늘이는 대신 시계 방향 각도로 채운다
+      const k2 = filled ? 1 : charging ? clamp(player.rollTimer / TUNING.roll.regen, 0, 1) : 0
+      this.pipEls[i].style.setProperty('--k', k2.toFixed(3))
     }
 
     if (kit) {

@@ -10,9 +10,10 @@ import { Player } from './player/player.js'
 import { kikonesWarrior, kikonesArcher, circePig } from './enemy/kikones.js'
 import { Hud } from './ui/hud.js'
 import { TitleScreen } from './ui/title.js'
+import { DifficultyScreen, SAILS } from './ui/difficulty.js'
 import { EquipCard } from './ui/equipcard.js'
 import { StagePicker } from './ui/stagepicker.js'
-import { STAGES } from './stage/stages.js'
+import { STAGES, OPENING, interludeFor } from './stage/stages.js'
 import { LOOKS, LOOK_KEYS } from './render/looks.js'
 import { LevelUp } from './ui/levelup.js'
 import { Pickups } from './combat/pickup.js'
@@ -81,7 +82,8 @@ class Game {
     })
 
     // 스테이지 고르기 — Tab 또는 주소의 ?stage=N
-    this.picker = new StagePicker(uiRoot, STAGES, (i, o) => this.jumpTo(i, o))
+    this.stages = STAGES
+    this.picker = new StagePicker(uiRoot, this)
 
     this.loop = createLoop({
       update: dt => this.update(dt),
@@ -97,12 +99,25 @@ class Game {
     const bare = q.get('bare') === '1'
     this.render3d.look = LOOKS[q.get('look')] ? q.get('look') : 'marble'   // 기본 톤: 정오의 대리석
     this.paused = true
-    new TitleScreen(uiRoot).wait().then(() => { this.paused = false; this.jumpTo(startAt, { bare, toBoss: q.get('boss') === '1' }) })
+    this.sail = SAILS[1]                   // 고르기 전까지는 '이야기대로'
+    this.title = new TitleScreen(uiRoot)
+    this.diffScreen = new DifficultyScreen(uiRoot)
+    this.title.wait()
+      .then(() => (q.get('sail') ? SAILS.find(s => s.id === q.get('sail')) ?? SAILS[1] : this.diffScreen.show()))
+      .then(sail => {
+        this.sail = sail
+        this.player.takeMul = sail.takeMul
+        this.paused = false
+        this.jumpTo(startAt, { bare, toBoss: q.get('boss') === '1' })
+      })
   }
 
   /* ── 필드 ─────────────────────────────────────────────── */
 
   track(enemy) {
+    // 난이도는 맷집 한 군데에만 실린다. 여기가 모든 적이 지나는 길목이다.
+    const mul = this.sail?.hpMul ?? 1
+    if (mul !== 1) { enemy.maxHp = Math.round(enemy.maxHp * mul); enemy.hp = enemy.maxHp }
     enemy.onHurt = d => { this.totalDamage += d }
     if (!enemy.isDummy) {
       const die = enemy.die.bind(enemy)
@@ -183,6 +198,66 @@ class Game {
     this.fx.ring(this.player.pos.x, this.player.pos.z, { color: '#9fe0ff', radius: 3.0, life: 0.5 })
     this.#thaw()
     return pick
+  }
+
+  /**
+   * Tab 으로 여는 연출 목록.
+   *
+   * 연출은 게임을 처음부터 돌려야만 볼 수 있어서 한 군데 고치면 확인에 몇 분이 든다.
+   * 여기서 한 줄씩 바로 틀어 본다. 이름과 실행만 들고 있고, 무엇을 어떻게
+   * 그릴지는 패널이 정한다.
+   */
+  eventList() {
+    const ev = []
+    ev.push(
+      { group: '시작', name: '오프닝', note: '왜 바다에 있는가', run: () => this.playInterlude(OPENING) },
+      { group: '시작', name: '시작 화면', note: '패럴랙스 · 물에 풀리는 퇴장', run: () => { location.href = '/' } },
+      { group: '시작', name: '난이도 고르기', note: '어떤 바다를 건널 것인가', run: () => this.diffScreen.show() },
+    )
+    for (let i = 0; i < STAGES.length - 1; i++) {
+      const lude = interludeFor(i)
+      if (!lude) continue
+      ev.push({
+        group: '막간', name: `${STAGES[i].name} → ${STAGES[i + 1].name}`,
+        note: lude.scene, run: () => this.playInterlude(lude),
+      })
+    }
+    ev.push(
+      { group: '저승', name: '아가멤논이 올라온다', note: '흙을 헤치고', run: () => this.previewUnderworld() },
+      { group: '저승', name: '유물 고르기', note: '하나만 들고 간다', run: () => this.chooseRelic(RELICS) },
+      { group: '보상', name: '아테나의 은총', note: '보스를 눕힌 뒤', run: () => this.grantBlessing(this.run.stage ?? STAGES[0]) },
+      { group: '보상', name: '성장 선택', note: '카드 세 장', run: () => this.offerUpgrade('성장', '가져갈 것을 하나 고른다') },
+    )
+    for (const k of KIT) {
+      ev.push({ group: '장비', name: k.name, note: `${k.kills}마리째`, run: () => this.previewGear(k) })
+    }
+    STAGES.forEach((st, i) => {
+      if (st.relic) return
+      ev.push({
+        group: '보스', name: st.name, note: st.title ?? '',
+        run: () => this.jumpTo(i, { toBoss: true }),
+      })
+    })
+    return ev
+  }
+
+  /** 저승 연출만 따로 — 땅과 빛을 저승 것으로 갈고 한 번 돌린다. */
+  async previewUnderworld() {
+    const st = STAGES.find(s => s.relic)
+    if (!st) return
+    this.clearField()
+    await this.render3d.applyStage(st)
+    this.arenaRadius = this.render3d.arenaRadius
+    await this.playCutscene(startUnderworldIntro)
+    this.#thaw()
+  }
+
+  /** 장비 착용 연출만 따로. 입고 있던 것은 그대로 두고 그 조각만 다시 붙인다. */
+  async previewGear(piece) {
+    const meshes = this.player.equip(piece.id)
+    this.paused = true
+    await this.presentGear(piece, meshes)
+    this.paused = false
   }
 
   /** 막간 — 판과 판 사이의 한 호흡. */
@@ -581,6 +656,12 @@ if (import.meta.env?.DEV) {
     game.draw()
   }
 
+  /** 연출을 정확히 몇 초 지점까지 돌린다. 숨은 창에서는 rAF 가 안 돌아 손으로 민다. */
+  window.__seek = (sec = 1) => {
+    game._real = 1 / 60
+    for (let i = 0; i < Math.round(sec * 60); i++) game.draw()
+  }
+
   window.__shot = async (name = 'shot.png', settle = 45) => {
     if (settle) window.__tick(settle)
     game.draw()                                   // 캔버스 내용을 확실히 채워 두고 읽는다
@@ -618,11 +699,21 @@ if (import.meta.env?.DEV) {
       // 캡처에서만 빼는 것들:
       //  - backdrop-filter 는 foreignObject 안에서 화면 전체를 뭉갠다
       //  - animation 은 정지 스냅샷에서 0% 키프레임(대개 opacity:0)으로 굳어 버린다
-      const safeCss = css
+      let safeCss = css
         .replace(/backdrop-filter\s*:[^;}]*;?/g, '')
         .replace(/-webkit-backdrop-filter\s*:[^;}]*;?/g, '')
         .replace(/[^-\w]animation(-\w+)?\s*:[^;}]*;?/g, ' ')
-        .replace(/&/g, '&amp;')
+      // CSS 안의 url(/img/...) 도 foreignObject 에서는 못 불러온다. 같이 구워 넣는다.
+      for (const m of [...new Set([...safeCss.matchAll(/url\((["']?)(\/[^)"']+)\1\)/g)].map(m => m[2]))]) {
+        try {
+          const blob = await (await fetch(m)).blob()
+          const uri = await new Promise(ok => {
+            const fr = new FileReader(); fr.onload = () => ok(fr.result); fr.readAsDataURL(blob)
+          })
+          safeCss = safeCss.split(m).join(uri)
+        } catch { /* 못 가져오면 그냥 둔다 */ }
+      }
+      safeCss = safeCss.replace(/&/g, '&amp;')
       const html = `<div xmlns="http://www.w3.org/1999/xhtml" style="width:${innerWidth}px;height:${innerHeight}px">
         <style>${safeCss}</style>${body}</div>`
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${innerWidth}" height="${innerHeight}">

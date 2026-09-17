@@ -55,6 +55,7 @@ export class World {
     this.renderer.toneMappingExposure = 1.05
     this.renderer.shadowMap.enabled = true
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
+    this.renderer.localClippingEnabled = true    // 저승에서 땅 위로 올라오는 연출이 쓴다
     container.appendChild(this.renderer.domElement)
     this.canvas = this.renderer.domElement
 
@@ -167,7 +168,9 @@ export class World {
 
   async applyStage(stage) {
     this._lastStage = stage
-    const look = LOOKS[this.look ?? 'marble'] ?? {}
+    // 저승처럼 어둠 자체가 내용인 곳은 톤을 덮지 않는다.
+    // '정오의 대리석'을 씌우면 망자의 나라가 대낮 마당이 된다.
+    const look = stage.keepEnv ? {} : (LOOKS[this.look ?? 'marble'] ?? {})
     // 스테이지가 정한 것 위에 톤을 덮는다. 톤이 말 안 한 건 스테이지 것을 쓴다.
     const e = { ...(stage.env ?? {}), ...look }
     const a = { ...(stage.arena ?? {}) }

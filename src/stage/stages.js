@@ -36,6 +36,7 @@ const FOREST = {
     hemiSky: '#54704a', hemiGround: '#141a10', hemiIntensity: 0.55 },
 }
 const UNDER = {
+  keepEnv: true,        // 톤 시안이 덮지 않는다 — 여기 어둠은 연출이다
   arena: { radius: 14, ground: 'underworld', repeat: 6, wallColor: '#0e0c10', rocks: false },
   env: { bg: '#050408', fog: 0.045, fogColor: '#08060c', exposure: 0.95, camDistance: 19,
     key: '#8a7fd0', keyIntensity: 1.2, rim: '#d05a6a', rimIntensity: 0.9,
@@ -223,6 +224,21 @@ export const SAILING = {
   ithaca: ['홀이 조용해졌다.', '그런데도 끝나지 않았다.'],
 }
 
+/**
+ * 어느 판을 떠나 어디로 가는가에 따라 뱃길의 얼굴이 다르다.
+ * 일곱 번 같은 밤바다를 보여 주면 일곱 번 같은 데를 지난 것이 된다.
+ * 이름은 ui/interlude.js 의 SCENES 가 받는다.
+ */
+const PASSAGE = {
+  ismaros: 'dawn',        // 불탄 마을을 등지고 나온 아침
+  telepylos: 'storm',     // 바위에 열한 척이 깨진 뒤
+  aiaia: 'fire',          // 해가 들지 않는 곳으로 내려간다
+  underworld: 'ashdawn',  // 잿빛에서 다시 빛으로
+  sirens: 'whirl',        // 앞쪽에서 물이 돌아간다
+  messina: 'landfall',    // 이십 년 만에 뭍이 보인다
+  ithaca: 'night',        // 홀이 조용해졌다
+}
+
 /** 다음 판으로 넘어갈 때 쓸 막간. */
 export function interludeFor(fromIndex) {
   const from = STAGES[fromIndex]
@@ -230,7 +246,7 @@ export function interludeFor(fromIndex) {
   if (!from || !to) return null
   const lines = SAILING[from.id] ?? ['배를 밀었다.']
   return {
-    scene: to.id === 'underworld' ? 'fire' : 'sea',
+    scene: PASSAGE[from.id] ?? 'sea',
     lines: lines.map((text, i) => ({ text, hold: i === lines.length - 1 ? 3000 : 2800 })),
     dest: `${to.name} — ${to.title}`,
   }

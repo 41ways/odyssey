@@ -15,7 +15,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import sharp from 'sharp'
 
-const [src, name, sx = 0, sy = 0.045, sh = 0.66, sw = 1.0] = process.argv.slice(2)
+const [src, name, sx = 0, sy = 0.045, sh = 0.66, sw = 1.0,
+       optLo = 168, optHi = 248, optFeather = ''] = process.argv.slice(2)
 const OUT = path.resolve(import.meta.dirname, '../public/img')
 fs.mkdirSync(OUT, { recursive: true })
 
@@ -27,7 +28,7 @@ const height = Math.round(meta.height * Number(sh))
 
 const { data, info } = await sharp(src)
   .extract({ left, top, width, height })
-  .resize({ width: 640, withoutEnlargement: true })
+  .resize({ width: Number(process.env.OUT_W ?? 640), withoutEnlargement: true })
   .ensureAlpha()
   .raw()
   .toBuffer({ resolveWithObject: true })
@@ -35,17 +36,54 @@ const { data, info } = await sharp(src)
 const W = info.width, H = info.height
 const N = W * H
 
+// 이미 투명한 그림은 배경을 지울 필요가 없다 — 있는 알파를 그대로 쓴다
+let hasAlpha = false
+for (let i = 3; i < data.length; i += 4) { if (data[i] < 250) { hasAlpha = true; break } }
+
+/**
+ * '투명' 체커보드가 픽셀로 구워져 나온 그림이 있다.
+ * 격자는 채도가 0 인 회색 두 가지뿐이라, 밝고 무채색인 곳만 걷어내면 된다.
+ * 인물의 흰 천은 아주 살짝이라도 색이 돌아서 살아남는다.
+ */
+const isChecker = (r, g, b) => {
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b)
+  const sat = mx === 0 ? 0 : (mx - mn) / mx
+  return sat < 0.045 && mx > 185
+}
+let checkerMode = false
+if (!hasAlpha) {
+  let hits = 0, tot = 0
+  for (let i = 0; i < N; i += 7) {                    // 듬성듬성 세어 본다
+    const o = i * 4
+    tot++
+    if (isChecker(data[o], data[o + 1], data[o + 2])) hits++
+  }
+  // 배경이 순백이면 흰 배경 처리로 충분하다. 격자는 회색이 섞여 비율이 다르게 나온다.
+  let greyish = 0
+  for (let i = 0; i < N; i += 7) {
+    const o = i * 4
+    const mx = Math.max(data[o], data[o + 1], data[o + 2])
+    if (isChecker(data[o], data[o + 1], data[o + 2]) && mx < 240) greyish++
+  }
+  checkerMode = hits / tot > 0.2 && greyish / Math.max(hits, 1) > 0.25
+  if (checkerMode) console.log('  (투명 격자가 픽셀로 구워진 그림 — 무채색 밝은 곳을 걷어낸다)')
+}
+
 /* 1) 밝기 → 알파 */
 const alpha = new Float32Array(N)
-const LO = 168, HI = 248          // 이 아래는 온전히 인물, 이 위는 온전히 배경
+// 밝은 받침대까지 살려야 하는 그림은 문턱을 올려 잡는다
+const LO = Number(optLo), HI = Number(optHi)
 for (let i = 0; i < N; i++) {
   const o = i * 4
+  if (hasAlpha) { alpha[i] = data[o + 3] / 255; continue }
+  if (checkerMode) { alpha[i] = isChecker(data[o], data[o + 1], data[o + 2]) ? 0 : 1; continue }
   const lum = 0.299 * data[o] + 0.587 * data[o + 1] + 0.114 * data[o + 2]
   alpha[i] = lum <= LO ? 1 : lum >= HI ? 0 : 1 - (lum - LO) / (HI - LO)
 }
 
 /* 2) 흰 배경분 역산 — 관측색 = 인물색*a + 흰색*(1-a) 이므로 인물색을 되돌린다 */
 for (let i = 0; i < N; i++) {
+  if (hasAlpha || checkerMode) break
   const a = alpha[i]
   if (a <= 0.004 || a >= 0.996) continue
   const o = i * 4
@@ -57,7 +95,8 @@ for (let i = 0; i < N; i++) {
 
 /* 3) 알파를 한 겹 깎고 (erode) 3x3 으로 흐려 경계를 녹인다 */
 const eroded = new Float32Array(N)
-for (let i = 0; i < N; i++) eroded[i] = Math.max(0, (alpha[i] - 0.28) / 0.72)
+const ERODE = hasAlpha ? 0.04 : checkerMode ? 0.5 : 0.28
+for (let i = 0; i < N; i++) eroded[i] = Math.max(0, (alpha[i] - ERODE) / (1 - ERODE))
 
 const soft = new Float32Array(N)
 for (let y = 0; y < H; y++) {
@@ -78,7 +117,9 @@ for (let y = 0; y < H; y++) {
 /* 4) 가장자리를 녹인다 — 잘린 자리가 직선으로 보이면 안 된다.
       아래는 넓게(치마 아래를 통째로 날린다), 좌우·위는 얇게(손과 볏은 살린다) */
 // 망토가 화면 밖으로 이어지는 쪽은 넓게 녹여야 잘린 자리가 안 보인다
-const FEATHER = { bottom: 0.24, side: 0.11, top: 0.05 }
+const FEATHER = optFeather
+  ? Object.fromEntries(optFeather.split(',').map((v, i) => [['bottom', 'side', 'top'][i], Number(v)]))
+  : { bottom: 0.24, side: 0.11, top: 0.05 }
 const fade = (v) => v * v * (3 - 2 * v)      // smoothstep
 for (let y = 0; y < H; y++) {
   const fb = Math.min(1, (H - 1 - y) / (H * FEATHER.bottom))

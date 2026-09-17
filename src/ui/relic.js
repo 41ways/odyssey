@@ -100,10 +100,6 @@ const CSS = `
   padding-top:10px; border-top:1px solid #3a2f52; }
 #relic .num { position:absolute; top:20px; right:14px; font-family:var(--serif);
   font-size:10px; color:#7a6a9c; border:1px solid #453a63; border-radius:2px; padding:2px 6px; }
-#relic .foot { position:absolute; left:0; right:0; bottom:8vh; text-align:center;
-  font-family:var(--serif); font-size:11px; letter-spacing:.34em; color:#6f6580;
-  opacity:0; transition:opacity .6s ease 1s; }
-#relic.up .foot { opacity:1; }
 `
 
 /** 유물마다 다른 문장(紋章). 카드가 세 장 다 똑같아 보이지 않게. */
@@ -173,8 +169,7 @@ export class RelicScreen {
                 <div class="rflavor">${r.flavor}</div>
               </div>
             </button>`).join('')}
-        </div>
-        <div class="foot">하나만 가져갈 수 있다</div>`
+        </div>`
       this.el.classList.add('on')
       // 한 박자 뒤에 켜야 transition 이 먹는다 — 솟아오르는 게 보여야 한다.
       // rAF 는 창이 숨겨져 있으면 안 돌아서 타이머를 쓴다.
