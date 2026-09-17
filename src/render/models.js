@@ -18,6 +18,7 @@ export const MANIFEST = {
   cyclops: { url: '/models/cyclops.glb', height: 5.2 },
   sheep: { url: '/models/sheep.glb', height: 0.95 },
   pig: { url: '/models/pig.glb', height: 1.0 },
+  wolf: { url: '/models/wolf.glb', height: 1.05 },
   // 소품 — 뼈대가 없다. 무대에 세워 두기만 한다.
   ship: { url: '/models/ship.glb', height: 6.5 },
   column: { url: '/models/column.glb', height: 3.4 },
@@ -30,7 +31,7 @@ export const MANIFEST = {
 /** 클립 이름이 제각각이라 느슨하게 맞춘다. 앞에 있는 후보일수록 우선. */
 const CLIP_HINTS = {
   idle: ['idle', 'stand', 'breath', 'tpose'],
-  run: ['run', 'walk', 'jog', 'move'],
+  run: ['gallop', 'run', 'walk', 'jog', 'move'],
   attack: ['headbutt', 'gore', 'attack', 'swing', 'slash', 'punch', 'hit', 'strike'],
   aim: ['aim', 'draw', 'bow', 'shoot'],
   roll: ['roll', 'dodge', 'dive'],

@@ -284,6 +284,74 @@ export function circePig(world, fx) {
   })
 }
 
+/**
+ * 키르케의 늑대. 돼지보다 빠르고 먼저 문다.
+ * 돼지는 밀고 들어오는 덩치, 늑대는 붙었다 떨어지는 쪽 — 둘이 같이 나와야
+ * '짐승이 된 사람들' 이 무리로 읽힌다.
+ */
+export function circeWolf(world, fx) {
+  return new Kikones(world, fx, {
+    hp: 44, radius: 0.42, mass: 1.1, speed: 6.4, keepRange: [1.8, 2.6], barHeight: 1.4, xp: 3,
+    weapon: null, scale: 0.8, bulk: 1.0,
+    look: {
+      model: 'wolf',
+      weapon: null, scale: 0.8, bulk: 1.0,
+      gltf: { height: 1.05, bulk: 1.1, tint: '#8a8276', gear: [] },
+      palette: { skin: '#8a8276', cloth: '#6a6258', leather: '#4a443c', bronze: '#7c6a44', accent: '#5a5248', dark: '#2a2620' },
+    },
+    pickAction(e, d) {
+      if (d < 2.6) return { def: WOLF_BITE, cooldown: rand(0.7, 1.2) }
+      return null
+    },
+  })
+}
+
+const WOLF_BITE = meleeAttack({
+  id: 'bite', startup: 0.3, active: 0.07, recovery: 0.38,
+  range: 2.6, halfAngle: 0.6, damage: 11, knockback: 4, stagger: 0.12, color: '#c8d0ff',
+})
+
+/**
+ * 방패를 든 구혼자. 느리고 질기다.
+ * 앞에서 막아 주는 놈이 하나 있으면 뒤의 활잡이를 먼저 칠지, 방패를 돌아갈지
+ * 고를 거리가 생긴다. 정면으로는 거의 안 깎이고 옆·뒤는 그대로 맞는다.
+ */
+export function kikonesShield(world, fx) {
+  const e = new Kikones(world, fx, {
+    hp: 96, radius: 0.5, mass: 3.2, speed: 3.2, keepRange: [2.0, 2.6], barHeight: 2.1, xp: 6,
+    weapon: 'spear', scale: 1.02, bulk: 1.2,
+    look: {
+      weapon: 'spear', scale: 1.02, bulk: 1.2,
+      gltf: { height: 1.84, bulk: 1.18, tint: '#9aa0a8', gear: ['legs', 'feet', 'body', 'arms', 'pauldron'] },
+      palette: { skin: '#a08466', cloth: '#4a5058', leather: '#3a3e44', bronze: '#9c8a5c', accent: '#5a6068', dark: '#22262a' },
+    },
+    pickAction(e2, d) {
+      if (d < 2.7) return { def: SHIELD_BASH, cooldown: rand(1.3, 2.0) }
+      return null
+    },
+  })
+  // 정면은 방패가 받는다. 돌아 들어가야 제대로 들어간다.
+  const hurt = e.hurt.bind(e)
+  e.hurt = (amount, opts = {}) => {
+    const from = opts.from
+    if (from) {
+      const a = Math.atan2(from.x - e.pos.x, from.z - e.pos.z)
+      const front = Math.abs(((a - e.facing + Math.PI * 3) % (Math.PI * 2)) - Math.PI)
+      if (front > Math.PI - 1.0) {        // 앞 약 115도
+        e.fx?.number(e.pos.clone().setY(2.2), '막았다', { color: '#9fb6d0', size: 17 })
+        return hurt(amount * 0.18, opts)
+      }
+    }
+    return hurt(amount, opts)
+  }
+  return e
+}
+
+const SHIELD_BASH = meleeAttack({
+  id: 'bash', startup: 0.5, active: 0.08, recovery: 0.5,
+  range: 2.8, halfAngle: 0.8, damage: 14, knockback: 9, stagger: 0.3, color: '#cfe0ff',
+})
+
 const PIG_CHARGE = meleeAttack({
   id: 'gore', startup: 0.36, active: 0.08, recovery: 0.4,
   range: 2.3, halfAngle: 0.7, damage: 9, knockback: 5, stagger: 0.14, color: '#ff8aa0',

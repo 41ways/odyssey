@@ -14,13 +14,15 @@ import { rand } from '../core/math.js'
 export const POLYPHEMOS = {
   id: 'polyphemos', name: '폴리페모스', title: '외눈의 목자',
   // 5미터짜리는 느리게 움직이고 오래 쉰다. 빠르면 커 보이지 않는다.
-  hp: 900, radius: 1.9, mass: 200, speed: 1.5, keepRange: [4.0, 8], gap: [2.4, 3.8],
+  hp: 900, radius: 2.2, mass: 200, speed: 1.5, keepRange: [4.4, 8.5], gap: [2.6, 4.0],
   turnHalf: 0.55,        // 고개를 천천히 돌린다. 스치듯 따라붙지 못한다
-  barHeight: 6, groggyMult: 2.4, pace: 1.0,
+  barHeight: 7, groggyMult: 2.4, pace: 1.0,
   // 눈. 쓰러졌을 때만 드러나고, 화살로만 찌를 수 있다.
   // 머리뼈를 따라간다. face 는 이마 앞으로 얼마나 나오는지, r 은 맞는 범위.
   weakPoint: { face: 0.3, r: 1.5, y: 4.3, downY: 2.2, z: 1.0, requires: 'arrow' },
-  look: { height: 5.2, bulk: 1.5, tint: '#c9a07a', gear: ['legs', 'feet'] },
+  // 영화에서처럼 거죽 갑옷을 걸친다. 벗은 덩치보다 갖춰 입은 덩치가 더 크게 읽힌다.
+  look: { height: 6.4, bulk: 1.55, tint: '#c9a07a',
+    gear: ['legs', 'feet', 'body', 'pauldron'] },
   phases: [
     {
       below: 1,
@@ -69,9 +71,11 @@ export const POLYPHEMOS = {
    1페는 부하를 불러 셋이 덤비고, 2페는 혼자 창과 활을 같이 쓴다. */
 export const ANTIPHATES = {
   id: 'antiphates', name: '안티파테스', title: '식인 거인의 왕',
-  hp: 760, radius: 1.2, mass: 90, speed: 3.6, keepRange: [3, 7], gap: [0.9, 1.6],
-  barHeight: 4.2, groggyMult: 1.9,
-  look: { height: 3.4, bulk: 1.15, tint: '#a8705a', gear: ['legs', 'feet', 'body', 'arms'] },
+  hp: 760, radius: 1.5, mass: 90, speed: 3.6, keepRange: [3.4, 7.4], gap: [1.1, 1.9],
+  barHeight: 5.4, groggyMult: 1.9,
+  // 왕이다. 청동을 두르고 나온다.
+  look: { height: 4.6, bulk: 1.25, tint: '#9aa2ac',
+    gear: ['legs', 'feet', 'body', 'arms', 'pauldron'] },
   phases: [
     {
       below: 1,
@@ -117,8 +121,9 @@ export const KIRKE = {
       below: 1,
       say: '술잔을 든 여자가 웃는다',
       patterns: [
-        summon({ id: 'pigs', startup: 1.05, active: 0.1, recovery: 0.8, kind: 'pig', count: 2, radius: 6,
-          pick: { weight: 4, cooldown: 7 } }),
+        // 그 여자의 집 둘레에는 사람이었던 짐승들이 있다
+        summon({ id: 'pigs', startup: 1.05, active: 0.1, recovery: 0.8, count: 5, radius: 7,
+          mix: { pig: 3, wolf: 2 }, pick: { weight: 4, cooldown: 6 } }),
         volley({ id: 'fireball', kind: 'fire', startup: 0.75, active: 0.08, recovery: 0.6, count: 3, spread: 0.32,
           damage: 18, speed: 13, bullet: '#ff7a3a', bulletSize: 0.42,
           pick: { weight: 4, cooldown: 2.6 } }),
@@ -138,7 +143,8 @@ export const KIRKE = {
         volley({ id: 'fireball2', kind: 'fire', startup: 0.52, active: 0.08, recovery: 0.45, count: 5, spread: 0.5,
           damage: 18, speed: 15, bullet: '#ff7a3a', bulletSize: 0.42,
           pick: { weight: 4, cooldown: 2 } }),
-        summon({ id: 'pigs2', startup: 0.85, active: 0.1, recovery: 0.6, kind: 'pig', count: 3, radius: 7,
+        summon({ id: 'pigs2', startup: 0.85, active: 0.1, recovery: 0.6, count: 7, radius: 8,
+          mix: { pig: 3, wolf: 3, warrior: 1 },
           pick: { weight: 3, cooldown: 8 } }),
         volley({ id: 'hex2', kind: 'orb', startup: 0.8, active: 0.08, recovery: 0.6,
           count: 2, spread: 0.5, damage: 12, speed: 5.0, bullet: '#c77dff', bulletSize: 0.5,
@@ -325,9 +331,11 @@ export const ANTINOOS = {
           damage: 15, speed: 26, bullet: '#ffd27a', bulletSize: 0.3,
           pick: { min: 3.5, weight: 4, cooldown: 2.2 } }),
         // 고함 — 홀 전체가 들린다. 사방에서 몰려온다.
-        summon({ id: 'a_shout', startup: 0.8, active: 0.1, recovery: 0.9, kind: 'warrior', count: 3, radius: 10,
+        // 활 쏘는 놈, 칼 든 놈, 앞에서 막아 주는 놈이 같이 온다
+        summon({ id: 'a_shout', startup: 0.8, active: 0.1, recovery: 0.9, count: 6, radius: 10,
+          mix: { warrior: 4, archer: 2, shield: 1 },
           shake: 0.5, color: '#ffd166', say: '“여기다! 놈이 여기 있다!”',
-          pick: { weight: 4, cooldown: 7 } }),
+          pick: { weight: 5, cooldown: 5.5 } }),
       ],
     },
     {
@@ -341,7 +349,8 @@ export const ANTINOOS = {
         volley({ id: 'a_rain', kind: 'arrow', startup: 0.5, active: 0.08, recovery: 0.4, count: 5, spread: 0.55,
           damage: 15, speed: 28, bullet: '#ffd27a', bulletSize: 0.3,
           pick: { weight: 4, cooldown: 1.8 } }),
-        summon({ id: 'a_shout2', startup: 0.62, active: 0.1, recovery: 0.7, kind: 'warrior', count: 4, radius: 11,
+        summon({ id: 'a_shout2', startup: 0.62, active: 0.1, recovery: 0.7, count: 9, radius: 11,
+          mix: { warrior: 4, archer: 3, shield: 2 },
           shake: 0.6, color: '#ffd166', say: '“전부 들어와라!”',
           pick: { weight: 5, cooldown: 5.5 } }),
       ],

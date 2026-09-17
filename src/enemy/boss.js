@@ -197,14 +197,27 @@ export const suck = cfg => base(cfg,
     if (circleHit(b.pos.x, b.pos.z, cfg.eye ?? 2.2, p)) landed(b, run, cfg, b.pos.x, b.pos.z)
   })
 
-/** 잡졸 소환. */
+/**
+ * 잡졸 소환.
+ * kind 하나로도 되고, mix 로 섞어 부를 수도 있다 —
+ * { warrior: 3, archer: 2, shield: 1 } 처럼 가중치를 준다.
+ * 한 종류만 몰려오면 대응이 하나뿐이라 그냥 수가 는 것에 그친다.
+ */
+const pickFrom = mix => {
+  const rows = Object.entries(mix)
+  let n = Math.random() * rows.reduce((a, [, w]) => a + w, 0)
+  for (const [k, w] of rows) { n -= w; if (n <= 0) return k }
+  return rows[0][0]
+}
+
 export const summon = cfg => base(cfg,
   (b, run) => ({ x: run.origin.x, z: run.origin.z, facing: 0, range: cfg.radius ?? 5, halfAngle: Math.PI, color: '#8fd06a' }),
   (b, run) => {
     for (let i = 0; i < (cfg.count ?? 2); i++) {
       const a = rand(0, Math.PI * 2)
       const r = rand(2.5, cfg.radius ?? 5)
-      b.world.spawnMinion?.(cfg.kind, run.origin.x + Math.sin(a) * r, run.origin.z + Math.cos(a) * r)
+      const kind = cfg.mix ? pickFrom(cfg.mix) : cfg.kind
+      b.world.spawnMinion?.(kind, run.origin.x + Math.sin(a) * r, run.origin.z + Math.cos(a) * r)
     }
   })
 

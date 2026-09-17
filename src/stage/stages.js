@@ -22,7 +22,9 @@ const SHORE = {
 }
 const CAVE = {
   arena: { radius: 15, ground: 'cyclops', repeat: 7, wallColor: '#1a1714', rockColor: '#3d372f' },
-  env: { bg: '#07080a', fog: 0.032, fogColor: '#0a0b0e', exposure: 1.0, camDistance: 30,
+  // 거인이 나오는 방이라고 카메라를 물리면 내가 작아질 뿐 거인은 안 커진다.
+  // 카메라는 그대로 두고 거인을 키운다.
+  env: { bg: '#07080a', fog: 0.032, fogColor: '#0a0b0e', exposure: 1.0, camDistance: 23,
     key: '#ff9a52', keyIntensity: 2.2, rim: '#4a6ea8', rimIntensity: 0.8,
     hemiSky: '#1e2838', hemiGround: '#0c0a08', hemiIntensity: 0.35 },
 }
@@ -121,7 +123,7 @@ export const STAGES = [
       ],
       clear: '항구 안쪽에서 거대한 그림자가 걸어 나온다.',
     },
-    boss: { ...CLIFF, camDistance: 26, name: '라이스트리고네스의 항구', id: 'antiphates',
+    boss: { ...CLIFF, camDistance: 22, name: '라이스트리고네스의 항구', id: 'antiphates',
       intro: '항구 전체가 우리를 향해 돌아섰다.' },
     clear: '배 한 척만 남았다.',
   },
@@ -133,9 +135,9 @@ export const STAGES = [
       intro: '연기가 오르는 집 하나. 먼저 간 자들은 돌아오지 않았다.',
       goal: 18,
       steps: [
-        { untilKills: 6, maxAlive: 5, interval: 1.3, mix: { pig: 1 } },
-        { untilKills: 12, maxAlive: 7, interval: 1.0, mix: { pig: 3, warrior: 1 }, say: '짐승이 사람 소리를 낸다' },
-        { untilKills: 18, maxAlive: 9, interval: 0.85, mix: { pig: 3, warrior: 1, archer: 1 }, say: '숲이 통째로 움직인다' },
+        { untilKills: 6, maxAlive: 6, interval: 1.2, mix: { pig: 2, wolf: 1 } },
+        { untilKills: 12, maxAlive: 8, interval: 0.95, mix: { pig: 3, wolf: 2, warrior: 1 }, say: '짐승이 사람 소리를 낸다' },
+        { untilKills: 18, maxAlive: 11, interval: 0.8, mix: { pig: 3, wolf: 3, warrior: 1, archer: 1 }, say: '숲이 통째로 움직인다' },
       ],
       clear: '집 문이 열렸다.',
     },
@@ -203,8 +205,8 @@ export const STAGES = [
       goal: 30,
       steps: [
         { untilKills: 8, maxAlive: 6, interval: 0.9, mix: { warrior: 1 } },
-        { untilKills: 18, maxAlive: 9, interval: 0.7, mix: { warrior: 4, archer: 1 }, say: '위층에서도 내려온다' },
-        { untilKills: 30, maxAlive: 12, interval: 0.55, mix: { warrior: 4, archer: 1 }, say: '문이란 문에서 쏟아진다' },
+        { untilKills: 18, maxAlive: 11, interval: 0.65, mix: { warrior: 4, archer: 2, shield: 1 }, say: '위층에서도 내려온다' },
+        { untilKills: 30, maxAlive: 15, interval: 0.5, mix: { warrior: 4, archer: 2, shield: 2 }, say: '문이란 문에서 쏟아진다' },
       ],
       clear: '한 사람만 남았다.',
     },
