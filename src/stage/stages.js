@@ -232,6 +232,7 @@ export const STAGE_BY_ID = new Map(STAGES.map(s => [s.id, s]))
 /** 맨 처음. 왜 바다에 있는지부터 말한다. */
 export const OPENING = {
   scene: 'fire',
+  art: '/img/lude-opening.webp',
   lines: [
     { text: '십 년이 걸렸다. <em>트로이가 불탔다.</em>', hold: 3000 },
     { text: '열두 척으로 떠났다.<br>집까지는 며칠이면 되는 거리였다.', hold: 3400 },
