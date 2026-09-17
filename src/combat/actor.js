@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { pushOut } from '../stage/maze.js'
 import { ActionRunner } from './action.js'
 import { clamp, dist2d } from '../core/math.js'
 
@@ -139,12 +140,24 @@ export class Actor {
     if (Math.abs(this.vel.x) < 0.02) this.vel.x = 0
     if (Math.abs(this.vel.z) < 0.02) this.vel.z = 0
 
-    const d = Math.hypot(this.pos.x, this.pos.z)
-    const lim = arenaRadius - this.radius
-    if (d > lim) {
-      const k = lim / d
-      this.pos.x *= k; this.pos.z *= k
-      this.vel.multiplyScalar(0.3)
+    // 저승의 벽. 판 경계보다 먼저 푼다 — 벽에서 밀려난 자리가
+    // 판 밖이면 그 다음 줄이 다시 안으로 넣어 준다.
+    const maze = this.world?.mazeWalls
+    if (maze?.length && pushOut(this.pos, this.radius, maze)) this.vel.multiplyScalar(0.4)
+
+    // 판 모양대로 막는다. 숫자 하나로 막으면 네모난 홀 안에서도
+    // 보이지 않는 둥근 벽에 걸린다 — 보이는 방과 갇히는 방이 달라진다.
+    const arena = this.world?.arena
+    if (arena) {
+      if (arena.clamp(this.pos, this.radius)) this.vel.multiplyScalar(0.3)
+    } else {
+      const d = Math.hypot(this.pos.x, this.pos.z)
+      const lim = arenaRadius - this.radius
+      if (d > lim) {
+        const k = lim / d
+        this.pos.x *= k; this.pos.z *= k
+        this.vel.multiplyScalar(0.3)
+      }
     }
   }
 

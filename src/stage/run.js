@@ -1,4 +1,7 @@
 import { STAGES, RELICS, OPENING, interludeFor } from './stages.js'
+import { Underworld } from './underworld.js'
+import { Maelstrom } from './maelstrom.js'
+import { CUT_TROY, CUT_CAVE, CUT_UNDER, CUT_WHIRL, CUT_ITHACA } from './cuts.js'
 import { WaveRunner } from './waves.js'
 import { makeBoss } from '../enemy/bosses.js'
 
@@ -44,7 +47,8 @@ export class Run {
     this.finished = false
     this._skipWave = !!o.toBoss
     // 맨 처음은 왜 바다에 있는지부터 말하고 시작한다
-    if (from === 0 && !o.noIntro) await this.game.playInterlude(OPENING)
+    // 트로이는 액자에 걸 것이 아니다. 지금 불타고 있다 (stage/cuts.js).
+    if (from === 0 && !o.noIntro) await this.game.playCut(CUT_TROY)
     await this.next()
   }
 
@@ -68,16 +72,22 @@ export class Run {
       this.phase = 'relic'
       // 저승은 걸어 들어가는 연출이 현판을 대신한다
       await this.#scene(stage, stage.intro, { banner: false })
-      this.busy = true
-      await g.chooseRelic(RELICS)
-      this.busy = false
-      this.cleared = true
-      await this.#afterStage(false)
+      await g.playCut(CUT_UNDER)
+      g.music.play('deep')
+      // 판을 세우고 나서 길을 놓는다 — 이제 저승은 '거쳐 가는 화면' 이 아니라
+      // 걸어 들어갔다가 쫓겨 나오는 곳이다 (stage/underworld.js)
+      this.under = new Underworld(g, 7)
+      g.under = this.under
+      this.under.enter()
+      this.under.onOut = () => this.#leftUnderworld()
       return
     }
 
     if (stage.wave && !skipWave) {
       this.phase = 'wave'
+      // 판에 들어서는 컷신. 있는 판만 있다 — 매 판 넣으면 흐름이 끊긴다.
+      if (stage.cut) await g.playCut(stage.cut)
+      g.music.play('fight')
       g.kills = 0
       await this.#scene(stage.wave, stage.wave.intro)
       // 이타카는 거지 차림으로 들어간다 — 보스전에서 정체를 드러낸다
@@ -103,6 +113,10 @@ export class Run {
       g.clearField()
       await g.render3d.applyStage(part)
       g.arenaRadius = g.render3d.arenaRadius
+      // 판 모양은 한 군데서 만들고 쓰는 쪽마다 물려 준다 —
+      // 경계를 보는 눈이 둘이 되면 반드시 어긋난다
+      g.arena = g.render3d.arena
+      g.projectiles.setArena(g.render3d.arena)
       g.player.pos.set(0, 0, Math.min(6, g.arenaRadius - 3))
       g.player.vel.set(0, 0, 0)
       g.player.action.stop()
@@ -122,21 +136,30 @@ export class Run {
     let cfg = stage.boss
     if (stage.fork) {
       await this.#scene(stage.fork, stage.fork.intro)
+      if (stage.fork.cut) await g.playCut(stage.fork.cut)
       this.busy = true
       const pick = await g.chooseFork({ name: stage.name, intro: stage.fork.intro, options: stage.fork.options })
       this.busy = false
-      cfg = { ...stage.fork, id: pick.boss, intro: pick.line }
+      // 고른 쪽에 따라 판이 달라질 수 있다 — 스킬라는 가로로 누운 뱃전에서,
+      // 카리브디스는 트인 폭풍 갑판에서 싸운다
+      cfg = { ...stage.fork, ...(pick.stage ?? {}), id: pick.boss, intro: pick.line }
     }
 
     // 거지 차림이었다면 여기서 벗는다
     if (stage.beggar) await g.setBeggar(false)
 
     await this.#scene(cfg, cfg.intro, { banner: false })
+    // 보스를 만나는 컷신. 갇혔다는 게 먼저 와야 그 뒤가 파훼가 된다.
+    if (cfg.cut) await g.playCut(cfg.cut)
+    g.music.play('boss')
     const b = makeBoss(cfg.id, g, g.fx)
-    b.pos.set(0, 0, -Math.min(7, g.arenaRadius - 4))
+    // 난간에 붙는 보스는 뱃전에, 나머지는 판 안쪽에 선다
+    const zHalf = g.render3d.arena?.radiusAt(Math.PI) ?? g.arenaRadius
+    b.pos.set(0, 0, b.cfg.rail ? -(zHalf - 1.1) : -Math.min(7, g.arenaRadius - 4))
     b.facing = Math.PI
     g.track(b)
     this.boss = b
+    g.render3d.setBossFocus(b)
 
     // 만나는 장면. 체력바는 이 뒤에 붙여야 이름이 두 번 나오지 않는다
     await g.cinema({
@@ -144,12 +167,24 @@ export class Run {
       face: `/img/boss/${b.cfg.id}.webp`,
     })
     g.hud.setBoss(b)
+
+    // 소용돌이 판 — 여기서는 헤엄치고, 테두리 이빨을 깬다
+    if (cfg.maelstrom) {
+      this.maelstrom = new Maelstrom(g, b, cfg.maelstrom)
+      g.maelstrom = this.maelstrom
+      g.projectiles.setMaelstrom(this.maelstrom)
+      g.player.swimming = true
+      g.hud.banner('헤엄쳐라', '멈추면 빨려 들어간다 — 테두리 이빨을 깨라', 3.4)
+    }
+
     if (cfg.intro) g.hud.banner(cfg.name ?? this.stage.name, cfg.intro, 2.4)
   }
 
   update(dt) {
     if (this.busy || this.finished || this.cleared) return
     const g = this.game
+
+    if (this.phase === 'relic') { this.under?.update(dt); return }
 
     if (this.phase === 'wave' && this.waves) {
       this.waves.update(dt)
@@ -163,7 +198,36 @@ export class Run {
       return
     }
 
+    this.maelstrom?.update(dt)
+
     if (this.phase === 'boss' && this.boss && this.boss.dead) this.#clear()
+  }
+
+  /**
+   * 구덩이를 눌렀다. 손이 올라오고, 유물을 고르고, 그 다음엔 쫓긴다.
+   * Game 이 이걸 부른다 (마우스는 Game 이 받는다).
+   */
+  async callUp() {
+    const g = this.game
+    this.busy = true
+    await g.chooseRelic(RELICS)
+    this.busy = false
+    this.under?.chased()
+  }
+
+  /** 남쪽 끝을 넘었다. 여기서 비로소 저승이 끝난다. */
+  async #leftUnderworld() {
+    if (this.cleared) return
+    this.cleared = true
+    const g = this.game
+    this.busy = true
+    g.hud.banner(this.stage.name, this.stage.clear ?? '', 2.6)
+    await new Promise(r => setTimeout(r, 1400))
+    this.under?.dispose()
+    this.under = null
+    g.under = null
+    this.busy = false
+    await this.#afterStage(false)
   }
 
   #clear() {
@@ -171,11 +235,17 @@ export class Run {
     this.cleared = true
     const g = this.game
     const fell = this.boss
+    g.render3d.setBossFocus(null)
+    if (this.maelstrom) {
+      this.maelstrom.dispose(); this.maelstrom = null
+      g.maelstrom = null; g.player.swimming = false
+      g.projectiles.setMaelstrom(null)
+    }
     setTimeout(async () => {
       g.hud.setBoss(null)
       // 쓰러진 자리를 한 번 보고 간다. 바로 은총 화면이 뜨면 이긴 실감이 없다
       await g.cinema({
-        title: `${fell?.cfg?.name ?? this.stage.name} 쓰러짐`,
+        title: `${fell?.cfg?.name ?? this.stage.name} 토벌`,
         sub: this.stage.clear ?? '', at: fell?.pos, zoom: 0.55, hold: 2.2, lead: 0.9,
       })
       this.#afterStage(true)
@@ -196,6 +266,7 @@ export class Run {
     if (afterBoss) await g.offerUpgrade(`${this.stage.name} 통과`, '가져갈 것을 하나 고른다')
     const lude = interludeFor(this.index)
     // 막간은 켜 둔 채로 넘긴다 — 다음 판의 막이 내려오면 그때 닫힌다
+    g.music.play('sail')
     if (lude) await g.playInterlude(lude, { keepOpen: true })
     this.busy = false
     await this.next()

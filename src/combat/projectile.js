@@ -283,6 +283,12 @@ export class Projectiles {
     })
   }
 
+  /** 판 모양. main 이 판을 열 때 물려 준다. */
+  setArena(arena) { this._arena = arena ?? null }
+
+  /** 소용돌이 판이면 이빨도 과녁이다. */
+  setMaelstrom(m) { this._maelstrom = m ?? null }
+
   update(dt, actors, arenaRadius, camera) {
     for (let i = this.live.length - 1; i >= 0; i--) {
       const p = this.live[i]
@@ -348,7 +354,18 @@ export class Projectiles {
         if (p.shedAt <= 0) { p.shedAt = p.spec.shed; this.particles?.shed(p.pos.x, p.pos.y, p.pos.z, p.color) }
       }
 
-      let gone = p.traveled > p.range || Math.hypot(p.pos.x, p.pos.z) > arenaRadius + 1.5
+      // 판 모양 밖으로 나가면 지운다. 원으로만 재면 긴 갑판의 앞뒤에서는
+      // 아직 갑판 위인 화살이 사라지고, 좁은 옆에서는 벽을 뚫고 더 난다.
+      const beyond = this._arena
+        ? !this._arena.contains(p.pos.x, p.pos.z, -1.5)
+        : Math.hypot(p.pos.x, p.pos.z) > arenaRadius + 1.5
+      let gone = p.traveled > p.range || beyond
+
+      // 소용돌이의 테두리 이빨 — 화살로도 깬다
+      if (!gone && p.team === 'player' && this._maelstrom
+          && this._maelstrom.hitAt(p.pos.x, p.pos.z, p.radius + 0.9, p.damage)) {
+        gone = true
+      }
 
       if (!gone) {
         // 드러난 약점이 먼저다. 몸통보다 작고, 정해진 종류만 통한다.

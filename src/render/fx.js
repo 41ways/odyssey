@@ -274,6 +274,10 @@ export class Fx {
       const k = n.t / n.life
       if (k >= 1) { n.el.remove(); this._numbers.splice(i, 1); continue }
       this._v.copy(n.pos).project(cam)
+      // 화면 밖의 점은 숨긴다. project() 는 시야 밖이나 뒤쪽 좌표도 그냥 뱉어서,
+      // 그대로 쓰면 화면 구석에 숫자와 글자가 달라붙는다 — 겹쳐 보이는 것의 태반이 이거다.
+      const off = this._v.z > 1 || Math.abs(this._v.x) > 1.04 || Math.abs(this._v.y) > 1.04
+      if (off) { n.el.style.opacity = '0'; continue }
       const sx = (this._v.x * 0.5 + 0.5) * innerWidth + n.vx * n.t
       const sy = (-this._v.y * 0.5 + 0.5) * innerHeight + n.vy * n.t + 140 * n.t * n.t
       n.el.style.transform = `translate(-50%,-50%) translate(${sx}px,${sy}px) scale(${1 + (1 - k) * 0.25})`

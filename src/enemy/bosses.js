@@ -19,10 +19,14 @@ export const POLYPHEMOS = {
   barHeight: 7, groggyMult: 2.4, pace: 1.0,
   // 눈. 쓰러졌을 때만 드러나고, 화살로만 찌를 수 있다.
   // 머리뼈를 따라간다. face 는 이마 앞으로 얼마나 나오는지, r 은 맞는 범위.
-  weakPoint: { face: 0.3, r: 1.5, y: 4.3, downY: 2.2, z: 1.0, requires: 'arrow' },
-  // 영화에서처럼 거죽 갑옷을 걸친다. 벗은 덩치보다 갖춰 입은 덩치가 더 크게 읽힌다.
-  look: { height: 6.4, bulk: 1.55, tint: '#c9a07a',
-    gear: ['legs', 'feet', 'body', 'pauldron'] },
+  // downY 는 '무너졌을 때 눈이 오는 높이' 다. 화살은 1.05 높이로 날아가므로
+  // 여기가 너무 높으면 화살이 그 아래로 지나간다 — 맞힐 수 없는 약점이 된다.
+  weakPoint: { face: 0.3, r: 1.8, y: 4.3, downY: 2.2, z: 1.0, requires: 'arrow' },
+  // 갖춰 입히지 않는다 — 목자지 병사가 아니다. 허리에 두른 거죽 한 장뿐이라
+  // 맨살 덩치가 그대로 보인다.
+  // 스케치팹 'Cyclops Rig' (DM-913, CC-BY). 리깅 + Idle 포함. 눈은 모델에 있다.
+  look: { model: 'cyclopsBody', height: 6.4, bulk: 1.55, tint: '#c9a07a',
+    gear: ['legs'] },
   phases: [
     {
       below: 1,
@@ -212,9 +216,17 @@ export const SIREN = {
    2페는 머리 하나가 끈질기게 쫓는다. */
 export const SKYLLA = {
   id: 'skylla', name: '스킬라', title: '여섯 머리의 것',
-  hp: 840, radius: 1.4, mass: 140, speed: 1.8, keepRange: [4, 8], gap: [0.6, 1.1],
+  hp: 840, radius: 1.4, mass: 140, speed: 2.6, keepRange: [4, 8], gap: [0.6, 1.1],
   barHeight: 4.6, groggyMult: 2.0,
-  look: { height: 3.6, bulk: 1.3, tint: '#6a8c7a', gear: [] },
+  // 먼 쪽 난간(-z)에 매달린다. 좌우로만 옮겨 다니며 친다.
+  // 난간에 딱 붙이지 않고 갑판 쪽으로 걸친다 — 뱃전 밖에 세우면
+  // 화면 위로 밀려나고, 머리가 갑판에 닿지도 않는다.
+  rail: -1, railInset: 5.2,
+  // 사람 몸이 없다 — 절벽에서 뻗는 돌 촉수뿐이다.
+  // 뼈대는 촉수를 매달고 움직일 축으로만 쓰고 살은 감춘다 (hideBody).
+  // 스케치팹 'Yamata no Orochi' (tran95, CC-BY) — 머리 여덟 달린 뱀.
+  // 스킬라는 머리 여섯인데 여덟짜리 대역이다. 정적 메시라 목은 안 움직인다.
+  look: { model: 'orochi', height: 3.6, bulk: 1.3, tint: '#6a8c7a', gear: [], sink: 0.6 },
   phases: [
     {
       below: 1,
@@ -250,7 +262,8 @@ export const CHARYBDIS = {
   id: 'charybdis', name: '카리브디스', title: '삼키는 소용돌이',
   hp: 720, radius: 1.6, mass: 999, speed: 0, keepRange: [0, 0], gap: [0.5, 0.9],
   barHeight: 3.4, groggyMult: 1.5, turnHalf: 0.4,
-  look: { height: 2.6, bulk: 1.4, tint: '#5a7fa8', gear: [] },
+  // 소용돌이 그 자체다. 사람 몸은 감추고 깔때기와 팔만 남긴다.
+  look: { height: 2.6, bulk: 1.4, tint: '#5a7fa8', gear: [], hideBody: true },
   phases: [
     {
       below: 1,

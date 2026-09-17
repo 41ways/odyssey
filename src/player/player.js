@@ -19,7 +19,7 @@ export const TUNING = {
   turnHalf: 0.035,        // 조준 추적 반감기. 작을수록 즉각적
   roll: {
     charges: 3,
-    regen: 2.5,           // 충전 하나 차는 데 걸리는 시간. 가벼운 몸으로 줄인다
+    regen: 3.4,           // 충전 하나 차는 데 걸리는 시간. 가벼운 몸으로 줄인다
     // 거리와 시간은 같이 움직인다. 거리만 줄이면 걷는 것(5.6)보다 느려져서
     // 구르는 게 아니라 기어가는 느낌이 난다. 지금은 초속 9.7.
     duration: 0.38,
@@ -29,9 +29,20 @@ export const TUNING = {
     recovery: 0.08,
   },
   bow: {
-    minDraw: 0.34,        // 여기까진 당겨야 나간다. 연사 방지
-    fullDraw: 1.15,       // 꽉 채우기까지. 팽팽한 시위로 줄인다
-    release: 0.42,        // 쏘고 난 후딜
+    /**
+     * ── 차징이 의미를 갖는 조건 ──
+     * 전에는 최소 당김 0.34 + 후딜 0.42 로 한 발에 0.76초, 피해 9 → 12 dps.
+     * 꽉 당기면 1.57초에 26 → 17 dps. 차이가 5 dps 뿐이라, 위험을 감수하고
+     * 오래 서 있을 이유가 없었다. 그래서 톡톡 쏘는 게 최선이 됐다.
+     *
+     * 지금은 **난사를 명확히 손해로** 만든다. 최소 당김은 0.45 로 올리고
+     * 후딜은 0.55 로 늘리고 최소 피해는 7 로 내렸다 → 1.0초에 7, 7 dps.
+     * 대신 꽉 당기면 34 + 관통 → 1.6초에 34, 21 dps 에 여럿을 꿴다.
+     * 세 배 차이가 나야 "기다릴까" 가 판단이 된다.
+     */
+    minDraw: 0.45,        // 여기까진 당겨야 나간다. 톡톡 쏘기를 막는 선
+    fullDraw: 1.05,       // 꽉 채우기까지. 팽팽한 시위로 줄인다
+    release: 0.55,        // 쏘고 난 후딜. 난사의 대가가 여기 있다
   },
 }
 
@@ -66,6 +77,13 @@ function slash(cfg) {
     },
     onHitWindow(p, run) {
       const range = cfg.range * p.stats.meleeRange
+      // 소용돌이 판에서는 몸통이 아니라 테두리 이빨을 깬다.
+      // 칼이 닿는 자리에 이빨이 있으면 그쪽으로 들어간다.
+      p.world.maelstrom?.hitAt(
+        p.pos.x + Math.sin(p.facing) * range * 0.6,
+        p.pos.z + Math.cos(p.facing) * range * 0.6,
+        range * 0.7, cfg.damage * p.stats.meleeDamage,
+      )
       for (const e of p.world.enemies) {
         if (e.dead || run.hitSet.has(e)) continue
         if (!sectorHit(p.pos, p.facing, range, cfg.halfAngle, e)) continue
@@ -86,14 +104,27 @@ function slash(cfg) {
 /**
  * 칼 3타.
  *
- * 처음엔 훨씬 빨랐는데, 빠르면 '보고 피하는' 싸움이 아니라 '먼저 누르는'
- * 싸움이 된다. 소울라이크의 박자는 한 번 휘두르면 잠깐 묶이는 데서 나온다.
- * 선딜과 후딜을 같이 늘려서 한 대 한 대가 결정처럼 느껴지게 했다.
+ * ── 왜 이 숫자인가 ──
+ * 한동안 훨씬 빨랐다. 그러면 '보고 피하는' 싸움이 아니라 '먼저 누르는'
+ * 싸움이 되고, 활을 쥘 이유가 사라진다. 실제로 재 보니 이랬다:
+ *
+ *   칼 한 바퀴(1→2→3)  1.47초에 54  →  37 dps
+ *   활 꽉 당겨 한 발    1.57초에 26  →  17 dps
+ *
+ * 칼이 두 배 이상이니 근접이 정답이 되고, 그래서 "그냥 칼로 휘두르는 게" 됐다.
+ * 지금은 한 바퀴를 2.0초로 늘려 32 dps 로 내렸다. 그래도 활보다 높은데,
+ * 그건 의도다 — **칼의 값은 dps 가 아니라 경직과 그로기**다. 그로기 중에는
+ * 보스가 2배 넘게 맞으므로(groggyMult) 반격 창에서 칼이 폭발한다.
+ * 안전한 활로 깎고, 창이 열리면 붙어서 3타를 박는 박자.
+ *
+ * 선딜을 0.13 → 0.20 으로 올린 건 '읽히게' 하려는 것이다. 0.13 초는
+ * 사람 눈에 즉발이라 휘두른 게 아니라 스쳤다는 느낌이 난다.
  */
 export const SLASH = {
-  slash1: slash({ id: 'slash1', startup: 0.13, active: 0.08, recovery: 0.32, cancelAt: 0.27, next: 'slash2', move: 1.0, range: 3.0, halfAngle: 1.05, damage: 12, knockback: 3.5, hitstop: 0.06, stagger: 0.10 }),
-  slash2: slash({ id: 'slash2', startup: 0.12, active: 0.08, recovery: 0.34, cancelAt: 0.28, next: 'slash3', move: 1.1, range: 3.1, halfAngle: 1.25, damage: 14, knockback: 4.0, hitstop: 0.065, stagger: 0.12 }),
-  slash3: slash({ id: 'slash3', startup: 0.22, active: 0.12, recovery: 0.58, cancelAt: 0.52, next: null, move: 2.0, range: 3.8, halfAngle: 1.95, damage: 28, knockback: 11, hitstop: 0.12, stagger: 0.42 }),
+  slash1: slash({ id: 'slash1', startup: 0.20, active: 0.08, recovery: 0.42, cancelAt: 0.36, next: 'slash2', move: 1.0, range: 3.0, halfAngle: 1.05, damage: 13, knockback: 3.5, hitstop: 0.07, stagger: 0.10 }),
+  slash2: slash({ id: 'slash2', startup: 0.18, active: 0.08, recovery: 0.44, cancelAt: 0.38, next: 'slash3', move: 1.1, range: 3.1, halfAngle: 1.25, damage: 16, knockback: 4.0, hitstop: 0.075, stagger: 0.14 }),
+  // 3타가 보상이다. 크게 묶이는 대신 크게 아프고 크게 흔든다.
+  slash3: slash({ id: 'slash3', startup: 0.34, active: 0.13, recovery: 0.78, cancelAt: 0.70, next: null, move: 2.1, range: 3.9, halfAngle: 1.95, damage: 36, knockback: 13, hitstop: 0.14, stagger: 0.48 }),
 }
 
 /**
@@ -229,6 +260,8 @@ export class Player extends Actor {
     this._rollFrom = { x: 0, z: 0 }
     this._echo = null
     this.hexed = 0
+    this.slowed = 0          // 포효에 걸린 시간
+    this.slowMul = 1         // 그동안의 이동속도 배수
     this.hexRig = null                    // 돼지로 변했을 때의 몸. 걸릴 때 한 번만 만든다
     this.vis = built.rig.root
     this.group.add(this.vis)
@@ -357,11 +390,28 @@ export class Player extends Actor {
   /** 연출 중 — 시뮬레이션은 멈췄지만 포즈는 돌아야 한다. */
   updateVisualOnly(dt) { this.#visual(dt, false) }
 
+  /**
+   * 느려진다. 사자의 포효가 부른다.
+   *
+   * 겹쳐 걸면 더 세지는 게 아니라 **남은 시간만 갱신한다** — 사자 둘이 울면
+   * 0.3배가 되어 못 움직이게 되는데, 그건 난이도가 아니라 정지다.
+   */
+  slow(seconds, mul = 0.55) {
+    this.slowed = Math.max(this.slowed, seconds)
+    this.slowMul = Math.min(this.slowMul === 1 ? mul : this.slowMul, mul)
+    this.fx?.number(this.pos.clone().setY(2.0), '둔화', { color: '#ffb04a', size: 20 })
+  }
+
   #moveBy(dt, scale) {
     if (this._move.lengthSq() === 0) return
     // 키르케의 변신 마법에 걸리면 몸이 무거워진다
     const hex = this.hexed > 0 ? 0.55 : 1
-    const v = TUNING.speed * this.stats.moveSpeed * scale * hex
+    // 포효. 변신(hexed)과 따로 둔다 — 둘은 원인도 연출도 다르고, 겹치면 겹쳐야 한다
+    const slow = this.slowed > 0 ? this.slowMul : 1
+    // 물에서는 느리다. 빠르면 소용돌이가 무섭지 않고, 너무 느리면
+    // 빨려 들어가는 걸 못 막아서 판이 억울해진다.
+    const swim = this.swimming ? 0.74 : 1
+    const v = TUNING.speed * this.stats.moveSpeed * scale * hex * swim * slow
     this.pos.x += this._move.x * v * dt
     this.pos.z += this._move.z * v * dt
   }
@@ -443,8 +493,9 @@ export class Player extends Actor {
       x: this.pos.x + Math.sin(this.facing) * 0.7,
       z: this.pos.z + Math.cos(this.facing) * 0.7,
       dir: this.facing, kind: 'arrow',
-      speed: 32 + t * 20,
-      damage: (9 + t * 17) * this.stats.rangedDamage,
+      speed: 32 + t * 22,
+      // 7 → 34. 꽉 당긴 값이 최소치의 다섯 배 가까이 되어야 기다릴 값이 있다
+      damage: (7 + t * 27) * this.stats.rangedDamage,
       team: 'player',
       pierce: full ? 2 : 0,
       ricochet: this.stats.ricochet > 0 ? (this.stats.ricochet >= 2 ? 3 : 1) : 0,

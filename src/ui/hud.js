@@ -55,12 +55,22 @@ const CSS = `
     linear-gradient(180deg, rgba(255,220,180,.6) 0 2px, transparent 2px),
     linear-gradient(180deg,#ff7a4a 0%,#c23a1e 46%,#7a1a10 100%); }
 
-#hud .xp { width:368px; height:5px; background:#0d0a07; border-radius:2px;
+/* 경험치 — 체력 아래 얇은 한 줄. 왼쪽에 레벨 숫자를 청동 표로 박는다.
+   숫자가 막대 안에 들어가면 5px 높이에 안 들어가고, 막대 위에 얹으면
+   체력바와 줄이 어긋난다. 옆에 세우는 게 제일 조용하다. */
+#hud .xpwrap { display:flex; align-items:center; gap:7px; }
+#hud .lvchip { flex:0 0 auto; min-width:19px; height:15px; padding:0 3px;
+  display:grid; place-items:center; border-radius:2px;
+  font-family:var(--serif); font-size:10.5px; font-weight:700; color:#2a1f0e;
+  font-variant-numeric:tabular-nums; letter-spacing:.02em;
+  background:linear-gradient(180deg,#ffe6b0,#c8973e 62%,#8a6524);
+  box-shadow:inset 0 1px 0 rgba(255,246,220,.7), 0 1px 3px rgba(0,0,0,.7); }
+#hud .xp { flex:1 1 auto; width:342px; height:5px; background:#0d0a07; border-radius:2px;
   overflow:hidden; position:relative;
   box-shadow:inset 0 1px 3px rgba(0,0,0,.9), 0 0 0 1px rgba(232,200,132,.18); }
 #hud .xp i { display:block; height:100%; width:100%; transform-origin:left center;
   background:linear-gradient(90deg,var(--gold-dim),var(--gold)); transition:transform .22s ease-out; }
-#hud .lv { position:absolute; left:0; top:9px; width:368px; text-align:center;
+#hud .lv { display:block; width:368px; margin-top:4px; text-align:center;
   font-size:11px; color:#8b7a60; letter-spacing:.05em; white-space:nowrap; }
 
 /* 구르기 — 청동 방패 세 닢. 차오르는 중인 것은 시계 방향으로 채워진다 */
@@ -86,6 +96,20 @@ const CSS = `
 #hud .keys .grown { color:#c8a16a; margin-top:4px; font-size:11.5px; letter-spacing:.03em; }
 #hud .keys .dev { margin-top:7px; font-size:10.5px; color:#5f564c; letter-spacing:.02em; }
 #hud .keys .dev kbd { font-size:9.5px; padding:1px 5px; color:#8a7c66; border-color:#332b24; }
+/* 조작 글리프.
+   전에는 <kbd>W</kbd> 처럼 글자를 네모에 넣었다. 그건 웹 문서의 표기고,
+   게임 화면에서는 키캡 그림이 눈에 훨씬 빨리 들어온다.
+   threejsassets 의 Vesperfall 입력 묶음 (CREDITS.md) — 64px WebP. */
+#hud .keys .k { display:inline-block; vertical-align:-0.34em;
+  width:26px; height:26px; margin:0 1px;
+  background-size:contain; background-repeat:no-repeat; background-position:center;
+  filter:saturate(.85) brightness(1.06); }
+#hud .keys .k.wasd  { width:52px; background-image:url('/img/keys/input-wasd.webp'); }
+#hud .keys .k.mouse { background-image:url('/img/keys/input-mouse-left.webp'); opacity:.72; }
+#hud .keys .k.lmb   { background-image:url('/img/keys/input-mouse-left.webp'); }
+#hud .keys .k.rmb   { background-image:url('/img/keys/input-mouse-right.webp'); }
+#hud .keys .k.space { width:46px; background-image:url('/img/keys/input-space.webp'); }
+
 #hud .keys kbd { background:#191510; border:1px solid var(--line-dim); border-radius:2px;
   padding:1px 7px; color:var(--text); font-family:var(--serif); font-size:10.5px; letter-spacing:.06em; }
 #hud .stats { position:absolute; right:20px; top:18px; font-size:11px; text-align:right;
@@ -175,14 +199,15 @@ export class Hud {
           <i class="rivet bl"></i><i class="rivet br"></i>
           <div class="hp"><b></b><i></i><span></span></div>
         </div>
-        <div class="xp"><i></i><span class="lv"></span></div>
+        <div class="xpwrap"><b class="lvchip">1</b><div class="xp"><i></i></div></div>
+        <span class="lv"></span>
         <div class="pips"></div>
       </div>
       <div class="keys">
-        <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 이동 &nbsp; <kbd>마우스</kbd> 조준</div>
-        <div><kbd>좌클릭</kbd> 칼 (3타) &nbsp; <kbd>우클릭</kbd> 활 (꾹 눌러 차징) &nbsp; <kbd>Space</kbd> 구르기</div>
+        <div><b class="k wasd"></b> 이동 &nbsp; <b class="k mouse"></b> 조준</div>
+        <div><b class="k lmb"></b> 칼 (3타) &nbsp; <b class="k rmb"></b> 활 (꾹 눌러 차징) &nbsp; <b class="k space"></b> 구르기</div>
         <div class="grown"></div>
-        <div class="dev"><kbd>Tab</kbd> 판 고르기 · <kbd>L</kbd> 화면 톤 · <kbd>]</kbd> 다음 판 · <kbd>R</kbd> 처음부터</div>
+        <div class="dev"><kbd>Tab</kbd> 판 고르기 · <kbd>L</kbd> 화면 톤 · <kbd>M</kbd> 음소거 · <kbd>]</kbd> 다음 판 · <kbd>R</kbd> 처음부터</div>
       </div>
       <div class="stats">
         <div>누적 피해</div><b class="dmg">0</b>
@@ -211,6 +236,7 @@ export class Hud {
     this.pips = el.querySelector('.pips')
     this.dmgEl = el.querySelector('.dmg')
     this.xpFill = el.querySelector('.xp i')
+    this.lvChip = el.querySelector('.lvchip')
     this.lvEl = el.querySelector('.lv')
     this.statsEl = el.querySelector('.keys .grown')
     this.fpsEl = el.querySelector('.fps')
@@ -298,7 +324,7 @@ export class Hud {
     }
   }
 
-  update(player, { totalDamage, dt, kills = 0, kit = null, stage = null, index = 0, count = 9 }) {
+  update(player, { totalDamage, dt, kills = 0, kit = null, level = null, stage = null, index = 0, count = 9 }) {
     const k = clamp(player.hp / player.maxHp, 0, 1)
     this.hpFill.style.transform = `scaleX(${k})`
     this.hpGhost.style.transform = `scaleX(${k})`
@@ -316,8 +342,14 @@ export class Hud {
       this.pipEls[i].style.setProperty('--k', k2.toFixed(3))
     }
 
+    // 막대는 경험치다. 전에는 차림(장비) 진행도를 그렸는데, 그건 처치 수로
+    // 한 번씩 열리는 것이라 막대가 필요하지 않다 — 숫자 한 줄로 충분하다.
+    // 막대가 차오르는 걸 매 초 보고 있어야 하는 건 경험치 쪽이다.
+    if (level) {
+      this.xpFill.style.transform = `scaleX(${clamp(level.ratio, 0, 1)})`
+      this.lvChip.textContent = level.lv
+    }
     if (kit) {
-      this.xpFill.style.transform = `scaleX(${clamp(kit.ratio, 0, 1)})`
       const label = kit.done
         ? `처치 ${kills} · 차림 완성`
         : `처치 ${kills} · ${kit.next.name}까지 ${kit.to - kills}`

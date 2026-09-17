@@ -52,6 +52,9 @@ export class ActionRunner {
     this.t += dt * (d.fixedRate ? 1 : (this.owner.actionRate ?? 1))
 
     const aStart = d.startup, aEnd = d.startup + d.active
+    // 예고 구간의 진행도를 넘겨 준다 — 도약처럼 '뜨는 동안 나는' 동작이 쓴다.
+    // 0 에서 1 로 가는 동안 포물선을 그리게 하면, 예고가 곧 이동이 된다.
+    if (this.t < aStart) d.onWindup?.(this.owner, this, Math.min(1, this.t / Math.max(aStart, 1e-4)))
     const entering = prev < aStart && this.t >= aStart
     if (entering) { this.telegraph = null; d.onActive?.(this.owner, this) }
     if (this.t >= aStart && prev < aEnd) d.onHitWindow?.(this.owner, this, dt)

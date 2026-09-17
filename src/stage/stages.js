@@ -1,3 +1,5 @@
+import { CUT_CAVE, CUT_WHIRL, CUT_ITHACA } from './cuts.js'
+
 /**
  * 여덟 개의 판.
  *
@@ -13,6 +15,7 @@
 
 const SHORE = {
   arena: { radius: 16, ground: 'ismaros', repeat: 9, wallColor: '#2a2018', rockColor: '#544738',
+    shape: 'grove',      // 불탄 마을 언저리. 자연 지형이라 각지지 않되 완전한 원도 아니다
     // 털린 마을의 가장자리 — 엎어진 항아리와 부서진 기둥
     props: [{ key: 'jar', count: 9, ring: [1.03, 1.12], scale: [0.8, 1.3], tint: '#8a5f3c' },
             { key: 'column', count: 3, ring: [1.04, 1.11], scale: [0.7, 1.0], tint: '#b9ac92' }] },
@@ -21,7 +24,8 @@ const SHORE = {
     hemiSky: '#3a4a74', hemiGround: '#140f0a', hemiIntensity: 0.55 },
 }
 const CAVE = {
-  arena: { radius: 15, ground: 'cyclops', repeat: 7, wallColor: '#1a1714', rockColor: '#3d372f' },
+  arena: { radius: 15, ground: 'cyclops', repeat: 7, wallColor: '#1a1714', rockColor: '#3d372f',
+    shape: 'cave' },     // 벽이 들고 나야 동굴이다 — 구석이 있어야 숨을 데가 생긴다
   // 거인이 나오는 방이라고 카메라를 물리면 내가 작아질 뿐 거인은 안 커진다.
   // 카메라는 그대로 두고 거인을 키운다.
   env: { bg: '#07080a', fog: 0.032, fogColor: '#0a0b0e', exposure: 1.0, camDistance: 26,
@@ -30,6 +34,7 @@ const CAVE = {
 }
 const CLIFF = {
   arena: { radius: 17, ground: 'telepylos', repeat: 8, wallColor: '#2a2e33', rockColor: '#4a4f55',
+    shape: 'cove',       // 좁은 만 — 한쪽은 바다로 열리고 반대쪽은 바위로 막힌다
     // 좁은 만 — 바위 절벽 위로 라이스트리고네스의 집들이 있었다
     props: [{ key: 'columnRound', count: 5, ring: [1.03, 1.12], scale: [0.9, 1.4], tint: '#9aa0a6' }] },
   env: { bg: '#0c1014', fog: 0.024, fogColor: '#151c26', exposure: 1.06, camDistance: 22,
@@ -39,6 +44,7 @@ const CLIFF = {
 }
 const FOREST = {
   arena: { radius: 16, ground: 'aiaia', repeat: 7, wallColor: '#23301f', rockColor: '#3e4a34',
+    shape: 'grove',      // 숲은 나무가 정하는 모양이다. 동굴만큼 각지지는 않게
     // 키르케의 숲. 집 둘레에는 약을 담던 항아리가 굴러다닌다
     props: [{ key: 'tree', count: 22, ring: [1.02, 1.16], scale: [0.85, 1.3] },
             { key: 'jar', count: 5, ring: [1.03, 1.11], scale: [0.9, 1.2], tint: '#6f5a3a' }] },
@@ -48,25 +54,59 @@ const FOREST = {
 }
 const UNDER = {
   keepEnv: true,        // 톤 시안이 덮지 않는다 — 여기 어둠은 연출이다
-  arena: { radius: 14, ground: 'underworld', repeat: 6, wallColor: '#0e0c10', rocks: false,
+  arena: { radius: 16, ground: 'underworld', repeat: 7, wallColor: '#0e0c10', rocks: false,
+    shape: 'square',     // 기둥이 줄 맞춰 선 곳이다. 누군가 지은 방이어야 한다
     // 망자의 자리. 기둥은 고르게 둘러선다 — 아무렇게나 두면 폐허가 되고,
     // 줄을 맞추면 누군가 세운 곳이 된다
     props: [{ key: 'column', count: 8, ring: [1.12, 1.12], scale: [1.1, 1.1], spread: false, tint: '#4a4258' },
             { key: 'pedestal', count: 8, ring: [1.02, 1.02], scale: [1, 1], spread: false, offset: 0.39, tint: '#3d3550' }] },
-  env: { bg: '#050408', fog: 0.045, fogColor: '#08060c', exposure: 0.95, camDistance: 19,
-    key: '#8a7fd0', keyIntensity: 1.2, rim: '#d05a6a', rimIntensity: 0.9,
-    hemiSky: '#241e38', hemiGround: '#060508', hemiIntensity: 0.4 },
+  // 어둡되 길이 보여야 한다. 전에는 싸움이 없는 빈 마당이라 캄캄해도
+  // 됐지만, 이제 걸어서 길을 찾아야 하므로 벽이 읽혀야 한다.
+  // 안개를 걷어내고(0.045 → 0.028) 바닥빛을 올린다.
+  env: { bg: '#050408', fog: 0.028, fogColor: '#0a0812', exposure: 1.02, camDistance: 21,
+    key: '#9a8ee0', keyIntensity: 1.6, rim: '#d05a6a', rimIntensity: 1.1,
+    hemiSky: '#3a3158', hemiGround: '#0c0a12', hemiIntensity: 0.62 },
 }
 const DECK = (radius = 14, cam = 20) => ({
   arena: { radius, ground: 'ship', repeat: 5, wallColor: '#141a22', rocks: false,
+    shape: 'deck',       // 갑판은 좁고 길다. 옆으로 피할 데가 없어야 배 위 싸움이 된다
     // 뱃전 너머로 남은 배들이 따라온다
     props: [{ key: 'ship', count: 3, ring: [1.18, 1.5], scale: [0.9, 1.3], y: -1.2 }] },
   env: { bg: '#060c14', fog: 0.03, fogColor: '#0a121c', exposure: 1.02, camDistance: cam,
     key: '#bfd8ff', keyIntensity: 1.8, rim: '#7f5fd0', rimIntensity: 1.4,
     hemiSky: '#2a3d5a', hemiGround: '#0a1018', hemiIntensity: 0.5 },
 })
+/** 가로로 누운 뱃전. 스킬라가 매달릴 난간이 화면 위를 가로지른다. */
+const BROADSIDE = {
+  arena: { radius: 15, ground: 'ship', repeat: 5, wallColor: '#10161e', rocks: false,
+    shape: 'deckWide',
+    // 먼 쪽 뱃전 너머는 절벽이다. 스킬라가 여기서 뻗어 나온다.
+    cliff: { height: 13, depth: 5.5, count: 15, color: '#5a6068', back: 1.2 },
+    // 뱃전 너머 멀리 남은 배들. 가까이 두면 짧은 축에서 갑판을 침범한다
+    props: [{ key: 'ship', count: 2, ring: [1.7, 2.0], scale: [0.9, 1.15], y: -2.2 }] },
+  // 넓은 배에는 넓은 샷. 난간의 머리와 갑판의 나를 한 화면에 넣어야 하는데,
+  // 카메라를 안 물리면 둘 중 하나는 반드시 화면 밖으로 밀린다.
+  env: { bg: '#04080e', fog: 0.03, fogColor: '#070d16', exposure: 1.0, camDistance: 29,
+    key: '#9fc0e8', keyIntensity: 1.8, rim: '#4ad09a', rimIntensity: 1.6,
+    hemiSky: '#223349', hemiGround: '#060a10', hemiIntensity: 0.45 },
+}
+/**
+ * 소용돌이. 카리브디스가 있는 곳은 갑판이 아니라 **물 위**다.
+ *
+ * 물 텍스처가 따로 없으므로 갑판결을 크게 늘려 푸르게 물들인다 —
+ * 늘어난 결이 물살처럼 읽힌다. 모양은 둥글다: 소용돌이는 네모지지 않는다.
+ */
+const WHIRL = {
+  arena: { radius: 15, ground: 'ship', repeat: 2, shape: 'round', rocks: false,
+    groundTint: '#43698c', wallColor: '#0a141e',
+    props: [{ key: 'ship', count: 3, ring: [1.2, 1.5], scale: [0.8, 1.1], y: -2.6 }] },
+  env: { bg: '#050c14', fog: 0.032, fogColor: '#08111c', exposure: 1.0, camDistance: 24,
+    key: '#8fb8e0', keyIntensity: 1.6, rim: '#4a90d0', rimIntensity: 1.7,
+    hemiSky: '#1e3350', hemiGround: '#050a12', hemiIntensity: 0.5 },
+}
 const STORM = {
   arena: { radius: 15, ground: 'ship', repeat: 5, wallColor: '#10161e', rocks: false,
+    shape: 'deck',       // 폭풍 속 갑판도 갑판이다
     props: [{ key: 'ship', count: 2, ring: [1.2, 1.55], scale: [0.9, 1.2], y: -1.4 }] },
   env: { bg: '#04080e', fog: 0.034, fogColor: '#070d16', exposure: 1.0, camDistance: 24,
     key: '#9fc0e8', keyIntensity: 1.7, rim: '#4a7fd0', rimIntensity: 1.5,
@@ -74,7 +114,7 @@ const STORM = {
 }
 const HALL = {
   arena: { radius: 15, ground: 'ithaca', repeat: 8, wallColor: '#2a2420', rocks: false,
-    shape: 'square',     // 홀은 사람이 지은 방이다. 둥글면 안 된다
+    shape: 'hall',       // 홀은 사람이 지은 방이고, 정사각이 아니라 안으로 긴 방이다
     // 구혼자들이 스무 해를 먹어 치운 홀
     props: [{ key: 'column', count: 10, ring: [1.06, 1.06], scale: [1.2, 1.2], spread: false, tint: '#e3d8be' },
             { key: 'jar', count: 7, ring: [1.04, 1.12], scale: [0.9, 1.3], tint: '#8a5f3c' }] },
@@ -83,7 +123,8 @@ const HALL = {
     hemiSky: '#4a3f5a', hemiGround: '#1a1208', hemiIntensity: 0.5 },
 }
 const BEACH = {
-  arena: { radius: 16, ground: 'shore', repeat: 8, wallColor: '#241f1a', rockColor: '#4a4238' },
+  arena: { radius: 16, ground: 'shore', repeat: 8, wallColor: '#241f1a', rockColor: '#4a4238',
+    shape: 'round' },    // 마지막은 트인 해변이다. 여기만은 둥근 게 맞다
   env: { bg: '#0a0c12', fog: 0.02, fogColor: '#10131a', exposure: 1.04, camDistance: 21,
     key: '#e8c8a0', keyIntensity: 2.0, rim: '#6f7fd0', rimIntensity: 1.2,
     hemiSky: '#3a4258', hemiGround: '#14120e', hemiIntensity: 0.55 },
@@ -107,7 +148,7 @@ export const STAGES = [
     },
     // 웨이브와 보스방은 다른 곳이다. 해안에서 싸우다 동굴로 들어간다 —
     // 현판에 같은 이름이 뜨면 걸어 들어간 것이 아니라 그 자리에 머문 것이 된다.
-    boss: { ...CAVE, name: '폴리페모스의 동굴', id: 'polyphemos',
+    boss: { ...CAVE, cut: CUT_CAVE, name: '폴리페모스의 동굴', id: 'polyphemos',
       intro: '입구를 바위가 막았다. 나갈 길은 저것을 눕히는 것뿐이다.' },
     clear: '“아무도 나를 해치지 않았다”  그가 그렇게 외쳤다.',
   },
@@ -138,8 +179,9 @@ export const STAGES = [
       goal: 18,
       steps: [
         { untilKills: 6, maxAlive: 6, interval: 1.2, mix: { pig: 2, wolf: 1 } },
-        { untilKills: 12, maxAlive: 8, interval: 0.95, mix: { pig: 3, wolf: 2, warrior: 1 }, say: '짐승이 사람 소리를 낸다' },
-        { untilKills: 18, maxAlive: 11, interval: 0.8, mix: { pig: 3, wolf: 3, warrior: 1, archer: 1 }, say: '숲이 통째로 움직인다' },
+        { untilKills: 12, maxAlive: 8, interval: 0.95, mix: { pig: 3, wolf: 2, lion: 1 }, say: '짐승이 사람 소리를 낸다' },
+        // 사자는 둔화로 판을 만든다. 늑대·돼지와 같이 나와야 값을 한다.
+        { untilKills: 18, maxAlive: 11, interval: 0.8, mix: { pig: 3, wolf: 3, lion: 1, archer: 1 }, say: '숲이 통째로 움직인다' },
       ],
       clear: '집 문이 열렸다.',
     },
@@ -187,11 +229,18 @@ export const STAGES = [
     },
     fork: {
       ...STORM,
+      cut: CUT_WHIRL,
       name: '메시나 해협',
       intro: '어느 쪽으로도 갈 수 있다. 어느 쪽도 무사하지 않다.',
       options: [
-        { boss: 'skylla', label: '절벽 쪽으로', line: '스킬라 — 여섯 머리가 배 위로 내려온다' },
-        { boss: 'charybdis', label: '소용돌이 쪽으로', line: '카리브디스 — 바다가 통째로 빨려 들어간다' },
+        // 스킬라는 갑판 위를 걸어 다니지 않는다. 배를 옆으로 눕히고
+        // 먼 쪽 난간에 매달리게 한다 — 크라켄이 배를 덮치는 그림이다.
+        { boss: 'skylla', label: '절벽 쪽으로', line: '스킬라 — 여섯 머리가 배 위로 내려온다',
+          stage: BROADSIDE },
+        // 카리브디스가 있는 곳은 갑판이 아니라 소용돌이 한가운데다
+        // 여기서는 걷지 않는다 — 헤엄치고, 테두리 이빨을 깬다 (stage/maelstrom.js)
+        { boss: 'charybdis', label: '소용돌이 쪽으로', line: '카리브디스 — 바다가 통째로 빨려 들어간다',
+          stage: { ...WHIRL, maelstrom: { radius: 13, pull: 5.4 } } },
       ],
     },
     clear: '해협을 지났다.',
@@ -199,6 +248,8 @@ export const STAGES = [
 
   {
     id: 'ithaca', name: '이타카', title: '구혼자들',
+    // 스무 해 만에 집이 보인다. 판에 들어서기 전에 한 번 보여 준다.
+    cut: CUT_ITHACA,
     // 거지 차림으로 들어간다. 아무도 그를 알아보지 못한다.
     beggar: { until: 'boss', say: '누더기를 걸치고 문턱을 넘었다. 아무도 알아보지 못한다' },
     wave: {
@@ -236,6 +287,7 @@ export const STAGE_BY_ID = new Map(STAGES.map(s => [s.id, s]))
 /** 맨 처음. 왜 바다에 있는지부터 말한다. */
 export const OPENING = {
   scene: 'fire',
+  wear: 0,               // 아직 아무 데도 안 갔다. 액자도 갓 걸렸다
   art: ['/img/lude-opening.webp', '/img/lude-opening-b.webp', '/img/lude-opening-c.webp'],
   lines: [
     { text: '십 년이 걸렸다. <em>트로이가 불탔다.</em>', hold: 3000 },
@@ -271,6 +323,16 @@ const PASSAGE = {
   ithaca: 'night',        // 홀이 조용해졌다
 }
 
+/**
+ * 막간의 액자가 얼마나 낡았는가. 0 = 갓 건 것, 1 = 스무 해 걸려 있던 것.
+ *
+ * 같은 액자를 여덟 번 그대로 보여 주면 여덟 번 같은 벽 앞에 선 것이 된다.
+ * 판을 지날수록 금박이 빛을 잃고 누렇게 떠야, 걸린 시간이 이야기 안에서
+ * 흐른 시간과 같아진다. 그림은 한 장뿐이고 나이만 CSS 로 먹인다.
+ */
+export const wearAt = fromIndex =>
+  Math.min(1, Math.max(0, (fromIndex + 1) / (STAGES.length - 1)))
+
 /** 다음 판으로 넘어갈 때 쓸 막간. */
 export function interludeFor(fromIndex) {
   const from = STAGES[fromIndex]
@@ -279,6 +341,7 @@ export function interludeFor(fromIndex) {
   const lines = SAILING[from.id] ?? ['배를 밀었다.']
   return {
     scene: PASSAGE[from.id] ?? 'sea',
+    wear: wearAt(fromIndex),
     // 글줄마다 한 장씩. 두 번째 장이 없으면 첫 장이 그대로 남는다.
     art: [`/img/lude-${from.id}.webp`, `/img/lude-${from.id}-b.webp`],
     lines: lines.map((text, i) => ({ text, hold: i === lines.length - 1 ? 3000 : 2800 })),
@@ -289,24 +352,19 @@ export function interludeFor(fromIndex) {
 /**
  * 저승에 들어서는 장면.
  *
- * 전에는 판 안에서 걸어 들어가고 3D 판이 올라왔다. 그런데 저승은 싸우는
- * 곳이 아니라 '들은 이야기' 다 — 인게임으로 보여 줄 게 없다.
- * 그래서 아예 컷씬으로 뺀다. 그림 세 장이 차례로 바뀐다.
+ * 액자에 걸지 않는다. 막간의 액자는 "지나온 뱃길을 박물관처럼 돌아본다" 는
+ * 장치인데, 지나온 것을 보는 자리에 지금 나를 붙잡으러 오는 것을 걸면
+ * 거리가 생긴다 — 액자 안의 것은 이미 끝난 일이니까.
+ *
+ * 그래서 여기만 테두리를 걷고, 손이 화면에서 직접 나온다 (ui/reach.js).
+ * 그리고 곧바로 유물 선택으로 넘어간다 — 사이에 한 화면 더 끼우면
+ * 붙잡힌 다음에 숨을 돌리게 된다.
  */
 export const UNDERWORLD_CUT = {
-  scene: 'under',
-  figure: true,
-  art: [
-    '/img/rise/rise-agamemnon-1.webp',
-    '/img/rise/rise-agamemnon-2.webp',
-    '/img/rise/rise-agamemnon-3.webp',
-  ],
   lines: [
     { text: '구덩이에 피를 부었다. <em>흙이 부풀었다.</em>', hold: 2900 },
-    { text: '손 하나가 땅을 뚫고 올라왔다.<br>흙을 밀어내며 어깨가, 투구가 따라 나왔다.', hold: 3400 },
-    { text: '망자가 다 일어서서 <em>나를 내려다본다.</em>', hold: 3000 },
+    { text: '손 하나가 땅을 뚫고 올라온다. <em>으스러진 손이다.</em>', hold: 3600 },
   ],
-  dest: '아가멤논 — 미케네 3대 국왕',
 }
 
 /* ── 저승의 유물 ─────────────────────────────────────────

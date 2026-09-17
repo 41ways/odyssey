@@ -7,7 +7,7 @@ import { Projectiles } from './combat/projectile.js'
 import { Particles } from './render/particles.js'
 import { separate } from './combat/actor.js'
 import { Player } from './player/player.js'
-import { kikonesWarrior, kikonesArcher, kikonesShield, circePig, circeWolf } from './enemy/kikones.js'
+import { kikonesWarrior, kikonesArcher, kikonesShield, circePig, circeWolf, circeLion } from './enemy/kikones.js'
 import { Hud } from './ui/hud.js'
 import { meanderURI } from './ui/theme.js'
 import { TitleScreen } from './ui/title.js'
@@ -25,13 +25,18 @@ import { RELICS, UNDERWORLD_CUT } from './stage/stages.js'
 import { RelicScreen } from './ui/relic.js'
 import { BlessingScreen } from './ui/blessing.js'
 import { Interlude } from './ui/interlude.js'
+import { Reach } from './ui/reach.js'
+import { Reel } from './ui/reel.js'
+import { Music } from './core/music.js'
+import { Level, BOSS_XP } from './player/level.js'
+import { CUT_TROY, CUT_CAVE, CUT_UNDER, CUT_WHIRL, CUT_ITHACA, ALL_CUTS, cutArt } from './stage/cuts.js'
 import { rollBlessings } from './player/blessings.js'
 import { models } from './render/models.js'
 import { preloadCharacter } from './render/character.js'
 import { rand } from './core/math.js'
 
 const MINIONS = { warrior: kikonesWarrior, archer: kikonesArcher, shield: kikonesShield,
-  pig: circePig, wolf: circeWolf }
+  pig: circePig, wolf: circeWolf, lion: circeLion }
 
 /**
  * 오디세이 — 아홉 판을 이어 달리는 한 번의 귀향.
@@ -43,6 +48,8 @@ class Game {
   constructor(container, uiRoot) {
     this.render3d = new World(container)
     this.arenaRadius = this.render3d.arenaRadius
+    // 판 모양. 적·플레이어의 이동 제한이 이걸 본다 (combat/actor.js)
+    this.arena = this.render3d.arena
     this.fx = new Fx(this.render3d, uiRoot)
     this.input = new Input(this.render3d.canvas, this.render3d.camera)
     this.particles = new Particles(this.render3d.scene)
@@ -55,6 +62,9 @@ class Game {
     this.relicScreen = new RelicScreen(uiRoot)
     this.blessScreen = new BlessingScreen(uiRoot)
     this.interlude = new Interlude(uiRoot)
+    this.reach = new Reach(uiRoot)          // 저승 — 손이 올라온다
+    this.reel = new Reel(uiRoot)           // 컷신 — 그림 몇 장으로 시간을 만든다
+    this.music = new Music()               // 판의 결을 정하는 배경 한 겹
     this.blessed = new Set()
     this.uiRoot = uiRoot
     this.equipFx = null
@@ -65,6 +75,7 @@ class Game {
     this.kills = 0
     this.paused = false
     this.taken = new Map()
+    this.level = new Level()      // 경험치 → 성장 선택 (player/level.js)
 
     this.reticle = makeReticle()
     this.render3d.scene.add(this.reticle)
@@ -80,6 +91,10 @@ class Game {
       if (e.code === 'BracketRight') this.run.next()   // 시험용: 다음 판으로
       if (e.code === 'KeyL') this.cycleLook()          // 시험용: 톤 시안 돌려보기
       if (e.code === 'KeyG') this.setGod(!this.god)    // ★시험용 무적 — 배포 전에 지운다
+      if (e.code === 'KeyM') {
+        const m = this.music.toggleMute()
+        this.hud.banner(m ? '음소거' : '소리 켜짐', m ? 'M 으로 다시 켠다' : '', 1.4)
+      }
     })
 
     // 스테이지 고르기 — Tab 또는 주소의 ?stage=N
@@ -111,6 +126,11 @@ class Game {
     this.sail = SAILS[1]                   // 고르기 전까지는 '이야기대로'
     this.title = new TitleScreen(uiRoot)
     this.diffScreen = new DifficultyScreen(uiRoot)
+    // 제목 화면이 떠 있는 동안 첫 막간 그림을 미리 풀어 둔다 —
+    // 난이도를 고르고 나면 곧바로 오프닝 액자가 올라온다
+    this.warmInterlude(OPENING)
+    // 컷신 그림도 같이 풀어 둔다. 첫 컷신이 트로이라 바로 필요하다.
+    for (const c of ALL_CUTS) this.reel.preload(cutArt(c))
     this.title.wait()
       .then(() => (q.get('sail') ? SAILS.find(s => s.id === q.get('sail')) ?? SAILS[1] : this.diffScreen.show()))
       .then(sail => {
@@ -128,16 +148,23 @@ class Game {
     //   난이도 × 판이 깊어질수록 붙는 몫.
     // 뒤로 갈수록 내 성장이 크게 붙으므로, 적이 그대로면 후반이 헐거워진다.
     // 보스는 원래 체력이 커서 같은 비율로 올리면 너무 길어진다 — 덜 붙인다.
+    // 레벨이 붙은 뒤로는 내 화력이 판마다 세 번씩 올라간다 (player/level.js).
+    // 적이 예전 곡선(0.17)에 머물면 뒷판이 헐거워지는 게 아니라 **무의미해진다** —
+    // 고른 카드가 체감되지 않으면 고르는 재미도 없다. 그래서 같이 올린다.
     const deep = Math.max(0, this.run?.index ?? 0)
-    const curve = enemy.isBoss ? 1 + deep * 0.10 : 1 + deep * 0.17
+    const curve = enemy.isBoss ? 1 + deep * 0.14 : 1 + deep * 0.24
     const mul = (this.sail?.hpMul ?? 1) * curve
     if (mul !== 1) { enemy.maxHp = Math.round(enemy.maxHp * mul); enemy.hp = enemy.maxHp }
+    // 경험치도 같은 방향으로. 안 붙이면 필요량만 오르고 수입은 그대로라
+    // 뒷판이 경험치 가뭄이 된다.
+    enemy.xpValue = Level.scale(enemy.xpValue ?? 0, deep)
     enemy.onHurt = d => { this.totalDamage += d }
     if (!enemy.isDummy) {
       const die = enemy.die.bind(enemy)
       enemy.die = () => {
         const wasBurning = !!enemy.burn
         die()
+        this.gainXp(enemy.isBoss ? Level.scale(BOSS_XP, deep) : enemy.xpValue)
         if (!enemy.isBoss) {
           this.kills++
           if (wasBurning && this.player.stats.burn >= 2) this.#spreadFire(enemy)
@@ -155,8 +182,12 @@ class Game {
   spawnMinion(kind, x, z) {
     const make = MINIONS[kind] ?? kikonesWarrior
     const e = make(this, this.fx)
-    const r = Math.min(Math.hypot(x, z), this.arenaRadius - 1.5)
+    // 가장자리는 판 모양을 따른다. 원으로 잡으면 긴 갑판에서는 적이
+    // 허공에 생기고, 좁은 쪽에서는 벽 안에 박힌다.
     const a = Math.atan2(x, z)
+    const arena = this.render3d.arena
+    const lim = arena ? arena.radiusAt(a) - 1.5 : this.arenaRadius - 1.5
+    const r = Math.min(Math.hypot(x, z), lim)
     e.pos.set(Math.sin(a) * r, 0, Math.cos(a) * r)
     e.facing = Math.atan2(this.player.pos.x - e.pos.x, this.player.pos.z - e.pos.z)
     this.fx.ring(e.pos.x, e.pos.z, { color: '#c2705e', radius: 1.6, life: 0.45 })
@@ -167,7 +198,8 @@ class Game {
   spawnEnemy(kind = 'warrior') {
     const p = this.player.pos
     const away = Math.atan2(-p.x, -p.z) + rand(-1.1, 1.1)
-    const r = this.arenaRadius - rand(0.6, 2.2)
+    const arena = this.render3d.arena
+    const r = (arena ? arena.radiusAt(away) : this.arenaRadius) - rand(0.6, 2.2)
     return this.spawnMinion(kind, Math.sin(away) * r, Math.cos(away) * r)
   }
 
@@ -180,6 +212,8 @@ class Game {
     this.projectiles.clear()
     this.particles.clear()
     this.hud.setBoss(null)
+    // 판을 비울 때 시선도 같이 놓는다 — 안 그러면 죽은 보스를 계속 본다
+    this.render3d.setBossFocus(null)
   }
 
   #spreadFire(from) {
@@ -195,6 +229,33 @@ class Game {
 
   #freeze() { this.paused = true; this.input.held.clear(); this.input.buffer.clear() }
   #thaw() { this.paused = false }
+
+  /**
+   * 경험치를 넣는다. 레벨이 올라가면 표시만 하고, 카드는 update 가 연다.
+   * 여기서 바로 열지 않는 이유는 이게 die() 안에서 불리기 때문이다.
+   */
+  gainXp(amount) {
+    if (!amount || this.player.dead) return
+    const up = this.level.add(amount)
+    if (!up) return
+    // 올랐다는 걸 카드보다 먼저 몸으로 알려 준다 — 카드는 0.2 초쯤 뒤에 뜬다
+    const p = this.player
+    this.fx.ring(p.pos.x, p.pos.z, { color: '#ffe6b8', radius: 2.6, life: 0.55 })
+    this.particles.converge({ x: p.pos.x, y: 1.0, z: p.pos.z, count: 22, radius: 3.2,
+      color: '#ffe6b8', size: 0.13, life: 0.55 })
+  }
+
+  /** 밀린 레벨업을 하나씩 고른다. 두 칸이 한꺼번에 올라도 카드는 한 장씩. */
+  async #spendLevels() {
+    if (this._leveling) return
+    this._leveling = true
+    try {
+      while (this.level.pending > 0 && !this.player.dead) {
+        this.level.pending--
+        await this.offerUpgrade(`레벨 ${this.level.lv}`, '스무 해가 사람을 벼린다 — 하나를 고른다')
+      }
+    } finally { this._leveling = false }
+  }
 
   async offerUpgrade(heading, sub) {
     this.#freeze()
@@ -225,6 +286,11 @@ class Game {
     const ev = []
     ev.push(
       { group: '시작', name: '오프닝', note: '왜 바다에 있는가', run: () => this.playInterlude(OPENING) },
+      { group: '컷신', name: '트로이가 불탔다', note: '그림 세 장', run: () => this.playCut(CUT_TROY) },
+      { group: '컷신', name: '동굴 문이 막혔다', note: '폴리페모스', run: () => this.playCut(CUT_CAVE) },
+      { group: '컷신', name: '해가 들지 않는 곳', note: '저승', run: () => this.playCut(CUT_UNDER) },
+      { group: '컷신', name: '바다가 도는 자리', note: '메시나', run: () => this.playCut(CUT_WHIRL) },
+      { group: '컷신', name: '이타카가 보였다', note: '스무 해 만에', run: () => this.playCut(CUT_ITHACA) },
       { group: '시작', name: '시작 화면', note: '패럴랙스 · 물에 풀리는 퇴장', run: () => { location.href = '/' } },
       { group: '시작', name: '난이도 고르기', note: '어떤 바다를 건널 것인가', run: () => this.diffScreen.show() },
     )
@@ -257,7 +323,9 @@ class Game {
 
   /** 저승 컷씬만 따로. */
   async previewUnderworld() {
-    await this.playInterlude(UNDERWORLD_CUT)
+    this.#freeze()
+    await this.reach.play(UNDERWORLD_CUT)
+    this.#thaw()
   }
 
   /** 장비 착용 연출만 따로. 입고 있던 것은 그대로 두고 그 조각만 다시 붙인다. */
@@ -404,6 +472,47 @@ class Game {
    * keepOpen 이면 글이 끝나도 화면을 켠 채로 둔다. 다음 판의 막이 내려온 뒤에
    * 닫아야, 그 사이로 '지나온 판' 이 한 박자 비치지 않는다.
    */
+  /**
+   * 커서가 지금 무엇을 겨누는지 보여 준다.
+   *
+   * 바닥 조준점만 있으면 "여기를 누를 수 있다" 를 말할 방법이 없다. 저승의
+   * 구덩이가 생기고 나서 그게 문제가 됐다 — 눌러야 하는데 눌러도 되는지가
+   * 화면에 없었다. 커서를 상태에 묶는다.
+   *
+   * 클래스만 갈아 끼우므로 비용이 없다 — 바뀔 때만 손댄다.
+   */
+  #aimCursor() {
+    const cv = this.render3d.renderer.domElement
+    let want = ''
+    const a = this.input.aim
+    if (this.under?.canCall) want = 'aim-use'
+    else if (this.player.dead) want = 'aim-blocked'
+    else {
+      // 조준점 근처에 적이 있으면 공격 커서. 사거리는 칼이 닿는 정도.
+      for (const e of this.enemies) {
+        if (e.dead) continue
+        if (Math.hypot(e.pos.x - a.x, e.pos.z - a.z) < e.radius + 1.3) { want = 'aim-hostile'; break }
+      }
+    }
+    if (this._cursorWant === want) return
+    this._cursorWant = want
+    cv.classList.remove('aim-hostile', 'aim-use', 'aim-blocked', 'aim-loot')
+    if (want) cv.classList.add(want)
+  }
+
+  /**
+   * 컷신 하나. 그림 몇 장이 겹쳐 넘어가는 동안 판은 멈춘다.
+   *
+   * keepOpen 이면 암전한 채로 넘긴다 — 다음 화면(유물 선택 등)이
+   * 그 어둠 위로 올라오게 하려는 것이다.
+   */
+  async playCut(cut, { keepOpen = false } = {}) {
+    if (!cut) return
+    this.#freeze()
+    await this.reel.play({ ...cut, keepOpen })
+    if (!keepOpen) this.#thaw()
+  }
+
   async playInterlude(spec, { keepOpen = false } = {}) {
     this.#freeze()
     await this.interlude.play({ ...spec, keepOpen })
@@ -463,6 +572,8 @@ class Game {
 
     // 막이 다 내려온 뒤에야 막간 화면을 걷는다
     this.interlude?.close()
+    this.reach?.close()
+    this.reel?.close()
     await apply?.()
     await new Promise(r => setTimeout(r, hold * 1000))
 
@@ -497,7 +608,9 @@ class Game {
   }
 
   async chooseRelic(relics) {
-    await this.playInterlude(UNDERWORLD_CUT, { keepOpen: true })
+    // 손이 화면을 덮은 채로 넘긴다 — 유물 화면이 그 어둠 위로 올라온다
+    this.#freeze()
+    await this.reach.play({ ...UNDERWORLD_CUT, keepOpen: true })
     const pick = await this.relicScreen.show({
       name: '아가멤논', title: '미케네 3대 국왕',
       said: '나는 내 집 문턱에서 죽었다. <em>스무 해를 싸우고</em> 돌아가 아내의 손에.<br>'
@@ -506,9 +619,19 @@ class Game {
     })
     pick.apply(this.player.stats)
     this.player.applyStats()
+    this.reach.close()
     this.hud.banner(pick.name, pick.flavor, 2.8)
     this.#thaw()
     return pick
+  }
+
+  /**
+   * 곧 쓸 막간 그림을 미리 받아 둔다.
+   * 제목·난이도 화면이 떠 있는 동안이 제일 조용한 때다.
+   */
+  warmInterlude(spec) {
+    const art = spec?.art
+    if (art) this.interlude?.preload(Array.isArray(art) ? art : [art])
   }
 
   async chooseFork(stage) {
@@ -534,6 +657,7 @@ class Game {
     this.kills = 0
     this.totalDamage = 0
     this.taken.clear()
+    this.level.reset()
     this.player.gear.reset()
     this.player.stats = newStats()
     this.player.applyStats()
@@ -578,8 +702,12 @@ class Game {
     if (!bare && index > 0) {
       // 전리품은 두 번째 판부터 한 벌 다 갖춘 것으로 본다
       for (const k of KIT) p.equip(k.id)
-      // 성장은 판마다 두 장씩. 한 계열로 몰아 줘서 등급도 열리게 한다
-      const picks = Math.min(index * 2, 12)
+      // 성장은 판마다 세 장. 레벨이 두 번 오르고 은총이 한 번 오므로
+      // 실제 진행과 같은 수다 (player/level.js 의 곡선 참고).
+      const picks = Math.min(index * 3, 20)
+      this.level.reset()
+      for (let i = 0; i < index * 2; i++) this.level.add(this.level.need)
+      this.level.pending = 0        // 여기서 카드를 띄우면 안 된다 — 이미 아래서 먹인다
       for (let i = 0; i < picks; i++) {
         const pool = rollChoices(1, this.taken)
         if (!pool.length) break
@@ -741,8 +869,15 @@ class Game {
     this.input.update(dt)
     const aim = this.input.updateAim()
 
+    // 저승의 구덩이는 마우스로 누른다. 칼보다 먼저 본다 —
+    // 부르는 자리에 서서 클릭했는데 칼이 나가면 '눌렀다' 가 안 된다.
+    if (this.under?.canCall && this.input.consume('slash')) {
+      if (this.under.click()) this.run.callUp?.()
+    }
+
     const p = this.player
     if (p.hexed > 0) { p.hexed -= dt; if (p.hexed <= 0) p.hexed = 0 }
+    if (p.slowed > 0) { p.slowed -= dt; if (p.slowed <= 0) { p.slowed = 0; p.slowMul = 1 } }
     p.update(dt, aim)
 
     if (p.dead && !this._deathHandled) {
@@ -760,6 +895,9 @@ class Game {
 
     const looted = this.pickups.update(dt, p)
     if (looted.length && !p.dead) this.#openLoot(looted)
+    // 레벨업 카드는 여기서 연다. die() 안에서 바로 열면 적 목록을 돌던
+    // 중간에 화면이 뜨고, 그 사이 목록이 바뀐다.
+    if (this.level.pending > 0 && !p.dead) this.#spendLevels()
 
     for (let i = this.enemies.length - 1; i >= 0; i--) {
       const e = this.enemies[i]
@@ -791,16 +929,34 @@ class Game {
     }
   }
 
+  /**
+   * 전체 화면 연출이 3D 판을 완전히 덮고 있는가.
+   *
+   * 막간과 저승 손은 불투명하게 화면 전체를 가린다. 그 뒤로 3D 판을 계속
+   * 그려 봐야 한 픽셀도 안 보인다 — 그런데 하필 그때가 액자의 blur·mask·
+   * 혼합이 가장 무거운 순간이라, 안 보이는 렌더가 보이는 연출의 예산을
+   * 깎아먹는다. 덮여 있으면 그리지 않는다.
+   */
+  get covered() {
+    return !!(this.interlude?.el?.classList.contains('on')
+      || this.reach?.el?.classList.contains('on')
+      || this.reel?.el?.classList.contains('on'))
+  }
+
   draw() {
     const real = this._real ?? 1 / 60
+    // 시간이 걸린 연출은 덮여 있어도 계속 흘러야 한다 — 막이 걷히는 순간
+    // 제자리에 있어야 하니까.
     this.#driveSettle(real)
     this.#driveEquipFx(real)
+    if (this.covered) return
     const cam = this.render3d.camera
     this.player.sync(cam)
     for (const e of this.enemies) e.sync(cam)
     for (const c of this.corpses) { c.sync(cam); c.group.position.y = -Math.min(c.deathT / 0.45, 1) * 1.6 }
     this.reticle.position.set(this.input.aim.x, 0.05, this.input.aim.z)
     this.reticle.visible = this.input.pointerInside
+    this.#aimCursor()
     // 연출 중에는 카메라가 다른 것을 본다
     this.render3d.updateSnow(real, this.player.pos)
     this.render3d.updateCamera(this.camFocus ?? this.player.pos,
@@ -809,7 +965,7 @@ class Game {
     this.render3d.render()
     this.hud.update(this.player, {
       totalDamage: this.totalDamage, dt: this._real ?? 1 / 60,
-      kills: this.kills, kit: kitProgress(this.kills),
+      kills: this.kills, kit: kitProgress(this.kills), level: this.level,
       stage: this.run.view, index: this.run.index, count: STAGES.length,
     })
   }

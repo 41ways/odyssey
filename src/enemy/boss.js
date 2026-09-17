@@ -1,4 +1,6 @@
 import * as THREE from 'three'
+import { models } from '../render/models.js'
+import { attachBossParts } from './bossparts.js'
 import { Actor } from '../combat/actor.js'
 import { sectorHit, circleHit, ringHit } from '../combat/hit.js'
 import { dist2d, dampAngle, rand, clamp } from '../core/math.js'
@@ -264,6 +266,47 @@ export class Boss extends Actor {
     this.rig = built.rig
     this.group.add(built.rig.root)
     this.bodyMats = built.mats
+
+    // 이름이 곧 파훼법인 보스들은 그게 몸에 보여야 한다 —
+    // 외눈·여섯 머리·아가리. 공용 뼈대에 코드로 매단다 (enemy/bossparts.js)
+    this.parts = attachBossParts(cfg.id, this.rig, cfg.look)
+
+    // 갑판 아래로 몸을 내린다. 뱃전에 매달린 것은 몸이 다 보이면 안 된다 —
+    // 물 밖으로 나온 만큼만 보여야 '올라온 것' 으로 읽힌다.
+    if (cfg.look?.sink) this.rig.root.position.y -= cfg.look.sink
+
+    // 사람 몸을 아예 감춘다.
+    //
+    // 스킬라는 절벽에서 뻗는 돌이고 카리브디스는 소용돌이다 — 둘 다 사람
+    // 형상이 아니다. 그런데 뼈대는 그대로 쓴다: 애니메이션·본·공격 프레임이
+    // 전부 거기 걸려 있어서, 버리면 촉수를 움직일 축이 없어진다.
+    // 그래서 **뼈는 두고 살만 숨긴다.** 촉수는 그 뼈에 매달려 같이 움직인다.
+    if (cfg.look?.hideBody) {
+      this.rig.root.traverse(o => {
+        if (o.isMesh || o.isSkinnedMesh) o.visible = false
+      })
+      // 붙여 둔 조각은 다시 켠다 — 위 traverse 가 같이 껐다
+      this.parts?.group?.traverse?.(o => { o.visible = true })
+    }
+  }
+
+  /**
+   * 난간에 붙인다.
+   *
+   * 크라켄은 갑판 위를 걸어 다니지 않는다. 먼 쪽 뱃전에 매달려 좌우로
+   * 옮겨 다니며 친다. 그래서 z 는 난간에 묶고 x 만 풀어 준다 —
+   * 화면 위쪽을 가로지르는 한 줄 위에서만 움직인다.
+   */
+  #railed(dt) {
+    const rail = this.cfg.rail
+    if (!rail) return
+    const arena = this.world?.arena
+    const zHalf = arena ? arena.radiusAt(rail < 0 ? Math.PI : 0) : 8
+    const want = Math.sign(rail) * (zHalf - (this.cfg.railInset ?? 1.1))
+    this.pos.z += (want - this.pos.z) * Math.min(1, dt * 6)
+    this.vel.z = 0
+    // 늘 갑판 쪽을 본다
+    this.facing = rail < 0 ? 0 : Math.PI
   }
 
   get phase() { return this.cfg.phases[Math.max(0, this.phaseIndex)] }
@@ -425,13 +468,9 @@ export class Boss extends Actor {
 
     // 눈은 머리에 붙어 있다. 서 있을 때와 무릎 꿇었을 때의 높이가 다르니
     // 좌표를 손으로 적어 두면 한쪽에서 반드시 어긋난다. 머리뼈를 따라간다.
-    this._head ??= (() => {
-      let found = null
-      this.rig?.root?.traverse(o => { if (!found && o.isBone && /head/i.test(o.name)) found = o })
-      return found ?? false
-    })()
-    if (this._head) {
-      const p = this._head.getWorldPosition(this._headAt ??= new THREE.Vector3())
+    const head = this.#headBone()
+    if (head) {
+      const p = head.getWorldPosition(this._headAt ??= new THREE.Vector3())
       return {
         x: p.x + Math.sin(this.facing) * (w.face ?? 0.25),
         y: p.y,
@@ -523,15 +562,76 @@ export class Boss extends Actor {
       flinch: this.groggy > 0 ? 1 : 0,
     }, dt)
 
-    // 쓰러진 동안에는 몸을 앞으로 기울이고 낮춘다. 애니메이션만으로는 덜 읽힌다.
+    // 쓰러진 동안에는 정말로 무너져야 한다.
+    //
+    // 전에는 0.26 라디안 숙이고 0.45 내리는 게 전부였다. 키 6.4 짜리한테
+    // 그건 고개를 까딱한 것이고, 눈은 여전히 4 위에 있었다 —
+    // 화면 위로 잘려서 보이지도 않고, 1.05 높이로 날아가는 화살은
+    // 그 아래로 지나가서 절대 안 맞았다. 파훼법이 아니라 벽이었다.
     const want = this.downed ? 1 : 0
-    this._downLean = (this._downLean ?? 0) + (want - (this._downLean ?? 0)) * Math.min(1, dt * 5)
-    this.rig.root.rotation.x = this._downLean * 0.26
-    this.rig.root.position.y = -this._downLean * 0.45
+    this._downLean = (this._downLean ?? 0) + (want - (this._downLean ?? 0)) * Math.min(1, dt * 4)
+    this.rig.root.rotation.x = this._downLean * 0.62
+    this.rig.root.position.y = -this._downLean * (this.cfg.look?.height ?? 2) * 0.22
+    this.#railed(dt)
+    this.#seatHead()
+
+    // 조각은 장식이 아니라 상태 표시다. 지금 어느 페이즈인지, 쓰러졌는지,
+    // 빨아들이는 중인지가 몸에 보여야 한다.
+    this.parts?.update(dt, {
+      t: this.animT,
+      phase: Math.max(0, this.phaseIndex),
+      downed: !!this.downed,
+      blinded: !!this.weakPointDone,
+      acting: this.action.active,
+      sucking: this.action.active && /pull|suck/.test(this.action.def?.id ?? ''),
+    })
+  }
+
+  /**
+   * 무너진 높이를 머리로 맞춘다.
+   *
+   * 얼마나 내릴지를 숫자로 적어 두면 보스마다, 애니메이션 프레임마다 어긋난다.
+   * 그래서 내리고 나서 머리뼈가 실제로 어디 있는지 재고, weakPoint.downY 까지
+   * 모자란 만큼 한 번 더 내린다. 보스 키가 몇이든 눈은 늘 같은 높이에 온다 —
+   * 그 높이가 곧 '화살이 날아가는 높이' 다.
+   */
+  #seatHead() {
+    const target = this.cfg.weakPoint?.downY
+    if (!target || this._downLean < 0.01) { this._headDrop = 0; return }
+    const head = this.#headBone()
+    if (!head) return
+    this.rig.root.updateMatrixWorld(true)
+    const at = head.getWorldPosition(this._seatAt ??= new THREE.Vector3())
+    // 선 자세에서 잰 값이 섞이지 않게, 내려간 정도만큼만 따라간다
+    const want = (target - at.y) * this._downLean
+    this._headDrop = (this._headDrop ?? 0) + want
+    this.rig.root.position.y += want
+  }
+
+  /** 머리뼈. 한 번 찾아 두고 계속 쓴다. */
+  #headBone() {
+    this._head ??= (() => {
+      let found = null
+      this.rig?.root?.traverse(o => { if (!found && o.isBone && /head/i.test(o.name)) found = o })
+      return found ?? false
+    })()
+    return this._head || null
   }
 }
 
 function buildBossBody(look) {
+  // 제 몸이 있는 보스는 그걸 쓴다. 사이클롭스·오로치처럼 받아 온 모델이다.
+  // 공용 사람 몸에 코드로 조각을 매다는 건 그 다음 수단이다 — 이름이 곧
+  // 모양인 보스가 사람 실루엣이면 이름이 몸에 안 보인다.
+  if (look.model) {
+    const made = models.create(look.model)
+    if (made) {
+      // bossparts 가 붙일 자리(attachTo)를 안 준다 → 코드 조각을 안 붙인다.
+      // 진짜 몸이 있는데 그 위에 코드 눈·촉수를 얹으면 둘이 싸운다.
+      return { rig: { root: made.root, mats: made.mats, pose: made.pose }, mats: made.mats }
+    }
+    console.info(`[boss] 몸 없음: ${look.model} — 공용 몸으로 간다`)
+  }
   const rig = createCharacter({
     height: look.height, tint: look.tint, gear: look.gear ?? [], bulk: look.bulk ?? 1,
     set: look.set ?? 'hero',

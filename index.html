@@ -10,7 +10,16 @@
   html,body { width:100%; height:100%; overflow:hidden; background:#05060a; }
   body { font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif; }
   #app { position:fixed; inset:0; }
-  canvas { display:block; width:100%; height:100%; cursor:none; }
+  /* 커서. 전에는 cursor:none 이라 바닥 조준점만 있었다 — 눌러야 하는 것
+     (저승의 구덩이) 이 생기고 나서는 손이 어디 있는지가 보여야 한다.
+     threejsassets 의 Vesperfall 커서 묶음 (CREDITS.md). 48px 원본 그대로 쓴다. */
+  canvas { display:block; width:100%; height:100%;
+    cursor: url('/cursors/neutral.webp') 24 24, crosshair; }
+  /* 적을 겨눌 때 · 누를 수 있을 때 · 못 하는 때 — 상태마다 다른 커서 */
+  canvas.aim-hostile { cursor: url('/cursors/attack.webp') 24 24, crosshair; }
+  canvas.aim-use     { cursor: url('/cursors/interact.webp') 24 24, pointer; }
+  canvas.aim-blocked { cursor: url('/cursors/blocked.webp') 24 24, not-allowed; }
+  canvas.aim-loot    { cursor: url('/cursors/loot.webp') 24 24, grab; }
   #ui { position:fixed; inset:0; pointer-events:none; overflow:hidden; }
   .dmg { position:absolute; font-weight:800; font-variant-numeric:tabular-nums;
          text-shadow:0 2px 6px rgba(0,0,0,.9); will-change:transform,opacity; }

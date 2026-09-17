@@ -7,7 +7,8 @@ import { installTheme, meanderURI } from './theme.js'
  * 저승은 한 번뿐이고 여기서 고른 것이 끝까지 간다 — 화면부터 달라야 한다.
  * 위에는 말을 거는 망자, 아래에 유물 셋.
  *
- * 초상은 public/img/agamemnon.png 를 쓴다. 없으면 그림자 형상으로 대체한다.
+ * 초상은 public/img/agamemnon.webp 를 쓴다. 없으면 그림자 형상으로 대체한다.
+ * (원본 PNG 는 art/src-png/ 에 둔다 — 빌드에 실리면 1MB 가 그냥 나간다.)
  */
 const PORTRAIT = '/img/agamemnon.webp?v=4'
 

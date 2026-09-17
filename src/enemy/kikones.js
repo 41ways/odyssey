@@ -45,6 +45,152 @@ function meleeAttack(cfg) {
   }
 }
 
+/**
+ * 돌진 — 차징하고 나서 몸으로 밀고 들어온다.
+ *
+ * 지금까지 적은 전부 제자리에서 휘둘렀다. 그러면 거리만 지키면 다 피해지고,
+ * 잡몹은 "가까이 오면 때리는 것" 하나로 통일된다. **자리를 옮기며 때리는 것**이
+ * 하나 있어야 옆으로 도는 게 의미를 갖는다.
+ *
+ * 규칙은 지킨다: 시전이 시작되면 방향을 잠그고 장판을 깐다. 돌진 경로가
+ * 미리 보이므로 옆으로 빠지면 안 맞는다 — 빨간 데 서 있으면 맞는다.
+ */
+function dashAttack(cfg) {
+  return {
+    id: cfg.id,
+    startup: cfg.startup, active: cfg.active, recovery: cfg.recovery,
+    onStart(e, run) {
+      run.lockFacing = e.facing
+      run.origin = { x: e.pos.x, z: e.pos.z }
+      run.travelled = 0
+      // 지나갈 길을 통째로 깐다. 부채가 아니라 긴 통로다.
+      run.telegraph = e.fx.telegraph.show({
+        x: e.pos.x, z: e.pos.z, facing: e.facing,
+        range: cfg.distance + cfg.range, halfAngle: cfg.halfAngle ?? 0.28,
+        duration: cfg.startup / (e.actionRate ?? 1), color: cfg.color ?? '#ff5a3a',
+      })
+    },
+    onActive(e, run) {
+      e.fx.shake(cfg.shake ?? 0.2)
+      e.fx.slash(e.pos.x, e.pos.z, run.lockFacing, cfg.range, cfg.halfAngle ?? 0.28, cfg.color ?? '#ff8c6a')
+    },
+    /** 판정 구간 동안 실제로 앞으로 간다. 닿으면 한 번만 때리고 계속 달린다. */
+    onHitWindow(e, run, dt) {
+      const step = (cfg.distance / Math.max(cfg.active, 1e-3)) * (dt ?? 1 / 60)
+      if (run.travelled < cfg.distance) {
+        const go = Math.min(step, cfg.distance - run.travelled)
+        e.pos.x += Math.sin(run.lockFacing) * go
+        e.pos.z += Math.cos(run.lockFacing) * go
+        run.travelled += go
+        e._moved = 1
+      }
+      const p = e.world.player
+      if (p.dead || run.hitSet.has(p)) return
+      if (!sectorHit(e.pos, run.lockFacing, cfg.range, cfg.halfAngle ?? 0.28, p)) return
+      run.hitSet.add(p)
+      p.hurt(cfg.damage, {
+        from: e.pos, knockback: cfg.knockback ?? 12, hitstop: 0.09,
+        stagger: cfg.stagger ?? 0.3, color: '#ff6b5a',
+      })
+      e.fx.shake(0.4)
+    },
+  }
+}
+
+/**
+ * 도약 — 뛰어올라 떨어진다.
+ *
+ * 돌진이 '길을 깔고 밀고 오는 것' 이라면 도약은 '지금 서 있는 자리로 오는 것' 이다.
+ * 뜨는 순간 착지점을 잠그므로, 예고를 보고 **움직이면** 피해진다.
+ * 서서 막을 수 없는 공격이 하나 있어야 발이 놀 이유가 생긴다.
+ */
+function leapAttack(cfg) {
+  return {
+    id: cfg.id,
+    startup: cfg.startup, active: cfg.active, recovery: cfg.recovery,
+    onStart(e, run) {
+      const p = e.world.player
+      // 착지점은 뜨는 순간의 플레이어 자리. 공중에서 따라오지 않는다.
+      const dx = p.pos.x - e.pos.x, dz = p.pos.z - e.pos.z
+      const d = Math.hypot(dx, dz) || 1
+      const reach = Math.min(d, cfg.distance)
+      run.land = { x: e.pos.x + dx / d * reach, z: e.pos.z + dz / d * reach }
+      run.from = { x: e.pos.x, z: e.pos.z }
+      run.lockFacing = Math.atan2(dx, dz)
+      run.telegraph = e.fx.telegraph.show({
+        x: run.land.x, z: run.land.z, facing: 0,
+        range: cfg.radius, halfAngle: Math.PI, inner: 0,
+        duration: cfg.startup / (e.actionRate ?? 1), color: cfg.color ?? '#9fb8ff',
+      })
+    },
+    /** 선딜 동안 포물선으로 난다. 뜬 동안은 몸이 없다 — 지나가는 것이다. */
+    onWindup(e, run, k) {
+      e.pos.x = run.from.x + (run.land.x - run.from.x) * k
+      e.pos.z = run.from.z + (run.land.z - run.from.z) * k
+      // 높이는 actor 에 적어 두고 sync 가 마지막에 얹는다.
+      // Actor.sync 가 group.position 을 pos 로 통째로 덮어쓰기 때문에
+      // 여기서 직접 group.position.y 를 넣으면 다음 렌더에 지워진다.
+      e.hopY = Math.sin(k * Math.PI) * (cfg.height ?? 2.2)
+      e._moved = 1
+    },
+    onActive(e, run) {
+      e.pos.x = run.land.x; e.pos.z = run.land.z
+      e.hopY = 0
+      e.fx.ring(run.land.x, run.land.z, { color: cfg.color ?? '#9fb8ff', radius: cfg.radius, life: 0.4 })
+      e.fx.shake(cfg.shake ?? 0.35)
+    },
+    onHitWindow(e, run) {
+      const p = e.world.player
+      if (p.dead || run.hitSet.has(p)) return
+      if (Math.hypot(p.pos.x - run.land.x, p.pos.z - run.land.z) > cfg.radius + p.radius) return
+      run.hitSet.add(p)
+      p.hurt(cfg.damage, {
+        from: run.land, knockback: cfg.knockback ?? 9, hitstop: 0.08,
+        stagger: cfg.stagger ?? 0.26, color: '#c8d0ff',
+      })
+    },
+  }
+}
+
+/**
+ * 포효 — 맞으면 느려진다.
+ *
+ * 피해가 목적이 아니다. 발을 묶어서 **다음 공격이 맞게 만드는** 기술이다.
+ * 사자 하나가 울면 뒤의 늑대와 돼지가 값이 오른다 — 적 하나가 다른 적을
+ * 강하게 만드는 자리가 있어야 무리가 무리로 읽힌다.
+ */
+function roarAttack(cfg) {
+  return {
+    id: cfg.id,
+    startup: cfg.startup, active: cfg.active, recovery: cfg.recovery,
+    onStart(e, run) {
+      run.origin = { x: e.pos.x, z: e.pos.z }
+      run.telegraph = e.fx.telegraph.show({
+        x: e.pos.x, z: e.pos.z, facing: 0,
+        range: cfg.radius, halfAngle: Math.PI, inner: 0,
+        duration: cfg.startup / (e.actionRate ?? 1), color: cfg.color ?? '#ffb04a',
+      })
+    },
+    onActive(e, run) {
+      e.fx.ring(run.origin.x, run.origin.z, { color: cfg.color ?? '#ffb04a', radius: cfg.radius, life: 0.6 })
+      e.fx.shake(cfg.shake ?? 0.5)
+      e.world.particles?.burst({
+        x: run.origin.x, y: 1.1, z: run.origin.z, count: 22,
+        color: '#ffd08a', speed: 11, size: 0.18, life: 0.5, gravity: 2, up: 0.4,
+      })
+    },
+    onHitWindow(e, run) {
+      const p = e.world.player
+      if (p.dead || run.hitSet.has(p)) return
+      if (Math.hypot(p.pos.x - run.origin.x, p.pos.z - run.origin.z) > cfg.radius + p.radius) return
+      run.hitSet.add(p)
+      p.hurt(cfg.damage, { from: run.origin, knockback: 3, hitstop: 0.06, stagger: 0.1, color: '#ffd08a' })
+      // 이게 본론이다
+      p.slow(cfg.slowFor ?? 2.6, cfg.slowTo ?? 0.55)
+    },
+  }
+}
+
 const WARRIOR_SWING = meleeAttack({
   id: 'swing', startup: 0.58, active: 0.10, recovery: 0.72,
   range: 3.4, halfAngle: 0.85, damage: 14, knockback: 7, stagger: 0.24,
@@ -169,6 +315,8 @@ class Kikones extends Actor {
   /** 렌더 시점 포즈. Actor.sync 를 확장한다. */
   sync(camera) {
     super.sync(camera)
+    // 도약으로 뜬 높이. super.sync 가 자리를 덮은 뒤에 얹어야 남는다.
+    if (this.hopY) this.group.position.y += this.hopY
     const dt = 1 / 60
     this.animT += dt
     this._run += (clamp(this._moved, 0, 1) - this._run) * 0.18
@@ -204,6 +352,7 @@ class Kikones extends Actor {
     if (this.action.active) return
 
     this.cooldown -= dt
+    if (this.cooldown2 != null) this.cooldown2 -= dt
     this.strafeTimer -= dt
     if (this.strafeTimer <= 0) { this.strafe *= -1; this.strafeTimer = rand(1.0, 2.4) }
 
@@ -211,10 +360,18 @@ class Kikones extends Actor {
     const want = Math.atan2(p.pos.x - this.pos.x, p.pos.z - this.pos.z)
     this.facing = dampAngle(this.facing, want, 0.09, dt)
 
+    // 기술이 둘인 적은 쿨이 따로 돈다 — 포효는 길게, 앞발은 짧게.
+    // 하나로 묶으면 긴 쿨 하나에 발이 묶여서 사자가 멍하니 서 있게 된다.
     const pick = this.cfg.pickAction?.(this, d)
     if (pick && this.cooldown <= 0) {
       this.action.play(pick.def)
       this.cooldown = pick.cooldown
+      return
+    }
+    const second = this.cfg.pickSecond?.(this, d)
+    if (second && (this.cooldown2 ?? 0) <= 0) {
+      this.action.play(second.def)
+      this.cooldown2 = second.cooldown
       return
     }
 
@@ -269,7 +426,14 @@ export function kikonesArcher(world, fx) {
 /** 키르케가 부르는 돼지. 약하고 빠르고 자꾸 몸으로 민다. */
 export function circePig(world, fx) {
   return new Kikones(world, fx, {
-    hp: 34, radius: 0.44, mass: 1.3, speed: 5.6, keepRange: [1.6, 2.2], barHeight: 1.3, xp: 2,
+    // keepRange 를 넓힌다. 전에는 [1.6, 2.2] 로 몸에 붙어 살아서
+    // 돌진 조건(3.6 이상)이 한 번도 안 열렸다 — 기술을 넣어도 안 나가면 없는 것이다.
+    // 이제 밖에서 맴돌다 돌진으로 들어오고, 치고 나서 다시 빠진다.
+    //
+    // xp 는 2 였다. 짐승 판(아이아이에)은 처치 목표가 제일 높은데 마리당 값이
+    // 제일 낮아서, 같은 수를 잡고도 레벨이 한 번 덜 올랐다 — 판마다 두 번이
+    // 안 되면 곡선이 어긋난다. 돼지·늑대·사자를 한 칸씩 올려 사람 판과 맞췄다.
+    hp: 34, radius: 0.44, mass: 1.3, speed: 5.6, keepRange: [4.2, 6.4], barHeight: 1.3, xp: 3,
     weapon: null, scale: 0.75, bulk: 1.25,
     look: {
       model: 'pig',
@@ -278,6 +442,8 @@ export function circePig(world, fx) {
       palette: { skin: '#e0a0a8', cloth: '#c88890', leather: '#a06a70', bronze: '#9c7434', accent: '#b07078', dark: '#6a4448' },
     },
     pickAction(e, d) {
+      // 멀면 돌진, 붙으면 물기. 거리마다 다른 답이 있어야 거리 조절이 실력이 된다.
+      if (d > 3.6 && d < 9.5) return { def: PIG_RUSH, cooldown: rand(2.6, 4.0) }
       if (d < 2.3) return { def: PIG_CHARGE, cooldown: rand(0.9, 1.5) }
       return null
     },
@@ -291,7 +457,8 @@ export function circePig(world, fx) {
  */
 export function circeWolf(world, fx) {
   return new Kikones(world, fx, {
-    hp: 44, radius: 0.42, mass: 1.1, speed: 6.4, keepRange: [1.8, 2.6], barHeight: 1.4, xp: 3,
+    // 늑대도 같은 이유로 물린다. 뛰어서 붙는 놈이 걸어와 붙으면 안 된다.
+    hp: 44, radius: 0.42, mass: 1.1, speed: 6.4, keepRange: [4.0, 6.2], barHeight: 1.4, xp: 4,
     weapon: null, scale: 0.8, bulk: 1.0,
     look: {
       model: 'wolf',
@@ -300,7 +467,39 @@ export function circeWolf(world, fx) {
       palette: { skin: '#8a8276', cloth: '#6a6258', leather: '#4a443c', bronze: '#7c6a44', accent: '#5a5248', dark: '#2a2620' },
     },
     pickAction(e, d) {
+      // 뛰어서 붙고, 붙으면 문다. 걸어오는 늑대는 늑대가 아니다.
+      if (d > 3.4 && d < 9.0) return { def: WOLF_LEAP, cooldown: rand(2.2, 3.4) }
       if (d < 2.6) return { def: WOLF_BITE, cooldown: rand(0.7, 1.2) }
+      return null
+    },
+  })
+}
+
+/**
+ * 키르케의 사자. 느리고 질기고, 울어서 판을 만든다.
+ *
+ * 혼자 있으면 별로 안 무섭다 — 둔화가 값을 하는 건 뒤에 늑대와 돼지가
+ * 있을 때다. 이 적의 설계는 "다른 적을 강하게 만드는 것" 이다.
+ */
+export function circeLion(world, fx) {
+  return new Kikones(world, fx, {
+    hp: 96, radius: 0.54, mass: 2.2, speed: 4.0, keepRange: [2.6, 4.2], barHeight: 1.7, xp: 8,
+    weapon: null, scale: 0.95, bulk: 1.35,
+    look: {
+      // 사자 모델이 없다. 늑대 몸에 황금 색조로 대역을 쓴다 —
+      // 크기와 색이 다르면 실루엣으로는 구분된다.
+      model: 'wolf',
+      weapon: null, scale: 0.95, bulk: 1.35,
+      gltf: { height: 1.45, bulk: 1.4, tint: '#d8a850', gear: [] },
+      palette: { skin: '#d8a850', cloth: '#b08838', leather: '#8a6a2a', bronze: '#c89a44', accent: '#e8c070', dark: '#4a3818' },
+    },
+    pickAction(e, d) {
+      if (d < 9.0) return { def: LION_ROAR, cooldown: rand(7.5, 11) }
+      return null
+    },
+    // 두 기술을 거리로 나눈다. 포효는 쿨이 길고, 가까우면 앞발로 친다.
+    pickSecond(e, d) {
+      if (d < 3.0) return { def: LION_MAUL, cooldown: rand(1.4, 2.2) }
       return null
     },
   })
@@ -355,6 +554,36 @@ const SHIELD_BASH = meleeAttack({
 const PIG_CHARGE = meleeAttack({
   id: 'gore', startup: 0.36, active: 0.08, recovery: 0.4,
   range: 2.3, halfAngle: 0.7, damage: 9, knockback: 5, stagger: 0.14, color: '#ff8aa0',
+})
+
+/** 돼지의 돌진. 멀리서 머리를 숙이고 길을 깔고 밀고 들어온다. */
+const PIG_RUSH = dashAttack({
+  id: 'rush', startup: 0.72, active: 0.34, recovery: 0.66,
+  distance: 7.2, range: 2.0, halfAngle: 0.30,
+  damage: 16, knockback: 16, stagger: 0.34, shake: 0.3, color: '#ff7a90',
+})
+
+/** 늑대의 도약. 뜨는 순간의 자리로 떨어진다. */
+const WOLF_LEAP = leapAttack({
+  id: 'leap', startup: 0.52, active: 0.12, recovery: 0.52,
+  distance: 7.5, radius: 1.9, height: 2.4,
+  damage: 14, knockback: 10, stagger: 0.28, shake: 0.3, color: '#9fb8ff',
+})
+
+/**
+ * 사자의 포효. 피해는 적고 둔화가 본론이다.
+ *
+ * 키르케의 집 둘레에는 이리와 사자가 돌아다닌다 — 약에 걸려 짐승이 된
+ * 사람들이다. 늑대·돼지가 '붙는 쪽' 이라면 사자는 **판을 만드는 쪽**이다.
+ */
+const LION_ROAR = roarAttack({
+  id: 'roar', startup: 0.88, active: 0.14, recovery: 0.82,
+  radius: 8.5, damage: 6, slowFor: 2.8, slowTo: 0.52, shake: 0.55, color: '#ffb04a',
+})
+
+const LION_MAUL = meleeAttack({
+  id: 'maul', startup: 0.44, active: 0.10, recovery: 0.50,
+  range: 3.0, halfAngle: 0.85, damage: 19, knockback: 9, stagger: 0.30, color: '#ffa04a',
 })
 
 /** 허수아비 — 수치 확인용. 안 죽고 안 움직인다. */

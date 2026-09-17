@@ -1,17 +1,97 @@
 import * as THREE from 'three'
+import { makeArena } from '../stage/arena.js'
 import { damp, rand } from '../core/math.js'
 import { LOOKS } from './looks.js'
 import { models } from './models.js'
 
 /** 로스트아크식 쿼터뷰 리그. 스테이지마다 값만 갈아끼우면 된다. */
+/**
+ * 전장 카메라를 통째로 뒤로 무르는 배수.
+ *
+ * 얼굴이 읽히는 거리에서는 그레이박스 티가 난다 — 인물은 실루엣으로
+ * 읽혀야 하고, 대신 바닥에 깔리는 예고 장판이 다 들어와야 한다.
+ * 판마다 잡아 둔 거리(stages.js 의 camDistance)는 서로의 비율이 이미 맞춰져
+ * 있으므로, 개별 숫자를 건드리지 않고 여기 하나로 같이 민다.
+ */
+export const CAM_PULL = 1.12
+
+/** 보스 쪽으로 시선을 끄는 비율과, 아무리 멀어도 넘지 않는 한계. */
+const BOSS_LOOK = 0.36
+const BOSS_LOOK_MAX = 4.6
+
 export const CAMERA_RIG = {
   pitch: THREE.MathUtils.degToRad(40),  // 수평에서 올려다본 각
   yaw: 0,                                // 고정. 방향키 축이 화면 축과 그대로 맞는다
-  distance: 20.5,
+  distance: 20.5 * CAM_PULL,
   fov: 30,                               // 좁게 → 원근이 눌려서 장판이 잘 읽힌다
   lead: 0.18,                            // 마우스 쪽으로 시선이 끌려가는 정도
   leadMax: 3.2,
   follow: 0.10,                          // 추적 감쇠 반감기(초)
+}
+
+/**
+ * 바닥. 경계선을 그대로 부채꼴로 채운다.
+ *
+ * UV 는 월드 좌표에서 바로 뽑는다 — 모양이 바뀌어도 바닥 결의 크기가
+ * 그대로 남아야 한다. 도형 크기에 맞춰 늘리면 좁은 갑판에서 돌결이
+ * 고무처럼 늘어난다.
+ */
+function groundFan(edge, uvScale = 1 / 24) {
+  const pts = edge.outline(128)
+  const n = pts.length
+  const pos = new Float32Array((n + 1) * 3)
+  const uv = new Float32Array((n + 1) * 2)
+  const idx = []
+  pos[0] = 0; pos[1] = 0; pos[2] = 0
+  uv[0] = 0.5; uv[1] = 0.5
+  for (let i = 0; i < n; i++) {
+    const p = pts[i], j = i + 1
+    pos[j * 3] = p.x; pos[j * 3 + 1] = 0; pos[j * 3 + 2] = p.z
+    uv[j * 2] = p.x * uvScale + 0.5
+    uv[j * 2 + 1] = p.z * uvScale + 0.5
+    idx.push(0, j, i === n - 1 ? 1 : j + 1)
+  }
+  const g = new THREE.BufferGeometry()
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3))
+  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2))
+  g.setIndex(idx)
+  // 법선은 위로 못 박는다. 부채꼴 감는 방향에 따라 아래를 볼 수 있는데,
+  // 그러면 바닥이 통째로 검어진다.
+  const nrm = new Float32Array((n + 1) * 3)
+  for (let i = 0; i <= n; i++) nrm[i * 3 + 1] = 1
+  g.setAttribute('normal', new THREE.BufferAttribute(nrm, 3))
+  return g
+}
+
+/**
+ * 벽. 같은 경계선을 위로 세운 치마.
+ * 안쪽에서 보므로 면이 안을 향해야 한다 — 바깥으로 감으면 통째로 사라진다.
+ */
+function wallSkirt(edge, height = 3.4, flare = 0.4) {
+  const pts = edge.outline(128)
+  const n = pts.length
+  const pos = new Float32Array(n * 2 * 3)
+  const uv = new Float32Array(n * 2 * 2)
+  const idx = []
+  for (let i = 0; i < n; i++) {
+    const p = pts[i]
+    const k = 1 + flare / Math.max(Math.hypot(p.x, p.z), 1e-3)
+    // 아래(0) · 위(1)
+    pos[i * 6] = p.x; pos[i * 6 + 1] = 0; pos[i * 6 + 2] = p.z
+    pos[i * 6 + 3] = p.x * k; pos[i * 6 + 4] = height; pos[i * 6 + 5] = p.z * k
+    const u = i / n
+    uv[i * 4] = u; uv[i * 4 + 1] = 0
+    uv[i * 4 + 2] = u; uv[i * 4 + 3] = 1
+    const a0 = i * 2, a1 = i * 2 + 1
+    const b0 = ((i + 1) % n) * 2, b1 = b0 + 1
+    idx.push(a0, b0, a1, a1, b0, b1)
+  }
+  const g = new THREE.BufferGeometry()
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3))
+  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2))
+  g.setIndex(idx)
+  g.computeVertexNormals()
+  return g
 }
 
 function stoneTexture() {
@@ -105,21 +185,23 @@ export class World {
 
   #arena() {
     const R = 16
+    // 바닥과 벽은 setArenaRadius 가 판 모양에 맞춰 다시 만든다.
+    // 여기서는 자리만 잡아 둔다 — XZ 평면에 바로 짓기 때문에 회전이 없다.
     const ground = new THREE.Mesh(
-      new THREE.CircleGeometry(R + 2, 96),
+      groundFan(makeArena('round', R + 2)),
       new THREE.MeshStandardMaterial({ map: stoneTexture(), roughness: 0.95, metalness: 0 })
     )
-    ground.rotation.x = -Math.PI / 2
     ground.receiveShadow = true
     this.scene.add(ground)
     this.ground = ground
 
     // 투기장 테두리 — 경계가 눈에 보여야 몰리는 느낌이 난다
     const wall = new THREE.Mesh(
-      new THREE.CylinderGeometry(R + 2, R + 2.4, 3.2, 96, 1, true),
-      new THREE.MeshStandardMaterial({ color: '#2a2018', roughness: 1, side: THREE.BackSide })
+      wallSkirt(makeArena('round', R + 2), 3.4),
+      // 치마를 감는 방향이 모양마다 달라질 수 있으므로 양면으로 둔다.
+      // 한 겹짜리 띠라 양면이어도 비용이 없다.
+      new THREE.MeshStandardMaterial({ color: '#2a2018', roughness: 1, side: THREE.DoubleSide })
     )
-    wall.position.y = 1.6
     wall.receiveShadow = true
     this.scene.add(wall)
     this.wall = wall
@@ -139,6 +221,80 @@ export class World {
     }
     this.scene.add(rocks)
     this.rocks = rocks
+  }
+
+  /**
+   * 저승의 벽. 무너진 돌덩이들이 길을 만든다.
+   *
+   * 하나씩 메시를 만들면 스무 개 남짓에 드로우콜이 그만큼 는다.
+   * 판마다 개수가 달라지므로 InstancedMesh 를 필요한 만큼만 다시 만든다.
+   */
+  setMaze(walls) {
+    if (this.mazeMesh) {
+      this.scene.remove(this.mazeMesh)
+      this.mazeMesh.geometry.dispose()
+      this.mazeMesh.material.dispose()
+      this.mazeMesh = null
+    }
+    this.mazeWalls = walls ?? null
+    if (!walls?.length) return
+
+    const geo = new THREE.BoxGeometry(1, 1, 1)
+    const mat = new THREE.MeshStandardMaterial({
+      color: '#3d3550', roughness: 0.94, metalness: 0,
+    })
+    const m = new THREE.InstancedMesh(geo, mat, walls.length)
+    m.castShadow = m.receiveShadow = true
+    const mx = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler()
+    walls.forEach((w, i) => {
+      // 살짝 비스듬히 세운다. 각을 딱 맞추면 세트장처럼 보인다.
+      e.set(0, w.turn ?? 0, 0); q.setFromEuler(e)
+      mx.compose(
+        new THREE.Vector3(w.x, w.h * 0.5, w.z), q,
+        new THREE.Vector3(w.hw * 2, w.h, w.hd * 2),
+      )
+      m.setMatrixAt(i, mx)
+    })
+    m.instanceMatrix.needsUpdate = true
+    this.scene.add(m)
+    this.mazeMesh = m
+  }
+
+  /**
+   * 절벽. 판 한쪽 끝에 바위벽을 세운다.
+   *
+   * 스킬라는 배에 올라타는 짐승이 아니라 절벽 그 자체다. 벽이 없으면
+   * 돌 촉수가 허공에서 자라는 꼴이 된다 — 뻗어 나올 데가 있어야 한다.
+   */
+  setCliff(spec) {
+    if (this.cliff) {
+      this.scene.remove(this.cliff)
+      this.cliff.traverse(o => { o.geometry?.dispose?.(); o.material?.dispose?.() })
+      this.cliff = null
+    }
+    if (!spec) return
+    const arena = this.arena
+    const z = -(arena?.radiusAt(Math.PI) ?? 12) - (spec.back ?? 1.6)
+    const w = (arena?.radiusAt(Math.PI / 2) ?? 20) * 2.3
+    const g = new THREE.Group()
+    const rock = new THREE.MeshStandardMaterial({
+      color: spec.color ?? '#5e646c', roughness: 0.98, flatShading: true,
+    })
+    // 덩어리를 겹쳐 세운다. 판 하나로 세우면 벽지처럼 보인다.
+    const n = spec.count ?? 13
+    for (let i = 0; i < n; i++) {
+      const t = i / (n - 1)
+      const h = (spec.height ?? 11) * (0.62 + Math.sin(t * 7.3) * 0.2 + Math.random() * 0.24)
+      const bw = w / n * (1.15 + Math.random() * 0.5)
+      const m = new THREE.Mesh(new THREE.DodecahedronGeometry(1, 0), rock)
+      m.scale.set(bw * 0.5, h * 0.5, (spec.depth ?? 5) * (0.6 + Math.random() * 0.5))
+      m.position.set(-w / 2 + w * t, h * 0.28, z - Math.random() * 2)
+      m.rotation.set(Math.random() * 0.4, Math.random() * Math.PI, Math.random() * 0.3)
+      m.castShadow = m.receiveShadow = true
+      g.add(m)
+    }
+    this.scene.add(g)
+    this.cliff = g
   }
 
   async #composer() {
@@ -195,12 +351,17 @@ export class World {
     this.rimLight.intensity = e.rimIntensity ?? 1.1
 
     // 보스는 크다. 5m 짜리를 잡몹과 같은 거리에서 보면 화면에 안 들어온다.
-    CAMERA_RIG.distance = e.camDistance ?? 20.5
+    // 판이 정한 거리에 CAM_PULL 을 곱한다 — 판끼리의 비율은 그대로 두고 통째로 물린다.
+    CAMERA_RIG.distance = (e.camDistance ?? 20.5) * CAM_PULL
     CAMERA_RIG.pitch = THREE.MathUtils.degToRad(e.camPitch ?? 40)
     this.camera.fov = CAMERA_RIG.fov = e.camFov ?? 30
     this.camera.updateProjectionMatrix()
 
+    // 판이 바뀌면 이전 판의 벽은 사라져야 한다. 저승을 지나온 뒤
+    // 바다 한가운데 돌덩이가 서 있으면 안 된다.
+    this.setMaze(null)
     this.setArenaRadius(a.radius ?? 16, a.shape ?? 'round')
+    this.setCliff(a.cliff ?? null)
     this.wall.material.color.set(a.wallColor ?? '#2a2018')
     this.ground.material.color.set(a.groundTint ?? '#ffffff')
     this.rocks.visible = a.rocks !== false
@@ -239,8 +400,11 @@ export class World {
         const a = spec.spread === false
           ? (i / (spec.count ?? 1)) * Math.PI * 2 + (spec.offset ?? 0)
           : rand(0, Math.PI * 2)
-        const r = R * rand(r0, r1)
-        o.position.set(Math.cos(a) * r, spec.y ?? 0, Math.sin(a) * r)
+        // 벽을 따라 세운다. 원 반지름으로 두면 네모난 홀에서 기둥이
+        // 벽을 뚫고 나가거나 방 한가운데 둥글게 모여 선다.
+        const rr = this.arena ? this.arena.radiusAt(a) : R
+        const r = rr * rand(r0, r1)
+        o.position.set(Math.sin(a) * r, spec.y ?? 0, Math.cos(a) * r)
         o.rotation.y = rand(0, Math.PI * 2)
         const sc = spec.scale ? rand(spec.scale[0], spec.scale[1]) : 1
         o.scale.multiplyScalar(sc)
@@ -265,10 +429,12 @@ export class World {
     const n = Math.min(count, rocks.instanceMatrix.count)
     for (let i = 0; i < rocks.instanceMatrix.count; i++) {
       if (i >= n) { m.makeScale(0, 0, 0); rocks.setMatrixAt(i, m); continue }
-      const a = rand(0, Math.PI * 2), r = rand(4, R + 1.2)
+      const a = rand(0, Math.PI * 2)
+      const rr = this.arena ? this.arena.radiusAt(a) : R
+      const r = rand(4, rr + 1.2)
       const s = rand(lo, hi)
       e.set(rand(0, 3), rand(0, 3), rand(0, 3)); q.setFromEuler(e)
-      m.compose(new THREE.Vector3(Math.cos(a) * r, s * 0.32, Math.sin(a) * r), q, new THREE.Vector3(s, s * 0.6, s))
+      m.compose(new THREE.Vector3(Math.sin(a) * r, s * 0.32, Math.cos(a) * r), q, new THREE.Vector3(s, s * 0.6, s))
       rocks.setMatrixAt(i, m)
     }
     rocks.instanceMatrix.needsUpdate = true
@@ -360,19 +526,22 @@ export class World {
     if (this.arenaRadius === R && this._shape === shape) return
     this.arenaRadius = R
     this._shape = shape
+
+    // 경계 하나를 만들어 두고 바닥·벽·이동 제한·스폰이 전부 이걸 본다.
+    // 벽을 눈으로 그리는 식과 몸으로 막는 식이 다르면, 네모난 방에서
+    // 보이지 않는 둥근 벽에 막히는 일이 생긴다.
+    this.arena = makeArena(shape, R)
     const E = R + 2
+    const edge = makeArena(shape, E)      // 벽은 판보다 두 걸음 밖에 선다
+
     this.ground.geometry.dispose()
-    this.ground.geometry = shape === 'square'
-      ? new THREE.PlaneGeometry(E * 2, E * 2)
-      : new THREE.CircleGeometry(E, 96)
+    this.ground.geometry = groundFan(edge)
     this.wall.geometry.dispose()
-    this.wall.geometry = shape === 'square'
-      // 네 면짜리 원통 = 네모 방. 45도 돌려야 벽이 축과 나란해진다.
-      ? new THREE.CylinderGeometry(E * Math.SQRT2, E * Math.SQRT2 + 0.4, 3.6, 4, 1, true)
-      : new THREE.CylinderGeometry(E, E + 0.4, 3.2, 96, 1, true)
-    this.wall.rotation.y = shape === 'square' ? Math.PI / 4 : 0
-    this.wall.position.y = shape === 'square' ? 1.8 : 1.6
-    const d = R + 8
+    this.wall.geometry = wallSkirt(edge, 3.4)
+    this.wall.rotation.y = 0
+    this.wall.position.y = 0
+
+    const d = edge.maxRadius() + 6
     const c = this.keyLight.shadow.camera
     c.left = -d; c.right = d; c.top = d; c.bottom = -d
     c.updateProjectionMatrix()
@@ -388,11 +557,38 @@ export class World {
 
   addShake(amount) { this.shake = Math.min(this.shake + amount, 1.4) }
 
+  /**
+   * 지금 화면이 누구를 보고 있는지. 보스가 서 있는 동안에는 이쪽으로 시선을 끈다.
+   * null 이면 평소대로 플레이어만 본다.
+   */
+  setBossFocus(actor) { this.bossFocus = actor ?? null }
+
   /** focus = 플레이어 위치, aim = 마우스 지점. 시선이 조준 쪽으로 살짝 끌려간다. */
   updateCamera(focus, aim, dt) {
     const rig = CAMERA_RIG
     const want = this._want ??= new THREE.Vector3()
     want.copy(focus)
+
+    // 보스는 크고, 늘 플레이어 반대편에 선다. 시선을 플레이어에만 묶어 두면
+    // 머리가 화면 위로 잘려 나간다 — 예고도 약점도 화면 밖에서 벌어지고,
+    // 그러면 '보고 피한다' 도 '눈을 쏜다' 도 성립하지 않는다.
+    // 둘 사이로 조금 끌어 오되, 플레이어가 화면 가운데를 잃지 않을 만큼만.
+    const b = this.bossFocus
+    if (b && !b.dead) {
+      const bx = b.pos.x - focus.x, bz = b.pos.z - focus.z
+      const len = Math.hypot(bx, bz)
+      if (len > 0.01) {
+        // 난간 보스는 조금만 더 당긴다. 난간이 화면 위쪽을 가로지르고
+        // 그 아래 갑판에 플레이어가 서는 그림이라야 하는데, 너무 당기면
+        // 이번엔 플레이어가 화면 아래 HUD 뒤로 밀린다. 나머지는 판의
+        // camDistance 가 맡는다 — 넓은 배에는 넓은 샷.
+        const pull = b.cfg?.rail ? 1.1 : 1
+        const shift = Math.min(len * BOSS_LOOK * pull, BOSS_LOOK_MAX * pull)
+        want.x += bx / len * shift
+        want.z += bz / len * shift
+      }
+    }
+
     if (aim) {
       const dx = (aim.x - focus.x) * rig.lead
       const dz = (aim.z - focus.z) * rig.lead

@@ -26,6 +26,15 @@ export const MANIFEST = {
   tree: { url: '/models/tree.glb', height: 3.4 },
   jar: { url: '/models/jar.glb', height: 0.75 },
   pedestal: { url: '/models/pedestal.glb', height: 0.85 },
+  // 돌 뱀 머리 — 스킬라의 여섯 머리에 돌려 쓴다 (tools/prep-gen.mjs 로 깎았다)
+  serpentHead: { url: '/models/serpent-head.glb', height: 1.0 },
+  // ── 스케치팹에서 받은 보스 몸 (CREDITS.md 참고) ──
+  // 폴리페모스. 리깅 + Idle 애니 포함. 공용 사람 몸 대신 이걸 쓴다.
+  cyclopsBody: { url: '/models/cyclops.glb', height: 6.4 },
+  // 스킬라. 머리 여덟 달린 뱀 — 스킬라 여섯 머리의 대역이다. 정적 메시.
+  orochi: { url: '/models/orochi.glb', height: 5.5 },
+  // 절벽 바위. 스킬라 절벽과 동굴 판에 뿌린다.
+  cliffRock: { url: '/models/cliff-rock.glb', height: 2.2 },
 }
 
 /** 클립 이름이 제각각이라 느슨하게 맞춘다. 앞에 있는 후보일수록 우선. */
