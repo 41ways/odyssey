@@ -34,6 +34,19 @@ const CSS = `
 #hud .stats { position:absolute; right:18px; top:16px; font-size:12px; text-align:right;
   color:#7d7568; font-variant-numeric:tabular-nums; line-height:1.7; }
 #hud .stats b { color:#e8c98a; font-size:22px; font-weight:800; }
+#hud .banner { position:absolute; left:0; right:0; top:19%; text-align:center; opacity:0;
+  transition:opacity .5s, transform .5s; transform:translateY(10px); pointer-events:none; }
+#hud .banner.on { opacity:1; transform:none; }
+#hud .banner h1 { font-size:40px; font-weight:800; letter-spacing:.3em; text-indent:.3em;
+  color:#f0e2c6; text-shadow:0 4px 34px rgba(0,0,0,.9); }
+#hud .banner p { margin-top:12px; font-size:14px; letter-spacing:.14em; color:#b09a74; }
+#hud .toast { position:absolute; left:0; right:0; top:34%; text-align:center; opacity:0;
+  transition:opacity .35s; pointer-events:none;
+  font-size:16px; letter-spacing:.12em; color:#e0b77a; text-shadow:0 2px 14px #000; }
+#hud .toast.on { opacity:1; }
+#hud .wave { position:absolute; left:50%; top:20px; transform:translateX(-50%);
+  font-size:12px; letter-spacing:.1em; color:#8b8378; font-variant-numeric:tabular-nums; }
+#hud .wave b { color:#e8c98a; font-weight:700; }
 #hud .dead { position:absolute; inset:0; display:grid; place-items:center;
   background:rgba(10,4,4,.72); opacity:0; transition:opacity .6s; }
 #hud .dead.on { opacity:1; }
@@ -64,6 +77,9 @@ export class Hud {
         <div>누적 피해</div><b class="dmg">0</b>
         <div class="fps">— fps</div>
       </div>
+      <div class="wave"></div>
+      <div class="banner"><h1></h1><p></p></div>
+      <div class="toast"></div>
       <div class="dead"><p>죽음</p></div>`
     root.appendChild(el)
 
@@ -77,10 +93,30 @@ export class Hud {
     this.statsEl = el.querySelector('.keys .grown')
     this.fpsEl = el.querySelector('.fps')
     this.deadEl = el.querySelector('.dead')
+    this.waveEl = el.querySelector('.wave')
+    this.bannerEl = el.querySelector('.banner')
+    this.toastEl = el.querySelector('.toast')
 
     this.pipEls = []
     this._fpsAcc = 0
     this._fpsN = 0
+  }
+
+  /** 스테이지 이름을 크게 띄운다. */
+  banner(title, sub, hold = 2.6) {
+    this.bannerEl.querySelector('h1').textContent = title
+    this.bannerEl.querySelector('p').textContent = sub ?? ''
+    this.bannerEl.classList.add('on')
+    clearTimeout(this._bannerT)
+    this._bannerT = setTimeout(() => this.bannerEl.classList.remove('on'), hold * 1000)
+  }
+
+  /** 웨이브가 바뀔 때 한 줄. */
+  toast(text, hold = 2.2) {
+    this.toastEl.textContent = text
+    this.toastEl.classList.add('on')
+    clearTimeout(this._toastT)
+    this._toastT = setTimeout(() => this.toastEl.classList.remove('on'), hold * 1000)
   }
 
   setCharges(n) {
@@ -93,7 +129,7 @@ export class Hud {
     }
   }
 
-  update(player, { totalDamage, dt, kills = 0, kit = null }) {
+  update(player, { totalDamage, dt, kills = 0, kit = null, stage = null }) {
     const k = clamp(player.hp / player.maxHp, 0, 1)
     this.hpFill.style.transform = `scaleX(${k})`
     this.hpGhost.style.transform = `scaleX(${k})`
@@ -129,6 +165,11 @@ export class Hud {
     if (st.meleeRange > 1.001) parts.push(`사거리 +${pct(st.meleeRange)}`)
     const line = parts.join(' · ')
     if (line !== this._statLine) { this.statsEl.textContent = line; this._statLine = line }
+
+    if (stage) {
+      const label = `${stage.name} · <b>${Math.min(kills, stage.goal)}</b> / ${stage.goal}`
+      if (label !== this._waveLabel) { this.waveEl.innerHTML = label; this._waveLabel = label }
+    }
 
     this.dmgEl.textContent = Math.round(totalDamage).toLocaleString('ko-KR')
 

@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { clamp } from '../core/math.js'
 
 /**
  * 전리품 장비.
@@ -238,45 +239,160 @@ export function buildBowProp() {
   return { group: g, mats: M.mats }
 }
 
-/** 코린토스식 투구. 머리 관절에 건다. */
+/**
+ * 코린토스식 투구.
+ *
+ * 반구에 박스를 얹으면 냄비가 된다. 진짜 실루엣은 옆에서 본 윤곽에서 나온다 —
+ * 정수리에서 둥글게 내려오다 볼 쪽에서 한 번 벌어지고 목덜미로 떨어진다.
+ * 그래서 돔은 라스(회전체)로 뽑는다.
+ */
 export function buildHelmetProp() {
   const M = propMaterials()
+  const dark = new THREE.MeshStandardMaterial({ color: '#171008', roughness: 0.95 })
+  const deep = new THREE.MeshStandardMaterial({ color: '#8a5f26', roughness: 0.42, metalness: 0.8 })
+  M.mats.push(dark, deep)
+
   const g = new THREE.Group()
-  const add = m => { m.castShadow = m.receiveShadow = true; g.add(m); return m }
-  const dome = add(new THREE.Mesh(new THREE.SphereGeometry(0.145, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.68), M.bronze))
-  dome.position.y = 0.02; dome.scale.set(1, 1.12, 1.05)
-  const band = add(new THREE.Mesh(new THREE.TorusGeometry(0.145, 0.018, 6, 18), M.bronze))
-  band.position.y = -0.01; band.rotation.x = Math.PI / 2; band.scale.z = 1.05
-  const nose = add(new THREE.Mesh(new THREE.BoxGeometry(0.032, 0.14, 0.03), M.bronze))
-  nose.position.set(0, -0.05, 0.142)
-  for (const s of [-1, 1]) {
-    const cheek = add(new THREE.Mesh(new THREE.BoxGeometry(0.028, 0.13, 0.09), M.bronze))
-    cheek.position.set(0.115 * s, -0.055, 0.075)
-    cheek.rotation.y = -0.35 * s
+  const add = (m, mat) => { m.castShadow = m.receiveShadow = true; g.add(m); return m }
+
+  // 옆에서 본 윤곽 (반지름, 높이). 아래가 살짝 벌어져 목덜미를 덮는다.
+  const profile = [
+    [0.000, -0.175], [0.092, -0.180], [0.150, -0.168], [0.170, -0.130],
+    [0.172, -0.060], [0.170, 0.010], [0.164, 0.080], [0.150, 0.140],
+    [0.124, 0.192], [0.086, 0.232], [0.045, 0.256], [0.000, 0.264],
+  ].map(([x, y]) => new THREE.Vector2(x, y))
+  const dome = add(new THREE.Mesh(new THREE.LatheGeometry(profile, 28), M.bronze))
+  dome.material.side = THREE.DoubleSide
+
+  // 얼굴 구멍 — 코린토스 투구의 T 자 트임
+  const socket = (x) => {
+    const e = add(new THREE.Mesh(new THREE.BoxGeometry(0.052, 0.046, 0.06), dark))
+    e.position.set(x, 0.022, 0.138)
+    e.rotation.x = -0.12
   }
-  const fin = add(new THREE.Mesh(new THREE.BoxGeometry(0.026, 0.04, 0.26), M.bronze))
-  fin.position.set(0, 0.135, -0.01)
-  const plume = add(new THREE.Mesh(new THREE.BoxGeometry(0.052, 0.09, 0.27), M.crest))
-  plume.position.set(0, 0.185, -0.015)
-  const tail = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.026, 0.14, 4, 8), M.crest))
-  tail.position.set(0, 0.145, -0.19); tail.rotation.x = 1.3
+  socket(-0.055); socket(0.055)
+  const gap = add(new THREE.Mesh(new THREE.BoxGeometry(0.115, 0.075, 0.05), dark))
+  gap.position.set(0, -0.098, 0.128)
+
+  // 코가리개 — 두 눈 사이를 세로로 가른다
+  const nose = add(new THREE.Mesh(new THREE.BoxGeometry(0.036, 0.135, 0.042), M.bronze))
+  nose.position.set(0, -0.032, 0.152)
+  // 눈썹 능선
+  for (const sx of [-1, 1]) {
+    const brow = add(new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.022, 0.03), deep))
+    brow.position.set(0.058 * sx, 0.055, 0.15)
+    brow.rotation.z = -0.22 * sx
+  }
+  // 아래 테두리
+  const rim = add(new THREE.Mesh(new THREE.TorusGeometry(0.168, 0.015, 6, 24), deep))
+  rim.position.y = -0.162; rim.rotation.x = Math.PI / 2
+
+  // 볏 받침 — 앞뒤로 낮게 누운 청동 날
+  const fin = add(new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.05, 0.33), deep))
+  fin.position.set(0, 0.24, -0.01)
+
+  // 말총 볏. 토막을 호를 따라 늘어놓고 끝으로 갈수록 가늘게 —
+  // 상자 하나로 만들면 벽돌처럼 보인다.
+  const crest = new THREE.Group()
+  const N = 14
+  for (let i = 0; i < N; i++) {
+    const t = i / (N - 1)
+    const a = (t - 0.5) * 2.3                      // 앞에서 뒤로 넘어가는 호
+    const taper = Math.sin(t * Math.PI) * 0.75 + 0.25
+    const seg = new THREE.Mesh(new THREE.BoxGeometry(0.044, 0.1 * taper, 0.05), M.crest)
+    seg.position.set(0, Math.cos(a) * 0.1 + 0.245, -Math.sin(a) * 0.17 - 0.01)
+    seg.rotation.x = a * 0.5
+    seg.castShadow = true
+    crest.add(seg)
+  }
+  g.add(crest)
+
+  // 목덜미로 흘러내리는 꼬리
+  const tail = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.028, 0.2, 4, 8), M.crest))
+  tail.position.set(0, 0.16, -0.21); tail.rotation.x = 1.15
+  tail.scale.set(1.5, 1, 1)
+
   return { group: g, mats: M.mats }
 }
 
-/** 붉은 망토. 등 관절에 건다. */
+/**
+ * 붉은 망토.
+ *
+ * 천 한 장을 통째로 기울이면 판때기가 흔들리는 것처럼 보인다.
+ * 마디를 셋으로 나눠 위에서 아래로 매달고, 각 마디가 윗마디를 뒤늦게 따라가게 한다.
+ * 끝으로 갈수록 느슨하게 잡아서 자락이 늦게 따라오도록 했다.
+ */
 export function buildCapeProp() {
   const M = propMaterials()
   const g = new THREE.Group()
-  // 어깨에서 허리 아래까지. 넓게 펴면 판때기로 보인다.
-  const cloth = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.17, 0.28, 0.72, 18, 3, true, Math.PI * 0.55, Math.PI * 0.9), M.wool)
-  cloth.castShadow = true
-  cloth.position.set(0, -0.3, -0.02)
-  g.add(cloth)
+
+  // stiff 는 스프링 세기, zeta 는 감쇠비. zeta 가 1 근처면 출렁이지 않고 한 번에 잦아든다.
+  // 아래로 갈수록 무르게 잡아서 자락이 늦게 따라온다.
+  // stiff 는 스프링 세기, zeta 는 감쇠비. zeta 가 1 근처면 출렁이지 않고 한 번에 잦아든다.
+  // share 는 전체 기울기 중 이 마디가 맡는 몫 — 합이 1 이다.
+  // 마디가 부모의 자식이라 각도가 더해지므로, 몫으로 나눠 갖지 않으면 수평으로 뻗는다.
+  const SPEC = [
+    { len: 0.30, top: 0.165, bot: 0.215, stiff: 120, zeta: 1.0, share: 0.5 },
+    { len: 0.28, top: 0.215, bot: 0.255, stiff: 72, zeta: 0.9, share: 0.3 },
+    { len: 0.27, top: 0.255, bot: 0.30, stiff: 46, zeta: 0.82, share: 0.2 },
+  ]
+
+  const segments = []
+  let parent = g
+  for (let i = 0; i < SPEC.length; i++) {
+    const c = SPEC[i]
+    const pivot = new THREE.Group()
+    pivot.position.y = i === 0 ? 0 : -SPEC[i - 1].len
+    const mesh = new THREE.Mesh(
+      new THREE.CylinderGeometry(c.top, c.bot, c.len, 16, 1, true, Math.PI * 0.56, Math.PI * 0.88),
+      M.wool)
+    mesh.position.y = -c.len / 2
+    mesh.position.z = -0.02
+    mesh.castShadow = true
+    pivot.add(mesh)
+    parent.add(pivot)
+    parent = pivot
+    segments.push({ pivot, ...c, ax: 0, vax: 0, az: 0, vaz: 0 })
+  }
+
   const clasp = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 6), M.bronze)
   clasp.position.set(0.13, 0.03, 0.05)
+  clasp.castShadow = true
   g.add(clasp)
-  return { group: g, cloth, mats: M.mats }
+
+  let t = 0
+  return {
+    group: g,
+    mats: M.mats,
+    /**
+     * @param {object} s  { run 0..1, turn 초당 회전(rad), rolling }
+     */
+    update(dt, s = {}) {
+      t += dt
+      const run = s.run ?? 0
+      const turn = s.turn ?? 0
+      // 전체 기울기. 서 있으면 거의 수직, 달리면 뒤로 눕고, 구르면 말린다.
+      const lean = clamp(s.rolling ? 1.1 : 0.14 + run * 0.62, 0, 1.2)
+      const swing = clamp(-turn * 0.11, -0.5, 0.5)
+
+      for (let i = 0; i < segments.length; i++) {
+        const seg = segments[i]
+        const targetX = lean * seg.share + Math.sin(t * 2.4 + i * 0.9) * 0.02 * (1 - run * 0.6)
+        const targetZ = swing * seg.share + Math.sin(t * 3.1 + i * 1.3) * 0.022
+
+        // 감쇠 스프링. exp 감쇠라 프레임레이트가 흔들려도 결과가 같다.
+        const w = Math.sqrt(seg.stiff)
+        const decay = Math.exp(-2 * seg.zeta * w * dt)
+        seg.vax = (seg.vax + (targetX - seg.ax) * seg.stiff * dt) * decay
+        seg.vaz = (seg.vaz + (targetZ - seg.az) * seg.stiff * dt) * decay
+        seg.ax = clamp(seg.ax + seg.vax * dt, -0.15, 0.75)
+        seg.az = clamp(seg.az + seg.vaz * dt, -0.35, 0.35)
+
+        seg.pivot.rotation.x = seg.ax
+        seg.pivot.rotation.z = seg.az
+      }
+    },
+  }
 }
 
 /** 창. 키코네스 전사가 든다. */

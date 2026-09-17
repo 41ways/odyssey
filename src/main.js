@@ -10,14 +10,15 @@ import { kikonesWarrior, kikonesArcher, dummy } from './enemy/kikones.js'
 import { Hud } from './ui/hud.js'
 import { LevelUp } from './ui/levelup.js'
 import { Pickups } from './combat/pickup.js'
-import { rollChoices, newStats } from './player/stats.js'
+import { rollChoices, newStats, newlyUnlocked, TIERS } from './player/stats.js'
+import { ISMAROS, WaveRunner } from './stage/ismaros.js'
 import { KIT, kitProgress } from './player/gear.js'
 import { models } from './render/models.js'
 import { preloadCharacter } from './render/character.js'
 import { rand } from './core/math.js'
 
 /**
- * 0단계 — 전투 코어 시험장.
+ * 이스마로스 — 첫 판.
  * 아직 로그라이크도 스테이지도 없다. 이동 / 구르기 / 칼 / 활의 손맛만 본다.
  * 여기가 재미없으면 보스 아홉 마리를 만들어도 소용없다.
  */
@@ -34,6 +35,9 @@ class Game {
 
     this.kills = 0
     this.paused = false
+    this.taken = new Map()          // 고른 선택지와 횟수. 등급 해금의 근거
+    this.stage = ISMAROS
+    this.waves = new WaveRunner(ISMAROS, this)
 
     this.enemies = []
     this.corpses = []
@@ -60,12 +64,11 @@ class Game {
     this.render3d.scene.add(this.player.group)
     this.render3d.camTarget.copy(this.player.pos)
 
-    this.spawnDummy()
-    this.spawnWave()
+    this.hud.banner(ISMAROS.name, ISMAROS.intro, 3.4)
 
     addEventListener('keydown', e => {
-      if (e.code === 'KeyR') this.reset()        // 다시 시작
-      if (e.code === 'KeyQ') this.spawnWave()   // 적 추가 소환
+      if (e.code === 'KeyR') this.reset()                       // 다시 시작
+      if (e.code === 'KeyQ') this.spawnEnemy('warrior')         // 시험용 추가 소환
     })
 
     this.loop = createLoop({
@@ -81,8 +84,11 @@ class Game {
     if (!enemy.isDummy) {
       const die = enemy.die.bind(enemy)
       enemy.die = () => {
+        const wasBurning = !!enemy.burn
         die()
         this.kills++
+        // 옮아붙는 불 — 불타 죽으면 주위로 번진다
+        if (wasBurning && this.player.stats.burn >= 2) this.#spreadFire(enemy)
         // 이번 처치로 장비가 열리면 시체 자리에 전리품을 떨군다
         const piece = KIT.find(k => k.kills === this.kills)
         if (piece) this.pickups.drop(enemy.pos.x, enemy.pos.z, piece, { color: '#ffd27a' })
@@ -93,25 +99,34 @@ class Game {
     return enemy
   }
 
-  spawnDummy() {
-    const d = dummy(this, this.fx)
-    d.pos.set(0, 0, -6)
-    this.track(d)
+  /** 불이 번진다. 죽은 자리 주위의 적에게 옮아붙는다. */
+  #spreadFire(from) {
+    const R = 3.4
+    this.fx.ring(from.pos.x, from.pos.z, { color: '#ff7a2a', radius: R * 1.2, life: 0.5 })
+    for (const e of this.enemies) {
+      if (e.dead || e.isDummy) continue
+      if (Math.hypot(e.pos.x - from.pos.x, e.pos.z - from.pos.z) > R) continue
+      e.ignite({ dps: 7 * this.player.stats.meleeDamage, seconds: 3.5, level: this.player.stats.burn })
+    }
   }
 
-  spawnWave() {
-    for (let i = 0; i < 4; i++) {
-      const a = rand(0, Math.PI * 2)
-      const e = kikonesWarrior(this, this.fx)
-      e.pos.set(Math.sin(a) * rand(9, 13), 0, Math.cos(a) * rand(9, 13))
-      this.track(e)
-    }
-    for (let i = 0; i < 2; i++) {
-      const a = rand(0, Math.PI * 2)
-      const e = kikonesArcher(this, this.fx)
-      e.pos.set(Math.sin(a) * 13, 0, Math.cos(a) * 13)
-      this.track(e)
-    }
+  /** 플레이어 반대편 가장자리에서 들어온다. 등 뒤에 갑자기 생기면 억울하다. */
+  spawnEnemy(kind = 'warrior') {
+    const p = this.player.pos
+    const away = Math.atan2(-p.x, -p.z) + rand(-1.1, 1.1)
+    const r = this.arenaRadius - rand(0.6, 2.2)
+    const make = kind === 'archer' ? kikonesArcher : kikonesWarrior
+    const e = make(this, this.fx)
+    e.pos.set(Math.sin(away) * r, 0, Math.cos(away) * r)
+    e.facing = Math.atan2(p.x - e.pos.x, p.z - e.pos.z)
+    this.fx.ring(e.pos.x, e.pos.z, { color: '#c2705e', radius: 1.6, life: 0.45 })
+    return this.track(e)
+  }
+
+  onWaveSay(text) { this.hud.toast(text) }
+
+  onStageClear(stage) {
+    this.hud.banner(`${stage.name} 통과`, stage.clear, 4.5)
   }
 
   reset() {
@@ -121,22 +136,27 @@ class Game {
     this.corpses.length = 0
     this.totalDamage = 0
     this.pickups.clear()
+    this.projectiles.clear()
     this.kills = 0
+    this.taken.clear()
+    this.waves.reset()
     this.player.gear.reset()
     this.player.stats = newStats()
     this.player.applyStats()
+    this.player._echo = null
     const p = this.player
     p.hp = p.maxHp; p.dead = false; p.rollCharges = 3; p.rolling = 0
     p.stagger = 0; p.invuln = 0; p.action.stop()
     p.pos.set(0, 0, 6); p.vel.set(0, 0, 0)
-    this.spawnDummy()
-    this.spawnWave()
+    this.hud.banner(this.stage.name, this.stage.intro, 3.0)
   }
 
   update(dt) {
     if (this.paused) return
     // 히트스톱: 시뮬레이션만 멈춘다. 연출은 실시간으로 계속 흐른다.
     if (this.fx.hitstop > 0) return
+
+    this.waves.update(dt)
 
     this.input.update(dt)
     const aim = this.input.updateAim()
@@ -183,11 +203,20 @@ class Game {
       const piece = this._queue.shift()
       this.player.equip(piece.id)
       this.fx.ring(this.player.pos.x, this.player.pos.z, { color: '#ffd27a', radius: 3.6, life: 0.6 })
+      const before = new Map(this.taken)
       const pick = await this.levelUp.show({
-        heading: piece.name, sub: piece.line, choices: rollChoices(3),
+        heading: piece.name, sub: piece.line,
+        choices: rollChoices(3, this.taken),
+        unlocked: this._pendingUnlocks ?? [],
+        tiers: TIERS,
       })
+      this._pendingUnlocks = null
+      this.taken.set(pick.id, (this.taken.get(pick.id) ?? 0) + 1)
       pick.apply(this.player.stats)
       this.player.applyStats()
+      // 이번 선택으로 윗등급이 열렸으면 다음 화면에서 알려 준다
+      const opened = newlyUnlocked(before, this.taken)
+      if (opened.length) this._pendingUnlocks = opened
       this.fx.ring(this.player.pos.x, this.player.pos.z, { color: '#9fe0ff', radius: 3.0, life: 0.5 })
     }
     this.paused = false
@@ -204,7 +233,7 @@ class Game {
     this.render3d.render()
     this.hud.update(this.player, {
       totalDamage: this.totalDamage, dt: this._real ?? 1 / 60,
-      kills: this.kills, kit: kitProgress(this.kills),
+      kills: this.kills, kit: kitProgress(this.kills), stage: this.stage,
     })
   }
 }

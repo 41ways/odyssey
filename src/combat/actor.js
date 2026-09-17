@@ -36,6 +36,7 @@ export class Actor {
     this.stagger = 0       // 경직. 남아있으면 행동 불가
     this.actionRate = 1    // 공격속도 배수. 액션 프레임 전체가 이 비율로 빨라진다
     this.hurtFlash = 0
+    this.burn = null       // { left, dps, tick, level, from }
     this.action = new ActionRunner(this)
     this.group = new THREE.Group()
     this.bodyMats = []
@@ -48,6 +49,13 @@ export class Actor {
   }
 
   get alive() { return !this.dead }
+
+  /** 화상. 같은 불이 겹치면 시간만 갱신하고 더 센 불이면 갈아탄다. */
+  ignite({ dps, seconds, level = 1, from = null }) {
+    if (this.dead) return
+    if (!this.burn || dps >= this.burn.dps) this.burn = { left: seconds, dps, tick: 0, level, from }
+    else this.burn.left = Math.max(this.burn.left, seconds)
+  }
   get busy() { return this.action.active || this.stagger > 0 }
 
   faceTo(x, z) { this.facing = Math.atan2(x - this.pos.x, z - this.pos.z) }
@@ -98,6 +106,21 @@ export class Actor {
 
     this.action.update(dt)
 
+    // 화상 — 0.5초마다 한 번씩 깎는다. 매 프레임 깎으면 숫자가 폭포처럼 쏟아진다.
+    if (this.burn) {
+      this.burn.left -= dt
+      this.burn.tick += dt
+      if (this.burn.tick >= 0.5) {
+        this.burn.tick -= 0.5
+        const dealt = Math.min(this.burn.dps * 0.5, this.hp)
+        this.hp = Math.max(0, this.hp - dealt)
+        this.onHurt?.(dealt, this)
+        this.fx?.number(this.pos.clone().setY(1.7), Math.round(dealt), { color: '#ff8a3a', size: 22 })
+        if (this.hp <= 0) { this.burnedOut = true; this.die(); return }
+      }
+      if (this.burn.left <= 0) this.burn = null
+    }
+
     this.pos.x += this.vel.x * dt
     this.pos.z += this.vel.z * dt
     const drag = Math.pow(0.0005, dt)
@@ -129,9 +152,11 @@ export class Actor {
       this.bar.visible = !this.dead && this.hp < this.maxHp
     }
     const flash = this.hurtFlash > 0 ? clamp(this.hurtFlash / 0.14, 0, 1) : 0
+    // 불타는 동안은 벌겋게 달아오른다. 맞았을 때의 번쩍임과 섞인다.
+    const heat = this.burn ? 0.35 + Math.sin(performance.now() * 0.012) * 0.12 : 0
     for (const m of this.bodyMats) {
       if (!m.emissive) continue
-      m.emissive.setRGB(flash * 1.6, flash * 0.7, flash * 0.5)
+      m.emissive.setRGB(flash * 1.6 + heat, flash * 0.7 + heat * 0.35, flash * 0.5 + heat * 0.05)
     }
   }
 }

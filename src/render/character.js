@@ -214,6 +214,21 @@ export function createCharacter({ height = 1.82, facing = 0, tint = null, gear: 
       return mount
     },
 
+    /**
+     * 본이 아니라 캐릭터 몸통 기준으로 단다.
+     * 망토처럼 "등에 걸려 있되 전투 자세의 상체 비틀림까지 따라가면 곤란한" 것에 쓴다.
+     * 위치가 예측 가능해서 흔들림을 전부 코드로 통제할 수 있다.
+     */
+    attachToBody(object3d, { position = [0, 0, 0], rotation, scale = 1 } = {}) {
+      const mount = new THREE.Group()
+      mount.position.fromArray(position)
+      if (rotation) mount.rotation.fromArray(rotation)
+      mount.scale.setScalar(scale)
+      mount.add(object3d)
+      root.add(mount)
+      return mount
+    },
+
     /** 본 목록. 붙일 자리를 찾을 때 콘솔에서 본다. */
     boneNames() { return [...boneByName.keys()] },
 

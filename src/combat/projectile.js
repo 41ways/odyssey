@@ -47,6 +47,10 @@ export class Projectiles {
       hitstop: o.hitstop ?? 0.04,
       traveled: 0,
       range: o.range ?? 34,
+      ricochet: o.ricochet ?? 0,        // 남은 튕김 횟수
+      ricochetLevel: o.ricochetLevel ?? 0,
+      ignite: o.ignite ?? null,        // 맞은 적에게 붙일 불
+      radius0: o.radius ?? 0.3,
       hitSet: new Set(),
     })
   }
@@ -68,8 +72,10 @@ export class Projectiles {
           if (!circleHit(p.pos.x, p.pos.z, p.radius, a)) continue
           p.hitSet.add(a)
           a.hurt(p.damage, { from: p.pos, knockback: p.knockback, hitstop: p.hitstop, color: '#ffd27a' })
-          if (p.pierce > 0) p.pierce--
-          else { gone = true }
+          if (p.ignite) a.ignite(p.ignite)
+          if (p.pierce > 0) { p.pierce--; break }
+          if (p.ricochet > 0 && this.#bounce(p, actors)) break
+          gone = true
           break
         }
       }
@@ -81,5 +87,52 @@ export class Projectiles {
         this.live.splice(i, 1)
       }
     }
+  }
+
+  /**
+   * 다음 표적으로 튕긴다. 아직 안 맞은 적 중 가장 가까운 쪽.
+   * 레벨 2 부터는 튕길 때마다 세지고, 3 이면 갈라져 둘이 된다.
+   */
+  #bounce(p, actors) {
+    let best = null, bestD = 9
+    for (const a of actors) {
+      if (a.dead || a.team === p.team || p.hitSet.has(a)) continue
+      const d = Math.hypot(a.pos.x - p.pos.x, a.pos.z - p.pos.z)
+      if (d < bestD) { bestD = d; best = a }
+    }
+    if (!best) return false
+
+    p.ricochet--
+    p.dir = Math.atan2(best.pos.x - p.pos.x, best.pos.z - p.pos.z)
+    p.traveled = 0
+    p.range = 12
+    if (p.ricochetLevel >= 2) { p.damage *= 1.45; p.ricochet++ }
+    p.mesh.rotation.y = p.dir
+    this.fx?.ring(p.pos.x, p.pos.z, { color: '#9fe0ff', radius: 1.2, life: 0.2 })
+
+    // 갈라짐 — 두 번째로 가까운 적에게 사본을 하나 더 보낸다
+    if (p.ricochetLevel >= 3 && p.ricochet > 0) {
+      let second = null, secondD = 9
+      for (const a of actors) {
+        if (a.dead || a.team === p.team || p.hitSet.has(a) || a === best) continue
+        const d = Math.hypot(a.pos.x - p.pos.x, a.pos.z - p.pos.z)
+        if (d < secondD) { secondD = d; second = a }
+      }
+      if (second) {
+        this.spawn({
+          x: p.pos.x, z: p.pos.z, y: p.pos.y,
+          dir: Math.atan2(second.pos.x - p.pos.x, second.pos.z - p.pos.z),
+          speed: p.speed, damage: p.damage, team: p.team,
+          knockback: p.knockback, hitstop: p.hitstop, color: '#bde4ff',
+          range: 12, ricochet: p.ricochet - 1, ricochetLevel: p.ricochetLevel,
+        })
+      }
+    }
+    return true
+  }
+
+  clear() {
+    for (const p of this.live) { this.scene.remove(p.mesh); this.pool.push(p.mesh) }
+    this.live.length = 0
   }
 }

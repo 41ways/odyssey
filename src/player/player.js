@@ -2,7 +2,8 @@ import * as THREE from 'three'
 import { Actor } from '../combat/actor.js'
 import { CURVE } from '../combat/action.js'
 import { sectorHit } from '../combat/hit.js'
-import { clamp, damp, dampAngle } from '../core/math.js'
+import { dist2d } from '../core/math.js'
+import { clamp, damp, dampAngle, angleDelta } from '../core/math.js'
 import { newStats } from './stats.js'
 import { buildFigure, wrapFigure } from '../render/figure.js'
 import { buildGear, buildWeapons, KIT, buildSwordProp, buildBowProp, buildHelmetProp, buildCapeProp } from './gear.js'
@@ -46,7 +47,21 @@ function slash(cfg) {
     onActive(p) {
       const range = cfg.range * p.stats.meleeRange
       p.fx.slash(p.pos.x, p.pos.z, p.facing, range, cfg.halfAngle, cfg.id === 'slash3' ? '#ffd28a' : '#fff0d0')
-      if (cfg.id === 'slash3') p.fx.shake(0.22)
+      if (cfg.id === 'slash3') {
+        p.fx.shake(0.22)
+        // 레전더리 — 3타가 불길이 되어 앞으로 뻗는다
+        if (p.stats.burn >= 3) {
+          p.projectiles.spawn({
+            x: p.pos.x + Math.sin(p.facing) * 1.2,
+            z: p.pos.z + Math.cos(p.facing) * 1.2,
+            dir: p.facing, speed: 16, damage: 18 * p.stats.meleeDamage,
+            team: 'player', pierce: 99, radius: 1.5, knockback: 5, hitstop: 0.04,
+            color: '#ff6a2a', range: 13,
+            ignite: { dps: 11 * p.stats.meleeDamage, seconds: 5, level: 3, from: p },
+          })
+          p.fx.ring(p.pos.x, p.pos.z, { color: '#ff6a2a', radius: 3.2, life: 0.4 })
+        }
+      }
     },
     onHitWindow(p, run) {
       const range = cfg.range * p.stats.meleeRange
@@ -59,6 +74,9 @@ function slash(cfg) {
           stagger: cfg.stagger, crit: cfg.id === 'slash3',
           color: cfg.id === 'slash3' ? '#ffd166' : '#ffe9a8',
         })
+        if (p.stats.burn > 0) {
+          e.ignite({ dps: 7 * p.stats.meleeDamage, seconds: 4, level: p.stats.burn, from: p })
+        }
       }
     },
   }
@@ -89,8 +107,10 @@ const GEAR_PARTS = {
 const MOUNT = {
   sword: { bone: 'hand_r', rotation: [-0.25, 0, 0.1], position: [0, -0.02, 0.02] },
   bow: { bone: 'hand_l', rotation: [Math.PI / 2, 0, 0], position: [0, -0.02, 0.02] },
-  helmet: { bone: 'Head', rotation: [0, 0, 0], position: [0, 0.14, 0.01] },
-  cape: { bone: 'spine_03', rotation: [0, 0, 0], position: [0, 0.12, -0.07] },
+  // 투구는 머리보다 크면 냄비가 된다. 모델 머리에 맞춰 줄이고 중심을 맞춘다.
+  helmet: { bone: 'Head', rotation: [0, 0, 0], position: [0.075, 0.07, 0.02], scale: 0.55 },
+  // 망토는 본이 아니라 몸통에 단다 — 전투 자세의 상체 비틀림까지 따라가면 옆으로 뻗는다.
+  cape: { body: true, position: [0, 1.42, -0.08], scale: 0.95 },
 }
 
 /** 실제 모델로 만든 오디세우스. 모델이 없으면 null. */
@@ -106,7 +126,7 @@ function buildFromModel() {
   rig.attachTo(MOUNT.sword.bone, sword.group, MOUNT.sword)
   rig.attachTo(MOUNT.bow.bone, bow.group, MOUNT.bow)
   rig.attachTo(MOUNT.helmet.bone, helmet.group, MOUNT.helmet)
-  rig.attachTo(MOUNT.cape.bone, cape.group, MOUNT.cape)
+  rig.attachToBody(cape.group, MOUNT.cape)
   helmet.group.visible = false
   cape.group.visible = false
 
@@ -126,6 +146,7 @@ function buildFromModel() {
     rig,
     weapons: { sword: sword.group, bowHand: bow.group, bowBack: null },
     cape,
+    capeSim: cape,
     gear: {
       equip(id) {
         worn.add(id)
@@ -134,7 +155,6 @@ function buildFromModel() {
       },
       reset() { worn.clear(); rig.unequipAll(); for (const p of Object.values(props)) p.visible = false },
       has(id) { return worn.has(id) },
-      cape: cape.cloth,
     },
     mats: [...rig.mats, ...sword.mats, ...bow.mats, ...helmet.mats, ...cape.mats],
   }
@@ -192,6 +212,11 @@ export class Player extends Actor {
     this.modelDriven = !built.fig         // 실제 모델이면 포즈를 클립이 맡는다
     this.gear = built.gear
     this.weapons = built.weapons
+    this.capeSim = built.capeSim ?? null
+    this._lastFacing = 0
+    this._rollHits = new Set()
+    this._rollFrom = { x: 0, z: 0 }
+    this._echo = null
     this.vis = built.rig.root
     this.group.add(this.vis)
     this.bodyMats = built.mats
@@ -229,6 +254,7 @@ export class Player extends Actor {
   }
 
   update(dt, aim) {
+    if (this._echo && this.rolling <= 0) this.#updateEcho(dt)
     if (this.dead) { this.step(dt, this.world.arenaRadius); return }
 
     // 구르기 충전 회복 — 하나씩 순서대로 찬다
@@ -252,7 +278,9 @@ export class Player extends Actor {
       this._prevEase = ease
       this.pos.x += this.rollDir.x * step
       this.pos.z += this.rollDir.z * step
-      if (this.rolling <= 0) { this._prevEase = 0; this.releaseLock = R.recovery }
+      this.#rollStrike()
+      if (this.rolling <= 0) { this._prevEase = 0; this.releaseLock = R.recovery; this.#rollEnd() }
+      this.#updateEcho(dt)
       this.step(dt, this.world.arenaRadius)
       this.#visual(dt, true)
       return
@@ -315,9 +343,65 @@ export class Player extends Actor {
     this.pos.z += this._move.z * v * dt
   }
 
+  /** 벽력일섬 — 구르는 동안 몸에 스친 적을 벤다. 한 번 구를 때 적당 한 번. */
+  #rollStrike() {
+    if (this.stats.rollStrike <= 0) return
+    const reach = this.radius + 0.9
+    for (const e of this.world.enemies) {
+      if (e.dead || this._rollHits.has(e)) continue
+      if (dist2d(e.pos, this.pos) > reach + e.radius) continue
+      this._rollHits.add(e)
+      e.hurt(16 * this.stats.meleeDamage, {
+        from: this.pos, knockback: 6, hitstop: 0.05, stagger: 0.14, color: '#9fd8ff',
+      })
+      this.fx.ring(e.pos.x, e.pos.z, { color: '#9fd8ff', radius: 1.6, life: 0.24 })
+    }
+  }
+
+  /** 착지 충격파 (유니크) 와 잔상 예약 (레전더리). */
+  #rollEnd() {
+    const lv = this.stats.rollStrike
+    if (lv >= 2) {
+      this.fx.ring(this.pos.x, this.pos.z, { color: '#bfe4ff', radius: 3.4, life: 0.4 })
+      this.fx.shake(0.18)
+      for (const e of this.world.enemies) {
+        if (e.dead || dist2d(e.pos, this.pos) > 2.9 + e.radius) continue
+        e.hurt(24 * this.stats.meleeDamage, {
+          from: this.pos, knockback: 11, hitstop: 0.07, stagger: 0.3, color: '#bfe4ff',
+        })
+      }
+    }
+    if (lv >= 3) {
+      this._echo = { t: 0, from: { x: this._rollFrom.x, z: this._rollFrom.z }, dir: this.rollDir.clone(), hits: new Set() }
+    }
+  }
+
+  /** 잔상 — 구른 자리를 한 박자 늦게 한 번 더 지나간다. */
+  #updateEcho(dt) {
+    const e = this._echo
+    if (!e) return
+    e.t += dt
+    if (e.t < 0.2) return
+    const k = Math.min((e.t - 0.2) / TUNING.roll.duration, 1)
+    const x = e.from.x + e.dir.x * TUNING.roll.distance * k
+    const z = e.from.z + e.dir.z * TUNING.roll.distance * k
+    if (Math.random() < 0.6) this.fx.ring(x, z, { color: '#8fc6ff', radius: 1.0, life: 0.22, y: 0.3 })
+    for (const en of this.world.enemies) {
+      if (en.dead || e.hits.has(en)) continue
+      if (dist2d(en.pos, { x, z }) > 1.3 + en.radius) continue
+      e.hits.add(en)
+      en.hurt(14 * this.stats.meleeDamage, {
+        from: { x, z }, knockback: 5, hitstop: 0.04, stagger: 0.1, color: '#8fc6ff',
+      })
+    }
+    if (k >= 1) this._echo = null
+  }
+
   #startRoll() {
     const R = TUNING.roll
     this.rollCharges--
+    this._rollHits = new Set()
+    this._rollFrom = { x: this.pos.x, z: this.pos.z }
     this.action.stop()
     this.drawing = 0
     this.rolling = R.duration
@@ -340,6 +424,8 @@ export class Player extends Actor {
       damage: (9 + t * 17) * this.stats.rangedDamage,
       team: 'player',
       pierce: full ? 2 : 0,
+      ricochet: this.stats.ricochet > 0 ? (this.stats.ricochet >= 2 ? 3 : 1) : 0,
+      ricochetLevel: this.stats.ricochet,
       knockback: 3 + t * 5,
       hitstop: full ? 0.07 : 0.035,
       color: full ? '#ffe08a' : '#ff9a4a',
@@ -404,11 +490,14 @@ export class Player extends Actor {
       this.weapons.bowHand.visible = true
     }
 
-    // 망토는 달리면 뒤로 젖혀지고, 구르면 말린다
-    const cape = this.gear.cape
-    if (cape) {
-      const want = rolling ? 1.1 : this._run * 0.55 + Math.sin(this.animT * 5.2) * 0.06 * this._run
-      cape.rotation.x = damp(cape.rotation.x, want, 0.07, dt)
+    // 망토 — 마디마다 윗마디를 뒤쫓는다
+    const turn = angleDelta(this._lastFacing, this.facing) / Math.max(dt, 1e-4)
+    this._lastFacing = this.facing
+    if (this.capeSim) {
+      this.capeSim.update(dt, { run: this._run, turn: clamp(turn, -12, 12), rolling })
+    } else if (this.gear.cape) {
+      const want = rolling ? 1.1 : this._run * 0.55
+      this.gear.cape.rotation.x = damp(this.gear.cape.rotation.x, want, 0.07, dt)
     }
 
     // 활 조준선 — group 이 이미 facing 만큼 돌아있어서 로컬 +Z 가 곧 조준 방향이다
