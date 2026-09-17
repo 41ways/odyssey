@@ -21,12 +21,11 @@ import { Pickups } from './combat/pickup.js'
 import { rollChoices, newStats, newlyUnlocked, TIERS, UPGRADES } from './player/stats.js'
 import { KIT, kitProgress } from './player/gear.js'
 import { Run } from './stage/run.js'
-import { RELICS } from './stage/stages.js'
+import { RELICS, UNDERWORLD_CUT } from './stage/stages.js'
 import { RelicScreen } from './ui/relic.js'
 import { BlessingScreen } from './ui/blessing.js'
 import { Interlude } from './ui/interlude.js'
 import { rollBlessings } from './player/blessings.js'
-import { startUnderworldIntro } from './stage/underworld.js'
 import { models } from './render/models.js'
 import { preloadCharacter } from './render/character.js'
 import { rand } from './core/math.js'
@@ -57,7 +56,6 @@ class Game {
     this.interlude = new Interlude(uiRoot)
     this.blessed = new Set()
     this.uiRoot = uiRoot
-    this.cutscene = null
     this.equipFx = null
 
     this.enemies = []
@@ -251,15 +249,9 @@ class Game {
     return ev
   }
 
-  /** 저승 연출만 따로 — 땅과 빛을 저승 것으로 갈고 한 번 돌린다. */
+  /** 저승 컷씬만 따로. */
   async previewUnderworld() {
-    const st = STAGES.find(s => s.relic)
-    if (!st) return
-    this.clearField()
-    await this.render3d.applyStage(st)
-    this.arenaRadius = this.render3d.arenaRadius
-    await this.playCutscene(startUnderworldIntro)
-    this.#thaw()
+    await this.playInterlude(UNDERWORLD_CUT)
   }
 
   /** 장비 착용 연출만 따로. 입고 있던 것은 그대로 두고 그 조각만 다시 붙인다. */
@@ -485,7 +477,6 @@ class Game {
   #driveSettle(dt) {
     const s = this.settle
     if (!s) return
-    if (this.cutscene) { this.settle = null; return }    // 연출이 카메라를 쓰는 중이면 비킨다
     s.t += dt
     const k = Math.min(1, s.t / s.dur)
     this.render3d.zoom = -0.30 * Math.pow(1 - k, 2.6)
@@ -499,26 +490,8 @@ class Game {
     }
   }
 
-  /** 저승으로 걸어 들어간다. 끝나면 유물 화면이 열린다. */
-  playCutscene(make) {
-    return new Promise(resolve => {
-      this.#freeze()
-      this.cutscene = { run: make(this), done: resolve }
-    })
-  }
-
-  #driveCutscene(dt) {
-    const c = this.cutscene
-    if (!c) return
-    if (c.run.tick(dt)) {
-      c.run.dispose()
-      this.cutscene = null
-      c.done()
-    }
-  }
-
   async chooseRelic(relics) {
-    await this.playCutscene(startUnderworldIntro)
+    await this.playInterlude(UNDERWORLD_CUT, { keepOpen: true })
     const pick = await this.relicScreen.show({
       name: '아가멤논', title: '미케네 3대 국왕',
       said: '나는 내 집 문턱에서 죽었다. <em>스무 해를 싸우고</em> 돌아가 아내의 손에.<br>'
@@ -813,11 +786,9 @@ class Game {
 
   draw() {
     const real = this._real ?? 1 / 60
-    this.#driveCutscene(real)
     this.#driveSettle(real)
     this.#driveEquipFx(real)
     const cam = this.render3d.camera
-    if (this.cutscene) this.player.updateVisualOnly(real)
     this.player.sync(cam)
     for (const e of this.enemies) e.sync(cam)
     for (const c of this.corpses) { c.sync(cam); c.group.position.y = -Math.min(c.deathT / 0.45, 1) * 1.6 }

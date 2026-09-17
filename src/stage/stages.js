@@ -282,6 +282,29 @@ export function interludeFor(fromIndex) {
   }
 }
 
+/**
+ * 저승에 들어서는 장면.
+ *
+ * 전에는 판 안에서 걸어 들어가고 3D 판이 올라왔다. 그런데 저승은 싸우는
+ * 곳이 아니라 '들은 이야기' 다 — 인게임으로 보여 줄 게 없다.
+ * 그래서 아예 컷씬으로 뺀다. 그림 세 장이 차례로 바뀐다.
+ */
+export const UNDERWORLD_CUT = {
+  scene: 'under',
+  figure: true,
+  art: [
+    '/img/rise/rise-agamemnon-1.webp',
+    '/img/rise/rise-agamemnon-2.webp',
+    '/img/rise/rise-agamemnon-3.webp',
+  ],
+  lines: [
+    { text: '구덩이에 피를 부었다. <em>흙이 부풀었다.</em>', hold: 2900 },
+    { text: '손 하나가 땅을 뚫고 올라왔다.<br>흙을 밀어내며 어깨가, 투구가 따라 나왔다.', hold: 3400 },
+    { text: '망자가 다 일어서서 <em>나를 내려다본다.</em>', hold: 3000 },
+  ],
+  dest: '아가멤논 — 미케네 3대 국왕',
+}
+
 /* ── 저승의 유물 ─────────────────────────────────────────
    딱 하나만 고른다. 셋 다 특수공격(E)을 여는데, 여는 방식이 다르다. */
 export const RELICS = [

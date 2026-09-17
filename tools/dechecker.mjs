@@ -25,6 +25,8 @@ const TRIM = process.env.TRIM === '1'   // 남은 여백을 잘라 낸다
 // 뽑아 달라고 하고 그 색만 가장자리에서부터 번져 들어가며 지운다.
 const FLAT = process.env.FLAT === '1'
 const FLAT_TOL = Number(process.env.FLAT_TOL ?? 34)
+// FLAT_INNER=1: 가운데에서도 한 번 번져 나간다 — 액자처럼 안쪽도 비워야 할 때
+const FLAT_INNER = process.env.FLAT_INNER === '1'
 if (!src || !name) { console.error('쓰기: node tools/dechecker.mjs <png> <이름> [여유값] [폭]'); process.exit(1) }
 const TOL = Number(tolArg ?? 12)
 
@@ -38,7 +40,7 @@ if (FLAT) {
   const cs = [corner(3, 3), corner(W - 4, 3), corner(3, H - 4), corner(W - 4, H - 4)]
   const med = k => cs.map(c => c[k]).sort((a, b) => a - b)[1]
   const bgc = [med(0), med(1), med(2)]
-  console.log(`  단색 배경 rgb(${bgc.join(' ')}) 을 걷어낸다`)
+  console.log(`  단색 배경 rgb(${bgc.join(' ')}) 을 걷어낸다${FLAT_INNER ? ' (안쪽도)' : ''}`)
 
   const near = o => Math.abs(data[o] - bgc[0]) + Math.abs(data[o + 1] - bgc[1]) + Math.abs(data[o + 2] - bgc[2]) < FLAT_TOL * 3
   const N2 = W * H
@@ -47,6 +49,7 @@ if (FLAT) {
   const push2 = i => { if (!bg2[i] && near(i * 4)) { bg2[i] = 1; st.push(i) } }
   for (let x = 0; x < W; x++) { push2(x); push2((H - 1) * W + x) }
   for (let y = 0; y < H; y++) { push2(y * W); push2(y * W + W - 1) }
+  if (FLAT_INNER) push2(((H >> 1) * W) + (W >> 1))   // 액자 안쪽 화폭
   while (st.length) {
     const i = st.pop(), x = i % W, y = (i / W) | 0
     if (x > 0) push2(i - 1)

@@ -11,129 +11,76 @@ import { installTheme, meanderURI } from './theme.js'
  * 다시는 안 읽게 된다. 넘기려면 아래 건너뛰기를 직접 누른다.
  */
 const CSS = `
-#lude { position:absolute; inset:0; z-index:62; display:none; place-items:center;
+#lude { position:absolute; inset:0; z-index:62; display:none;
   pointer-events:none; font-family:var(--body); overflow:hidden; background:#05040a; }
-#lude.on { display:grid; pointer-events:auto; cursor:default; }
+#lude.on { display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:clamp(18px, 3.2vh, 40px); padding:4vh 24px;
+  pointer-events:auto; cursor:default; }
 
 /* ── 뱃길 장면 ───────────────────────────────────────────
    판마다 같은 바다를 보여 주면 일곱 번 같은 데를 지난 것이 된다.
    어디를 떠나 어디로 가는지에 따라 하늘과 물을 바꾼다. */
-#lude .scene { position:absolute; inset:0; opacity:0; transition:opacity 1.4s ease; }
+#lude .scene { position:absolute; inset:0; opacity:0; transition:opacity 1.4s ease;
+  filter:saturate(.7) brightness(.42); }
 #lude.on .scene { opacity:1; }
+/* 액자 뒤로 물린 장면 위에 어둠 한 겹 — 액자가 떠 보이게 */
+#lude .scrim { position:absolute; inset:0; pointer-events:none;
+  background:radial-gradient(ellipse 80% 70% at 50% 45%, rgba(4,3,6,.55), rgba(3,2,5,.92) 100%); }
 
-/* 그림이 들어오면 그게 배경이 된다. 없으면 아래 CSS 장면이 그대로 남는다.
-   느리게 밀려 나가는 것만으로도 정지 그림이 '지나가는 풍경'이 된다.
+/* 그림은 액자에 넣는다.
+   화면 가득 깔면 배경이 되고, 배경이 되면 그냥 지나간다.
+   테를 두르면 '보여 주는 그림' 이 되고, 글은 그 아래 설명이 된다.
 
-   글줄마다 다른 장을 깔 수 있다. 한 장으로 세 줄을 다 받으면 읽는 동안
-   화면이 멈춰 있고, 갈아 끼우면 '배가 가고 있다' 가 된다.
-   두 장이 겹쳐 있다가 위의 것이 켜지면서 아래를 덮는 식이다. */
-#lude .plate-img { position:absolute; inset:-4%; background-size:cover;
-  background-position:center; opacity:0; transition:opacity 1.6s ease;
-  animation:ludeDrift 26s ease-in-out infinite alternate; }
-#lude.on .plate-img.in { opacity:1; }
-@keyframes ludeDrift {
-  from { transform:scale(1.04) translate3d(-1.2%, 0, 0) }
-  to   { transform:scale(1.10) translate3d(1.2%, -1%, 0) } }
-#lude .plate-img::after { content:''; position:absolute; inset:0;
-  background:linear-gradient(180deg, rgba(4,3,6,.62) 0%, rgba(4,3,6,.18) 34%,
-    rgba(4,3,6,.30) 66%, rgba(4,3,6,.78) 100%); }
-#lude .sky { position:absolute; inset:0 0 44% 0; }
-#lude .water { position:absolute; inset:56% 0 0 0; }
-#lude .horizon { position:absolute; left:0; right:0; top:56%; height:1px;
-  background:linear-gradient(90deg, transparent, rgba(180,200,240,.35), transparent); }
-#lude .wave { position:absolute; left:0; right:0; height:1px; background:rgba(150,180,230,.10); }
-#lude .orb { position:absolute; border-radius:50%; }
-#lude .ship { position:absolute; top:52.4%; left:-16%; width:118px; height:64px;
-  animation:sail 34s linear infinite; }
-@keyframes sail { from { left:-16% } to { left:114% } }
-#lude .ship.toss { animation:sail 22s linear infinite, toss 3.4s ease-in-out infinite; }
-@keyframes toss { 0%,100%{transform:translateY(0) rotate(-4deg)} 50%{transform:translateY(-10px) rotate(5deg)} }
-
-/* 밤바다 — 떠나온 뒤의 첫 호흡 */
-#lude .sea .sky { background:linear-gradient(180deg,#070a14 0%,#121a2c 55%,#2a3550 100%); }
-#lude .sea .water { background:linear-gradient(180deg,#16203a 0%,#0a0f1c 70%,#05070e 100%); }
-#lude .sea .orb { left:50%; top:22%; width:140px; height:140px; transform:translateX(-50%);
-  background:radial-gradient(circle, rgba(220,230,255,.22), transparent 62%); }
-
-/* 새벽 — 약탈한 마을을 등지고 나온 아침 */
-#lude .dawn .sky { background:linear-gradient(180deg,#0d1020 0%,#3a2c3a 46%,#a46a4a 82%,#d69a5e 100%); }
-#lude .dawn .water { background:linear-gradient(180deg,#8a5a3e 0%,#3a2a2c 34%,#0e0c14 100%); }
-#lude .dawn .orb { left:50%; top:47%; width:118px; height:118px; transform:translate(-50%,-50%);
-  background:radial-gradient(circle, rgba(255,214,150,.75), rgba(255,170,90,.25) 42%, transparent 68%); }
-#lude .dawn .glare { position:absolute; left:calc(50% - 40px); top:56%; width:80px; bottom:0;
-  background:linear-gradient(180deg, rgba(255,200,130,.3), transparent 72%); filter:blur(7px); }
-
-/* 폭풍 — 열한 척이 깨진 뒤 */
-#lude .storm .sky { background:linear-gradient(180deg,#04070c 0%,#0b1220 58%,#182338 100%); }
-#lude .storm .water { background:linear-gradient(180deg,#141d2e 0%,#080d16 60%,#03050a 100%); }
-#lude .storm .flash { position:absolute; inset:0; background:rgba(190,210,255,.5);
-  opacity:0; animation:bolt 7s steps(1) infinite; }
-@keyframes bolt {
-  0%,100%{opacity:0} 42%{opacity:.5} 43%{opacity:0} 45%{opacity:.34} 46.5%{opacity:0}
-  78%{opacity:.4} 79%{opacity:0} }
-#lude .storm .wave { background:rgba(170,200,240,.16); animation:swell 5s ease-in-out infinite; }
-@keyframes swell { 0%,100%{transform:translateX(-3%)} 50%{transform:translateX(3%)} }
-
-/* 불 — 저승으로 내려가기 전 */
-#lude .fire { background:
-    radial-gradient(ellipse 80% 50% at 50% 108%, rgba(200,80,30,.34), transparent 62%),
-    linear-gradient(180deg, #0a0604 0%, #170b05 60%, #240d04 100%); }
-#lude .ember { position:absolute; width:3px; height:3px; border-radius:50%;
-  background:#ffae5a; opacity:0; }
-
-/* 잿빛에서 다시 빛으로 — 저승을 나와서 */
-#lude .ashdawn { background:linear-gradient(180deg,#0a0810 0%,#1b1526 44%,#4a3a46 78%,#8a6f62 100%); }
-#lude .ashdawn .water { background:linear-gradient(180deg,#584439 0%,#221a20 40%,#08060c 100%); }
-#lude .ashdawn .orb { left:50%; top:52%; width:200px; height:200px; transform:translate(-50%,-50%);
-  background:radial-gradient(circle, rgba(240,220,190,.4), transparent 62%); }
-
-/* 소용돌이 — 물이 돌아가는 소리 */
-#lude .whirl { background:linear-gradient(180deg,#050a10 0%,#0a141f 60%,#04080e 100%); }
-#lude .whirl .ring { position:absolute; left:50%; top:58%; border-radius:50%;
-  border:1px solid rgba(140,190,230,.20); transform:translate(-50%,-50%) rotate(0deg);
-  animation:spin 18s linear infinite; }
-#lude .whirl .ring:nth-child(2n) { border-color:rgba(200,160,90,.14); animation-duration:26s;
-  animation-direction:reverse; }
-@keyframes spin { to { transform:translate(-50%,-50%) rotate(360deg) } }
-#lude .whirl .eye { position:absolute; left:50%; top:58%; width:70px; height:70px;
-  transform:translate(-50%,-50%); border-radius:50%;
-  background:radial-gradient(circle, #02040a 34%, rgba(60,110,150,.22) 70%, transparent 100%); }
-
-/* 뭍이 보인다 */
-#lude .landfall .sky { background:linear-gradient(180deg,#101828 0%,#3c4258 44%,#9a8a66 84%,#d8be86 100%); }
-#lude .landfall .water { background:linear-gradient(180deg,#6f6348 0%,#2a2a2c 38%,#0a0c10 100%); }
-#lude .landfall .land { position:absolute; left:0; right:0; top:50.6%; height:8%;
-  background:linear-gradient(180deg, #0a0c10, #0a0c10);
-  clip-path:polygon(0 100%,14% 62%,22% 74%,34% 40%,44% 66%,55% 30%,66% 64%,76% 48%,88% 70%,100% 56%,100% 100%);
-  opacity:.9; }
-#lude .landfall .orb { left:62%; top:47%; width:92px; height:92px; transform:translate(-50%,-50%);
-  background:radial-gradient(circle, rgba(255,232,180,.6), transparent 64%); }
-
-/* 홀이 조용해졌다 — 그런데도 끝나지 않았다 */
-#lude .night { background:
-    radial-gradient(ellipse 60% 44% at 50% 30%, rgba(120,26,26,.22), transparent 66%),
-    linear-gradient(180deg,#070407 0%,#10080a 58%,#050304 100%); }
-#lude .night .orb { left:50%; top:26%; width:120px; height:120px; transform:translateX(-50%);
-  background:radial-gradient(circle, rgba(200,70,60,.4), rgba(120,30,30,.14) 46%, transparent 70%); }
-#lude .night .col { position:absolute; bottom:0; width:38px; top:34%;
-  background:linear-gradient(180deg, rgba(20,15,12,.0), rgba(14,10,8,.92) 30%); }
+   그림이 여러 장이면 한자리에서 갈아 끼우지 않는다. 옆으로 늘어놓고
+   카메라가 옆걸음으로 옮겨 간다 — 큐레이터가 다음 그림 앞으로 걸어가듯이.
+   그래야 '다른 그림' 이 아니라 '다음 그림' 이 된다. */
+#lude .frame { position:relative; flex:0 1 auto;
+  width:min(1060px, 90vw); max-height:62vh; aspect-ratio:1049/603;
+  background-image:url("/img/frame.webp?v=4");
+  background-size:100% 100%; background-repeat:no-repeat;
+  opacity:0; transform:translateY(10px) scale(.985);
+  transition:opacity 1.2s ease, transform 1.4s cubic-bezier(.2,.8,.3,1);
+  filter:drop-shadow(0 26px 46px rgba(0,0,0,.8)); }
+#lude.on .frame { opacity:1; transform:none; }
+#lude .frame.out { opacity:0; transform:translateY(-8px) scale(.99);
+  transition:opacity 1.0s ease, transform 1.2s ease; }
+/* 화폭 — 액자 안쪽 구멍의 실제 자리. 테 위에 얹지만 장식 밖으로는 안 나간다 */
+#lude .pane { position:absolute; left:9.8%; right:11.2%; top:17.1%; bottom:12.4%;
+  overflow:hidden; z-index:2;
+  background:radial-gradient(ellipse 66% 58% at 50% 46%, #17102a 0%, #0a0714 58%, #050309 100%);
+  /* 테 안쪽 턱이 그림에 드리우는 그늘 */
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.85), inset 0 6px 22px rgba(0,0,0,.75),
+             inset 0 -4px 16px rgba(0,0,0,.5); }
+/* 옆으로 늘어선 그림들. 한 칸씩 밀려 간다 */
+#lude .reel { position:absolute; inset:0; display:flex;
+  transition:transform 1.7s cubic-bezier(.45,.02,.25,1); }
+#lude .plate-img { position:relative; flex:0 0 100%; height:100%;
+  background-size:cover; background-position:center;
+  opacity:0; transition:opacity 1.0s ease; }
+#lude .plate-img.in { opacity:1; }
+/* 오려 낸 인물은 꽉 채우지 않는다 — 액자 안에 세워 둔다 */
+#lude .plate-img.fig { background-size:contain; background-repeat:no-repeat;
+  background-position:center bottom; }
+#lude .pane::after { content:''; position:absolute; inset:0; pointer-events:none; z-index:2;
+  background:linear-gradient(180deg, rgba(4,3,6,.34) 0%, transparent 24%,
+    transparent 66%, rgba(4,3,6,.52) 100%); }
 
 /* 글 뒤에 그늘 한 겹. 그림이 밝으면 흰 글씨가 그대로 묻힌다 —
    화면 전체를 어둡게 하면 그림이 죽으니 글 있는 띠만 눌러 준다. */
-#lude .plate { position:relative; text-align:center; width:min(760px, 88vw);
-  padding:34px 40px; opacity:1;
+#lude .plate { position:relative; flex:0 0 auto; text-align:center;
+  width:min(860px, 90vw); padding:10px 20px; opacity:1;
   transition:opacity 1.0s ease, transform 1.2s ease; }
-#lude .plate::before { content:''; position:absolute; inset:-10% -22%;
-  background:radial-gradient(ellipse 62% 58% at 50% 50%,
-    rgba(4,3,6,.80) 0%, rgba(4,3,6,.56) 46%, transparent 82%);
+#lude .plate::before { content:''; position:absolute; inset:-30% -18%;
+  background:radial-gradient(ellipse 60% 58% at 50% 50%,
+    rgba(4,3,6,.72) 0%, rgba(4,3,6,.46) 48%, transparent 84%);
   pointer-events:none; }
 #lude .plate > * { position:relative; }
 /* 마지막 글줄이 뚝 끊기지 않게 한 번 접고 나간다 */
 #lude .plate.out { opacity:0; transform:translateY(-8px); }
 #lude .band { height:14px; background-image:${meanderURI('#c8973e', 0.85)};
   background-repeat:repeat-x; background-position:center; opacity:.35; }
-#lude .line { min-height:6.6em; display:grid; place-items:center; margin:30px 0; }
-#lude .line span { display:block; font-family:var(--serif); font-size:27px; line-height:1.9;
+#lude .line { min-height:4.2em; display:grid; place-items:center; margin:22px 0 18px; }
+#lude .line span { display:block; font-family:var(--serif); font-size:clamp(19px, 2.0vw, 26px); line-height:1.9;
   letter-spacing:.06em; color:#f4ead6; opacity:0; transform:translateY(12px);
   transition:opacity .8s ease, transform .9s cubic-bezier(.2,.8,.3,1);
   text-shadow:0 2px 6px rgba(0,0,0,.95), 0 4px 22px rgba(0,0,0,.9), 0 0 60px rgba(0,0,0,.8); }
@@ -199,6 +146,10 @@ const SCENES = {
     <div class="eye"></div>${SHIP('toss')}
   </div>`,
   landfall: seaLike('landfall', '<div class="land"></div>'),
+  under: () => `<div class="scene under">${Array.from({ length: 30 }, () => {
+    const l = Math.random() * 100, d = (Math.random() * 9).toFixed(1), s = (7 + Math.random() * 7).toFixed(1)
+    return `<i class="ember" style="left:${l.toFixed(1)}%;bottom:-6px;background:#b49ce8;animation:ashUp ${s}s linear ${d}s infinite"></i>`
+  }).join('')}</div>`,
   night: () => `<div class="scene night">
     <div class="orb"></div>
     ${[8, 21, 79, 92].map(l => `<div class="col" style="left:${l}%"></div>`).join('')}
@@ -220,8 +171,9 @@ export class Interlude {
    * @param o.lines   한 줄씩 뜰 글. 각 { text, hold }
    * @param o.dest    아래에 작게 뜨는 목적지 (선택)
    * @param o.scene   SCENES 의 이름 — sea·dawn·storm·fire·ashdawn·whirl·landfall·night
-   * @param o.art      배경 그림. 한 장이면 문자열, 글줄마다 갈려면 배열.
+   * @param o.art      액자에 넣을 그림. 한 장이면 문자열, 글줄마다 갈려면 배열.
    *                    없거나 못 불러오면 조용히 CSS 장면이 남는다
+   * @param o.figure    true 면 오려 낸 인물로 본다 — 꽉 채우지 않고 액자 안에 세운다
    */
   /** 막이 내려온 뒤에 닫는다 — 곧바로 닫으면 그 틈으로 지난 판이 보인다. */
   close() {
@@ -229,13 +181,17 @@ export class Interlude {
     document.body.style.cursor = ''
   }
 
-  play({ lines, dest, scene = 'sea', art = null, keepOpen = false }) {
+  play({ lines, dest, scene = 'sea', art = null, figure = false, keepOpen = false }) {
     return new Promise(resolve => {
       const arts = art ? (Array.isArray(art) ? art : [art]) : []
-      const back = (SCENES[scene] ? SCENES[scene]() : SCENES.sea())
-        + arts.map((src, i) => `<div class="plate-img" data-i="${i}" data-src="${src}"></div>`).join('')
+      const back = (SCENES[scene] ? SCENES[scene]() : SCENES.sea()) + '<div class="scrim"></div>'
+      const pane = arts.map((src, i) =>
+        `<div class="plate-img${figure ? ' fig' : ''}" data-i="${i}" data-src="${src}"></div>`).join('')
 
       this.el.innerHTML = `${back}
+        ${arts.length ? `<div class="frame">
+          <div class="pane"><div class="reel">${pane}</div></div>
+        </div>` : ''}
         <div class="plate">
           <div class="band"></div>
           <div class="line"><span></span></div>
@@ -253,17 +209,18 @@ export class Interlude {
         probe.onload = () => {
           el.style.backgroundImage = `url("${el.dataset.src}")`
           el.dataset.ready = '1'
-          if (el.dataset.i === '0') el.classList.add('in')
+          el.classList.add('in')
         }
-        probe.onerror = () => el.remove()
+        // 못 받은 칸은 빈 채로 둔다. 지우면 뒤 칸들이 앞으로 당겨져 순서가 어긋난다.
+        probe.onerror = () => el.classList.add('in')
         probe.src = el.dataset.src
       }
-      /** n번째 장을 올린다. 없는 번호면 마지막 장이 그대로 남는다. */
+      /** n번째 그림 앞으로 옮겨 간다. 없는 번호면 마지막 그림 앞에 선다. */
+      const reel = this.el.querySelector('.reel')
       const showPlate = n => {
-        const want = plates.filter(e => e.isConnected && e.dataset.ready)
-        if (want.length < 2) return
-        const i = Math.min(n, want.length - 1)
-        want.forEach((e, k) => e.classList.toggle('in', k <= i))
+        if (!reel || plates.length < 2) return
+        const i = Math.min(n, plates.length - 1)
+        reel.style.transform = `translateX(${-i * 100}%)`
       }
 
       const span = this.el.querySelector('.line span')
@@ -300,7 +257,11 @@ export class Interlude {
       if (destEl) timers.push(setTimeout(() => destEl.classList.add('in'), Math.max(600, t - 1400)))
       // 마지막 글줄을 한 번 접고 나간다. 그대로 끊으면 읽다 만 것처럼 남는다.
       const plate = this.el.querySelector('.plate')
-      timers.push(setTimeout(() => plate?.classList.add('out'), t + 200))
+      const frameEl = this.el.querySelector('.frame')
+      timers.push(setTimeout(() => {
+        plate?.classList.add('out')
+        frameEl?.classList.add('out')
+      }, t + 200))
       timers.push(setTimeout(finish, t + 1300))
     })
   }
