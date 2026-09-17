@@ -281,12 +281,28 @@ export const SIREN = {
 }
 
 /* ── 스킬라 ──────────────────────────────────────────────
-   배 위에서 싸운다. 1페는 다섯 머리가 번갈아 내려찍고,
-   2페는 머리 하나가 끈질기게 쫓는다. */
+   배 위에서 싸운다. 1페는 머리 셋이 번갈아 내려찍고,
+   2페는 남은 셋이 끈질기게 쫓는다.
+
+   파훼: **머리를 끊는다. 내려찍고 거둬들이는 사이에만.**
+
+   다른 파훼들은 다 공격 **전**의 판단이다 — 장판을 보고 피하고(거인),
+   표적을 바꾸고(왕), 시전 중에 들어가고(마녀), 등 뒤로 돌고(세이렌).
+   이것 하나는 공격 **뒤**다. 머리가 갑판을 치고 벽으로 돌아가기 전
+   회복 구간에만 끊긴다. 그러니 붙어서 기다려야 하고, 기다리는 동안은
+   다른 머리에 맞는다. 물러서면 영원히 못 끊는다.
+
+   보상이 값을 한다 — 끊은 머리의 패턴이 판에서 **사라진다**
+   (Boss.#choose). 여섯 패턴이 여섯 머리고, 끊을수록 보스가 순해진다.
+   그게 눈에 보이는 게 이 파훼의 값이다. 몬헌의 부위 파괴다.
+
+   배수는 1.8 배. 기다리다 맞는 값을 돌려줘야 기다릴 이유가 생기고,
+   여섯 번이면 체력의 절반쯤이 여기서 나간다 — 파훼가 싸움의 절반이다. */
 export const SKYLLA = {
   id: 'skylla', name: '스킬라', title: '여섯 머리의 것',
   hp: 840, radius: 1.4, mass: 140, speed: 2.6, keepRange: [4, 8], gap: [0.6, 1.1],
   barHeight: 4.6, groggyMult: 2.0,
+  heads: 6, severMult: 1.8, severGroggy: 1.8,
   // 먼 쪽 난간(-z)에 매달린다. 좌우로만 옮겨 다니며 친다.
   // 난간에 딱 붙이지 않고 갑판 쪽으로 걸친다 — 뱃전 밖에 세우면
   // 화면 위로 밀려나고, 머리가 갑판에 닿지도 않는다.
@@ -299,26 +315,26 @@ export const SKYLLA = {
   phases: [
     {
       below: 1,
-      say: '절벽 그늘에서 머리 다섯이 내려온다',
+      say: '절벽 그늘에서 머리가 내려온다 — 치고 물러설 때를 노려라',
       patterns: [
-        stomp({ id: 'head1', startup: 0.8, active: 0.1, recovery: 0.55, radius: 2.8, damage: 22,
+        stomp({ id: 'head1', head: 1, startup: 0.8, active: 0.1, recovery: 0.55, radius: 2.8, damage: 22,
           color: '#7fd08a', pick: { weight: 5, cooldown: 1.2 } }),
-        stomp({ id: 'head2', startup: 0.7, active: 0.1, recovery: 0.5, radius: 2.4, damage: 20,
+        stomp({ id: 'head2', head: 2, startup: 0.7, active: 0.1, recovery: 0.5, radius: 2.4, damage: 20,
           color: '#7fd08a', pick: { weight: 5, cooldown: 1.0 } }),
-        slam({ id: 'sweep', startup: 1.0, active: 0.12, recovery: 1.3, range: 8, halfAngle: 1.4,
+        slam({ id: 'sweep', head: 3, startup: 1.0, active: 0.12, recovery: 1.3, range: 8, halfAngle: 1.4,
           damage: 28, knockback: 14, groggy: 1.5, shake: 0.5,
           pick: { weight: 3, cooldown: 6 } }),
       ],
     },
     {
       below: 0.45,
-      say: '남은 머리 하나가 끈질기게 따라붙는다',
+      say: '남은 머리가 끈질기게 따라붙는다',
       patterns: [
-        lance({ id: 'stab', startup: 0.58, active: 0.08, recovery: 0.5, range: 11, halfAngle: 0.13,
+        lance({ id: 'stab', head: 4, startup: 0.58, active: 0.08, recovery: 0.5, range: 11, halfAngle: 0.13,
           damage: 26, color: '#7fd08a', pick: { weight: 5, cooldown: 1.4 } }),
-        stomp({ id: 'smash', startup: 0.72, active: 0.1, recovery: 1.1, radius: 3.6, damage: 30,
+        stomp({ id: 'smash', head: 5, startup: 0.72, active: 0.1, recovery: 1.1, radius: 3.6, damage: 30,
           groggy: 1.2, color: '#7fd08a', pick: { weight: 4, cooldown: 3 } }),
-        ring({ id: 'lash', startup: 0.66, active: 0.1, recovery: 0.7, inner: 2.4, outer: 8,
+        ring({ id: 'lash', head: 6, startup: 0.66, active: 0.1, recovery: 0.7, inner: 2.4, outer: 8,
           damage: 22, color: '#7fd08a', pick: { weight: 3, cooldown: 4.5 } }),
       ],
     },
@@ -395,12 +411,33 @@ export const TELEGONOS = {
 
 /* ── 안티노오스 ──────────────────────────────────────────
    구혼자들의 우두머리. 오디세우스가 활을 들고 처음 쏜 자다.
-   사람이라 크지 않고, 대신 빠르고 부하를 계속 부른다. */
+   사람이라 크지 않고, 대신 빠르고 부하를 계속 부른다.
+
+   파훼: **잔을 들 때 활을 꽉 당겨서 쏜다.**
+
+   앞의 다섯은 다 근접 창을 보상한다 — 시전을 끊고(마녀), 회복을
+   때리고(스킬라), 그로기에 몰아친다(거인·왕). 이 하나는 **거리를 벌리고
+   오래 기다리는 것**을 요구한다. 고함 한 번에 구혼자 여섯이 사방에서
+   들어오는데 그 안에서 1초를 당기고 있어야 하니, 자리를 만드는 게
+   실력이 된다. 차징이 게임 전체에서 제일 값을 하는 자리가 여기다.
+
+   단, 활은 **열쇠고 화력이 아니다.** 처음에는 이 보스가 늘 화살만 받게
+   짜 봤는데, 그러면 칼을 키운 사람은 마지막 판에서 자기 빌드가 통째로
+   무효가 된다. 로그라이크에서 그건 난이도가 아니라 벽이다.
+   그래서 잔을 든 동안만 몸이 닫히고, 그걸 여는 건 꽉 당긴 화살
+   하나뿐이다. 열리면 4초를 멍해지니 그 뒤는 자기 빌드로 몰아치면 된다.
+   문을 여는 데만 활이 필요하고, 문 안에서 하는 일은 자유다.
+
+   이야기에서도 그렇다. 그 활은 아무도 못 당기는 활이었고, 그가 쏜 것은
+   잔을 입으로 가져가던 자였다. */
 export const ANTINOOS = {
   id: 'antinoos', name: '안티노오스', title: '구혼자들의 우두머리',
   hp: 700, radius: 0.55, mass: 38, speed: 6.2, keepRange: [5.5, 9], gap: [0.5, 0.9],
   flees: true,          // 붙으면 도망친다. 쫓아가서 잡아야 한다
   barHeight: 2.4, groggyMult: 1.9, turnHalf: 0.07,
+  // 문턱은 '얼마나 당겼나' 로 본다. 피해량으로 보면 활 성장을 쌓은 사람은
+  // 탭 사격으로도 넘어서, 시험이 아니라 성장 검사가 된다 (Boss.hurt).
+  bowMin: 0.72, bowHint: '활을 꽉 당겨라', breakGroggy: 4.0,
   look: { height: 1.82, bulk: 1.0, tint: '#d0b070', gear: ['legs', 'feet', 'body', 'arms', 'pauldron'] },
   phases: [
     {
@@ -418,6 +455,13 @@ export const ANTINOOS = {
           mix: { warrior: 4, archer: 2, shield: 1 },
           shake: 0.5, color: '#ffd166', say: '“여기다! 놈이 여기 있다!”',
           pick: { weight: 5, cooldown: 5.5 } }),
+        // 잔을 든다. 이 2.6초 동안 몸이 닫히고, 꽉 당긴 화살만 통한다.
+        // 안 쏘면 두 할이 돌아가고 다시 처음부터다.
+        mend({ id: 'a_cup', startup: 2.6, active: 0.1, recovery: 1.0, radius: 2.8, heal: 0.18,
+          breakBy: 'draw', color: '#ffd27a',
+          say: '잔을 들어 입으로 가져간다 — 지금 쏴라',
+          breakSay: '잔이 손에서 떨어졌다',
+          pick: { weight: 4, cooldown: 12 } }),
       ],
     },
     {
@@ -435,6 +479,13 @@ export const ANTINOOS = {
           mix: { warrior: 4, archer: 3, shield: 2 },
           shake: 0.6, color: '#ffd166', say: '“전부 들어와라!”',
           pick: { weight: 5, cooldown: 5.5 } }),
+        // 2페의 잔은 더 짧다(1.9초). 홀이 가득 찬 상태에서 그 사이에
+        // 자리를 만들어 당겨야 하니, 답은 그대로고 여유만 줄어든다.
+        mend({ id: 'a_cup2', startup: 1.9, active: 0.1, recovery: 0.8, radius: 3.2, heal: 0.20,
+          breakBy: 'draw', color: '#ffd27a',
+          say: '또 잔을 든다',
+          breakSay: '잔이 깨졌다',
+          pick: { weight: 5, cooldown: 10 } }),
       ],
     },
   ],

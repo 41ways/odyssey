@@ -27,6 +27,8 @@ const base = (cfg, shape, onFire) => ({
   pulls: cfg.pulls ?? 0,                // 초당 몇 유닛으로 끌어당기는가
   breakable: cfg.breakable ?? false,    // 맞으면 끊기는가 (Boss.hurt)
   breakSay: cfg.breakSay,               // 끊었을 때 한 줄
+  breakBy: cfg.breakBy ?? 'any',        // 'any' 아무 타격 · 'draw' 꽉 당긴 화살만
+  head: cfg.head ?? null,               // 이 패턴이 '머리' 하나인가 (Boss.#sever)
   onStart(b, run) {
     run.origin = { x: b.pos.x, z: b.pos.z }
     run.lockFacing = b.facing
@@ -405,6 +407,42 @@ export class Boss extends Actor {
     return g.length ? g : null
   }
 
+  /**
+   * 머리를 끊는다.
+   *
+   * 다른 파훼들이 요구하는 건 다 **공격 전**의 판단이다 — 장판을 보고
+   * 피하거나(거인), 표적을 바꾸거나(왕), 시전 중에 들어가거나(마녀),
+   * 등 뒤로 돌거나(세이렌). 이것 하나는 **공격 뒤**를 요구한다.
+   * 머리가 내려찍고 나서 벽으로 돌아가기 전, 회복(recovery) 동안만
+   * 끊긴다. 그러니 붙어서 기다려야 하고, 기다리는 동안은 맞는다.
+   *
+   * 보상이 값을 한다: 끊은 머리의 패턴이 판에서 사라진다 (#choose).
+   * 여섯을 다 끊으면 그 판에 남는 공격이 없다 — 보스가 점점 순해지는
+   * 것이 눈에 보이는 게 이 파훼의 값이다. 몬헌의 부위 파괴다.
+   *
+   * @returns 끊었으면 true
+   */
+  #sever(def) {
+    this.severed ??= new Set()
+    if (this.severed.has(def.id)) return false
+    this.severed.add(def.id)
+    const left = Math.max(0, (this.cfg.heads ?? 6) - this.severed.size)
+    this.action.stop()
+    this.fx?.number(this.pos.clone().setY(this.cfg.barHeight ?? 3),
+      left ? `머리 ${left}` : '마지막 머리', { color: '#9fe0ff', size: 28 })
+    this.fx?.ring(this.pos.x, this.pos.z, { color: '#9fe0ff', radius: this.radius * 3.6, life: 0.7 })
+    this.fx?.shake(0.5)
+    this.world.particles?.burst({ x: this.pos.x, y: (this.cfg.barHeight ?? 3) * 0.6, z: this.pos.z,
+      count: 30, color: '#bfe4ff', speed: 9, size: 0.2, life: 0.7, gravity: 8, up: 1.1 })
+    this.world.onBossSay?.(left ? `머리 하나가 떨어졌다 — ${left} 남았다` : '마지막 머리가 떨어졌다')
+    // 그로기는 **이 타격이 끝난 뒤에** 건다. 여기서 바로 걸면 끊는 타격 자신이
+    // 그로기 배수(2.0)를 또 먹어서 2.2 × 2.0 = 4.4 배가 된다 — 여섯 번 끊는
+    // 장치에 그 배수가 붙으면 네 번째 머리에서 보스가 죽는다.
+    // (키르케의 잔은 한 판에 한두 번이라 겹쳐도 되고, 겹치는 게 보상이다.)
+    this._severGroggy = this.cfg.severGroggy ?? 1.8
+    return true
+  }
+
   hurt(amount, opts = {}) {
     if (this.dead) return 'dead'
 
@@ -419,6 +457,31 @@ export class Boss extends Actor {
     // 피해는 그대로 들어간다. 끊는 게 손해면 아무도 안 끊는다.
     const run = this.action
     if (run.active && run.def?.breakable && run.phase !== 'recovery') {
+      /**
+       * 무엇으로 끊어야 하는가.
+       *
+       * 'draw' 는 **꽉 당긴 화살만** 받는다. 아무도 못 당기는 활을 당겨서
+       * 그 자를 쏘는 것이 이야기에서 이 장면의 전부다.
+       *
+       * 여기서 중요한 건 이게 **열쇠고 화력이 아니라는 것**이다. 처음에는
+       * 이 보스가 늘 화살만 받게 짜 봤는데, 그러면 칼을 키운 사람은
+       * 마지막 판에서 자기 빌드가 통째로 무효가 된다. 로그라이크에서
+       * 그건 난이도가 아니라 벽이다.
+       *
+       * 그래서 이렇게 둔다 — 잔을 든 동안만 몸이 닫히고, 그걸 여는 건
+       * 꽉 당긴 화살 하나뿐이다. 열리면 오래(breakGroggy) 멍해지니
+       * 그 뒤는 칼이든 활이든 자기 빌드로 몰아치면 된다.
+       * 활은 문을 여는 데만 필요하다. 문 안에서 하는 일은 자유다.
+       *
+       * 문턱을 피해량이 아니라 당긴 정도로 보는 이유: 피해량으로 보면
+       * '활 피해 +20%' 를 쌓은 사람은 탭 사격으로도 넘는다 — 그건
+       * 시험이 아니라 성장 검사다.
+       */
+      if (run.def.breakBy === 'draw' && (opts.draw ?? 0) < (this.cfg.bowMin ?? 0.72)) {
+        this.fx?.number(this.pos.clone().setY((this.cfg.barHeight ?? 3) * 0.8),
+          this.cfg.bowHint ?? '활을 꽉 당겨라', { color: '#8fb6ff', size: 18 })
+        return 'iframe'
+      }
       // stop() 이 def 를 비운다. 먼저 꺼내 둬야 한다 —
       // 안 그러면 끊는 순간마다 게임이 죽는다.
       const say = run.def.breakSay
@@ -428,6 +491,12 @@ export class Boss extends Actor {
       this.fx?.shake(0.35)
       if (say) this.world.onBossSay?.(say)
       this.setGroggy(this.cfg.breakGroggy ?? 2.4)
+    }
+
+    // 머리는 내려찍고 나서 거둬들이는 사이에만 끊긴다 (#sever).
+    // 끊는 타격에는 배수를 얹는다 — 기다린 값이다.
+    if (this.cfg.heads && run.active && run.def?.head != null && run.phase === 'recovery') {
+      if (this.#sever(run.def)) amount *= this.cfg.severMult ?? 2.2
     }
 
     const guards = this.#warded()
@@ -446,7 +515,9 @@ export class Boss extends Actor {
 
     // 그로기 중에는 더 아프게 맞는다
     const mult = this.groggy > 0 ? (this.cfg.groggyMult ?? 1.8) : 1
-    return super.hurt(amount * mult, { ...opts, knockback: 0, stagger: 0, crit: this.groggy > 0 })
+    const out = super.hurt(amount * mult, { ...opts, knockback: 0, stagger: 0, crit: this.groggy > 0 })
+    if (this._severGroggy) { this.setGroggy(this._severGroggy); this._severGroggy = 0 }
+    return out
   }
 
   think(dt) {
@@ -635,6 +706,9 @@ export class Boss extends Actor {
   #choose(d) {
     const options = this.phase.patterns.filter(a => {
       const r = a.pick ?? {}
+      // 끊긴 머리는 다시 안 뻗는다 (#sever). 여기 한 줄이 파훼의 보상이다 —
+      // 머리를 끊으면 그 패턴이 판에서 **사라진다**.
+      if (a.head != null && this.severed?.has(a.id)) return false
       if ((this.cooldowns.get(a.id) ?? 0) > 0) return false
       if (r.min != null && d < r.min) return false
       if (r.max != null && d > r.max) return false

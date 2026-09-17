@@ -265,6 +265,7 @@ export class Projectiles {
       kind, spec, mesh, trail, color, shadow,
       pos: new THREE.Vector3(o.x, y, o.z),
       dir: o.dir, speed: o.speed, damage: o.damage, team: o.team,
+      draw: o.draw ?? null,           // 활을 얼마나 당겨 쏜 것인가 0..1 (안티노오스가 본다)
       radius: o.radius ?? 0.3, pierce: o.pierce ?? 0,
       knockback: o.knockback ?? 3, hitstop: o.hitstop ?? 0.04,
       traveled: 0, range: o.range ?? 34, t: rand(0, 6),
@@ -377,7 +378,7 @@ export class Projectiles {
           const d3 = Math.hypot(p.pos.x - w.x, p.pos.y - w.y, p.pos.z - w.z)
           if (d3 > w.r + p.radius) continue
           a.weakPointHit?.()
-          a.hurt(p.damage * 2.5, { from: p.pos, knockback: 0, hitstop: 0.16, color: '#ffd166', crit: true })
+          a.hurt(p.damage * 2.5, { from: p.pos, knockback: 0, hitstop: 0.16, color: '#ffd166', crit: true, draw: p.draw })
           this.particles?.burst({ x: w.x, y: w.y, z: w.z, count: 34, color: '#ffe08a', speed: 9, size: 0.2, life: 0.7, gravity: 4, up: 1.3 })
           this.fx?.ring(p.pos.x, p.pos.z, { color: '#ffd166', radius: 3.4, life: 0.6 })
           gone = true
@@ -401,7 +402,7 @@ export class Projectiles {
             gone = true
             break
           }
-          a.hurt(p.damage, { from: p.pos, knockback: p.knockback, hitstop: p.hitstop, color: '#ffd27a' })
+          a.hurt(p.damage, { from: p.pos, knockback: p.knockback, hitstop: p.hitstop, color: '#ffd27a', draw: p.draw })
           if (p.ignite) a.ignite(p.ignite)
           p.onHitExtra?.(a)
           this.#impact(p)

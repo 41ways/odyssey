@@ -496,6 +496,9 @@ export class Player extends Actor {
       speed: 32 + t * 22,
       // 7 → 34. 꽉 당긴 값이 최소치의 다섯 배 가까이 되어야 기다릴 값이 있다
       damage: (7 + t * 27) * this.stats.rangedDamage,
+      // 얼마나 당겼는지를 화살이 들고 간다. 안티노오스가 이걸 본다 —
+      // 피해량만 넘기면 '활 피해 성장' 으로도 문턱을 넘어 버린다.
+      draw: t,
       team: 'player',
       pierce: full ? 2 : 0,
       ricochet: this.stats.ricochet > 0 ? (this.stats.ricochet >= 2 ? 3 : 1) : 0,
