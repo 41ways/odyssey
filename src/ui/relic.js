@@ -137,7 +137,7 @@ export class RelicScreen {
 
   get open() { return this.el.classList.contains('on') }
 
-  show({ name = '아가멤논', title = '뮈케네의 왕이었던 것', said, relics }) {
+  show({ name = '아가멤논', title = '미케네 3대 국왕', said, relics }) {
     return new Promise(resolve => {
       this._resolve = resolve
       this._relics = relics

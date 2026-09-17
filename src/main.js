@@ -200,7 +200,7 @@ class Game {
   async chooseRelic(relics) {
     await this.playCutscene(startUnderworldIntro)
     const pick = await this.relicScreen.show({
-      name: '아가멤논', title: '뮈케네의 왕이었던 것',
+      name: '아가멤논', title: '미케네 3대 국왕',
       said: '나는 내 집 문턱에서 죽었다. <em>스무 해를 싸우고</em> 돌아가 아내의 손에.<br>'
         + '너도 돌아갈 셈이냐. 그렇다면 <em>하나만 가져가라</em> — 들고 갈 수 있는 건 하나뿐이다.',
       relics,
