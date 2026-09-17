@@ -6,9 +6,12 @@ import { rand } from '../core/math.js'
  * 보충을 멈추고, 남은 적을 다 정리하면 스테이지가 끝난다.
  */
 export class WaveRunner {
-  constructor(stage, game) {
+  /** @param grace 판이 열리고 첫 적이 들어오기까지의 유예(초) */
+  constructor(stage, game, grace = 0) {
     this.stage = stage
     this.game = game
+    // 막이 걷히기도 전에 적이 뛰어 들어오면 둘러볼 틈이 없다
+    this.grace = grace
     this.timer = 0
     this.waveIndex = -1
     this.done = false
@@ -23,6 +26,7 @@ export class WaveRunner {
   }
 
   reset() {
+    this.grace = 0
     this.timer = 0
     this.waveIndex = -1
     this.done = false
@@ -32,6 +36,7 @@ export class WaveRunner {
 
   update(dt) {
     if (this.cleared) return
+    if (this.grace > 0) { this.grace -= dt; return }
     const game = this.game
     const alive = game.enemies.filter(e => !e.isDummy && !e.dead).length
 

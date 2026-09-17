@@ -36,6 +36,7 @@ export class Actor {
     this.stagger = 0       // 경직. 남아있으면 행동 불가
     this.actionRate = 1    // 공격속도 배수. 액션 프레임 전체가 이 비율로 빨라진다
     this.takeMul = 1       // 받는 피해 배수. 난이도가 여기를 건드린다
+    this.god = false       // 시험용 무적. 배포 전에 끈다 (main.js 의 GOD 주석 참고)
     this.hurtFlash = 0
     this.burn = null       // { left, dps, tick, level, from }
     this.action = new ActionRunner(this)
@@ -67,6 +68,10 @@ export class Actor {
   /** @returns {'hit'|'iframe'|'dead'} */
   hurt(amount, { from = null, knockback = 0, hitstop = 0.05, stagger = 0, color = '#ffe9a8', crit = false } = {}) {
     if (this.dead) return 'dead'
+    if (this.god) {
+      this.fx?.number(this.group.position.clone().setY(1.9), '무적', { color: '#7fe0a0', size: 18 })
+      return 'iframe'
+    }
     if (this.invuln > 0) {
       this.fx?.number(this.group.position.clone().setY(1.9), '흘림', { color: '#8fb6ff', size: 20 })
       return 'iframe'

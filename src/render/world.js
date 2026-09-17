@@ -181,7 +181,9 @@ export class World {
 
     this.scene.background = new THREE.Color(e.bg ?? '#0a0a10')
     this.scene.fog = new THREE.FogExp2(e.fogColor ?? e.bg ?? '#0d0b12', e.fog ?? 0.018)
-    this.renderer.toneMappingExposure = e.exposure ?? 1.05
+    // 판이 열릴 때 빛이 서서히 드는 연출이 이 값을 기준으로 올라간다
+    this.exposure = e.exposure ?? 1.05
+    this.renderer.toneMappingExposure = this.exposure
 
     this.hemi.color.set(e.hemiSky ?? '#3a4a74')
     this.hemi.groundColor.set(e.hemiGround ?? '#140f0a')

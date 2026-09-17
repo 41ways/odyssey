@@ -79,7 +79,8 @@ export class Run {
       await this.#scene(stage.wave, stage.wave.intro)
       // 이타카는 거지 차림으로 들어간다 — 보스전에서 정체를 드러낸다
       if (stage.beggar) g.setBeggar(true, stage.beggar.say)
-      this.waves = new WaveRunner({ goal: stage.wave.goal, waves: stage.wave.steps }, g)
+      // 막이 걷히고 현판이 지나갈 동안은 비워 둔다
+      this.waves = new WaveRunner({ goal: stage.wave.goal, waves: stage.wave.steps }, g, 1.9)
       return
     }
 

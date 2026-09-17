@@ -79,6 +79,7 @@ class Game {
       if (e.code === 'KeyR') this.restart()
       if (e.code === 'BracketRight') this.run.next()   // 시험용: 다음 판으로
       if (e.code === 'KeyL') this.cycleLook()          // 시험용: 톤 시안 돌려보기
+      if (e.code === 'KeyG') this.setGod(!this.god)    // ★시험용 무적 — 배포 전에 지운다
     })
 
     // 스테이지 고르기 — Tab 또는 주소의 ?stage=N
@@ -98,6 +99,14 @@ class Game {
     const startAt = Number.isFinite(from) && from >= 1 ? Math.min(from, STAGES.length) - 1 : 0
     const bare = q.get('bare') === '1'
     this.render3d.look = LOOKS[q.get('look')] ? q.get('look') : 'marble'   // 기본 톤: 정오의 대리석
+    /* ★★★ 시험용 무적 — 배포 전에 지울 것 ★★★
+       지울 곳은 세 군데다:
+         1) 여기 (this.setGod 호출과 ?god=1 읽기)
+         2) setGod() 메서드와 KeyG 키 바인딩
+         3) combat/actor.js 의 `if (this.god)` 블록
+       켜져 있으면 화면 왼쪽 위에 빨간 표시가 뜬다. 그게 안전장치다. */
+    this.setGod(q.get('god') !== '0')       // 지금은 기본 켜짐
+
     this.paused = true
     this.sail = SAILS[1]                   // 고르기 전까지는 '이야기대로'
     this.title = new TitleScreen(uiRoot)
@@ -260,6 +269,24 @@ class Game {
     this.paused = false
   }
 
+  /** ★시험용 무적. 배포 전에 이 메서드째로 지운다. */
+  setGod(on) {
+    this.god = !!on
+    if (this.player) this.player.god = this.god
+    const el = this._godTag ??= (() => {
+      const d = document.createElement('div')
+      d.style.cssText = 'position:absolute;left:50%;top:12px;transform:translateX(-50%);z-index:95;'
+        + 'pointer-events:none;font:700 11px/1 var(--serif),serif;letter-spacing:.3em;'
+        + 'color:#ffb4a0;background:rgba(80,14,10,.82);border:1px solid #a03a2a;'
+        + 'border-radius:2px;padding:7px 14px 7px 17px;text-shadow:0 1px 2px #000'
+      d.textContent = '무적 켜짐 — G 로 끄기'
+      this.uiRoot.appendChild(d)
+      return d
+    })()
+    el.style.display = this.god ? 'block' : 'none'
+    this.hud?.toast?.(this.god ? '무적 켜짐' : '무적 꺼짐', 1.6)
+  }
+
   /** 막간 — 판과 판 사이의 한 호흡. */
   async playInterlude(spec) {
     this.#freeze()
@@ -305,7 +332,7 @@ class Game {
    *
    * @param apply 막이 내려가 있는 동안 할 일 (땅·빛 교체)
    */
-  async curtain(apply, { out = 0.42, hold = 0.12, into = 1.15 } = {}) {
+  async curtain(apply, { out = 0.55, hold = 0.25, into = 1.7 } = {}) {
     const veil = this._veil ??= (() => {
       const d = document.createElement('div')
       d.style.cssText = 'position:absolute;inset:0;z-index:52;pointer-events:none;'
@@ -321,21 +348,35 @@ class Game {
     await apply?.()
     await new Promise(r => setTimeout(r, hold * 1000))
 
-    // 카메라가 한 뼘 물러난 자리에서 제자리로 내려앉는다
-    this.settle = { t: 0, dur: into * 1.5 }
+    // 카메라가 한 뼘 물러난 자리에서 제자리로 내려앉고, 빛이 같이 든다
+    this.settle = { t: 0, dur: into * 1.6 }
     veil.style.transitionDuration = `${into}s`
     veil.style.opacity = '0'
-    await new Promise(r => setTimeout(r, into * 1000 * 0.55))
+    await new Promise(r => setTimeout(r, into * 1000 * 0.62))
   }
 
+  /**
+   * 판이 열리는 동안의 몸풀기.
+   *
+   * 막만 걷으면 밝기가 한 번에 제자리로 와서 스위치를 켠 것처럼 보인다.
+   * 카메라는 한 뼘 물러난 자리에서 내려앉고, 노출은 어두운 데서 올라온다.
+   * 둘이 서로 다른 곡선으로 붙어야 '눈이 적응하는' 느낌이 난다.
+   */
   #driveSettle(dt) {
     const s = this.settle
     if (!s) return
     if (this.cutscene) { this.settle = null; return }    // 연출이 카메라를 쓰는 중이면 비킨다
     s.t += dt
     const k = Math.min(1, s.t / s.dur)
-    this.render3d.zoom = -0.34 * Math.pow(1 - k, 2.4)
-    if (k >= 1) { this.render3d.zoom = 0; this.settle = null }
+    this.render3d.zoom = -0.30 * Math.pow(1 - k, 2.6)
+    const target = this.render3d.exposure ?? 1.05
+    const lit = 0.34 + 0.66 * (1 - Math.pow(1 - k, 1.7))
+    this.render3d.renderer.toneMappingExposure = target * lit
+    if (k >= 1) {
+      this.render3d.zoom = 0
+      this.render3d.renderer.toneMappingExposure = target
+      this.settle = null
+    }
   }
 
   /** 저승으로 걸어 들어간다. 끝나면 유물 화면이 열린다. */
@@ -456,6 +497,7 @@ class Game {
     p.applyStats()
     p.hp = p.maxHp; p.dead = false; p.action.stop(); p.rolling = 0; p.stagger = 0
     p.invuln = 0; p._echo = null; p.rollCharges = 3
+    p.god = this.god        // ★시험용 무적 — 배포 전에 지운다
 
     await this.run.start(index, { toBoss })
     if (!bare && index > 0) this.hud.toast(`연습 — 그 지점 차림으로 시작 (성장 ${this.taken.size}종)`, 3)
