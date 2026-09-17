@@ -290,6 +290,39 @@ class Game {
   #thaw() { this.paused = false }
 
   /**
+   * 전체 화면 선택은 한 번에 하나만.
+   *
+   * ── 무엇이 터졌나 ──
+   * 보스를 잡으면 경험치가 들어온다 (player/level.js 를 붙인 뒤로). 그 경험치로
+   * 레벨이 오르면 성장 카드가 뜨는데, 같은 순간에 보스 처치 보상인 아테나의
+   * 은총도 뜬다. 둘 다 `#freeze()` 로 판을 세우고 `await` 로 대답을 기다리므로,
+   * **두 화면이 겹쳐 뜨고 둘 다 기다린다.** 하나를 고르면 그 하나만 `#thaw()`
+   * 하는데 다른 하나는 아직 기다리는 중이라, 판이 영원히 멈춘다.
+   * 세이렌(네 번째 보스)에서 처음 확실히 걸렸다 — 그때쯤 경험치가 레벨 한 칸을
+   * 채우기 때문이다.
+   *
+   * ── 왜 이렇게 고치나 ──
+   * "레벨업을 은총보다 먼저" 같은 순서 규칙으로 막을 수도 있다. 그런데 화면을
+   * 띄우는 자리가 지금 여섯이고 (레벨업·은총·유물·갈림길·장비·성장) 앞으로 더
+   * 늘어난다. 규칙을 자리마다 적으면 새로 하나 붙일 때마다 다시 터진다.
+   * **한 번에 하나** 라는 규칙 하나를 통로에 두는 게 맞다.
+   *
+   * 줄을 세우기만 하고 순서는 먼저 온 쪽이 먼저다. 겹친 둘은 둘 다 정당한
+   * 보상이라 하나를 버릴 이유가 없다 — 차례로 보여 주면 된다.
+   *
+   * 주의: 잠긴 함수 안에서 잠긴 함수를 부르면 서로를 기다린다. 그래서
+   * `offerUpgrade` 는 일부러 잠그지 않았다 — 늘 잠긴 것들 안에서 불린다.
+   */
+  #modal(run) {
+    const prev = this._modalChain ?? Promise.resolve()
+    let release
+    this._modalChain = new Promise(r => { release = r })
+    return prev.then(async () => {
+      try { return await run() } finally { release() }
+    })
+  }
+
+  /**
    * 경험치를 넣는다. 레벨이 올라가면 표시만 하고, 카드는 update 가 연다.
    * 여기서 바로 열지 않는 이유는 이게 die() 안에서 불리기 때문이다.
    */
@@ -312,7 +345,8 @@ class Game {
     try {
       while (this.level.pending > 0 && !this.player.dead) {
         this.level.pending--
-        await this.offerUpgrade(`레벨 ${this.level.lv}`, '스무 해가 사람을 벼린다 — 하나를 고른다')
+        await this.#modal(() =>
+          this.offerUpgrade(`레벨 ${this.level.lv}`, '스무 해가 사람을 벼린다 — 하나를 고른다'))
       }
     } finally { this._leveling = false }
   }
@@ -583,7 +617,10 @@ class Game {
    * 아테나의 은총. 보스를 눕힐 때마다 한 번.
    * 성장 선택지보다 훨씬 세다 — 판 하나를 넘긴 값이 수치 몇 퍼센트여서는 안 된다.
    */
-  async grantBlessing(stage) {
+    /** 아테나의 은총. 한 번에 하나만 뜨게 줄에 세운다 (#modal). */
+  grantBlessing(stage) { return this.#modal(() => this.#grantBlessingInner(stage)) }
+
+  async #grantBlessingInner(stage) {
     this.#freeze()
     const p = this.player
     // 빛이 내려온다
@@ -667,7 +704,10 @@ class Game {
     }
   }
 
-  async chooseRelic(relics) {
+    /** 저승의 유물. 줄에 세운다 (#modal). */
+  chooseRelic(relics) { return this.#modal(() => this.#chooseRelicInner(relics)) }
+
+  async #chooseRelicInner(relics) {
     // 손이 화면을 덮은 채로 넘긴다 — 유물 화면이 그 어둠 위로 올라온다
     this.#freeze()
     await this.reach.play({ ...UNDERWORLD_CUT, keepOpen: true })
@@ -694,7 +734,10 @@ class Game {
     if (art) this.interlude?.preload(Array.isArray(art) ? art : [art])
   }
 
-  async chooseFork(stage) {
+    /** 해협의 갈림길. 줄에 세운다 (#modal). */
+  chooseFork(stage) { return this.#modal(() => this.#chooseForkInner(stage)) }
+
+  async #chooseForkInner(stage) {
     this.#freeze()
     const pick = await this.levelUp.show({
       heading: stage.name, sub: stage.intro,
@@ -978,7 +1021,10 @@ class Game {
     }
   }
 
-  async #openLoot(pieces) {
+  /** 전리품 → 장비 착용 → 성장 카드. 줄에 세운다 (#modal). */
+  #openLoot(pieces) { return this.#modal(() => this.#openLootInner(pieces)) }
+
+  async #openLootInner(pieces) {
     if (this.paused) return
     this._queue = (this._queue ?? []).concat(pieces)
     while (this._queue.length) {
