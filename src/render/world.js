@@ -44,7 +44,10 @@ function stoneTexture() {
 
 export class World {
   constructor(container) {
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' })
+    this.renderer = new THREE.WebGLRenderer({
+      antialias: true, powerPreference: 'high-performance',
+      preserveDrawingBuffer: import.meta.env?.DEV ?? false,   // 개발 중 화면 캡처용
+    })
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
     this.renderer.outputColorSpace = THREE.SRGBColorSpace
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping
@@ -173,6 +176,12 @@ export class World {
     this.rimLight.color.set(e.rim ?? '#6f8cff')
     this.rimLight.intensity = e.rimIntensity ?? 1.1
 
+    // 보스는 크다. 5m 짜리를 잡몹과 같은 거리에서 보면 화면에 안 들어온다.
+    CAMERA_RIG.distance = e.camDistance ?? 20.5
+    CAMERA_RIG.pitch = THREE.MathUtils.degToRad(e.camPitch ?? 40)
+    this.camera.fov = CAMERA_RIG.fov = e.camFov ?? 30
+    this.camera.updateProjectionMatrix()
+
     this.setArenaRadius(a.radius ?? 16)
     this.wall.material.color.set(a.wallColor ?? '#2a2018')
     this.ground.material.color.set(a.groundTint ?? '#ffffff')
@@ -241,9 +250,12 @@ export class World {
     this.camTarget.y = damp(this.camTarget.y, want.y, rig.follow, dt)
     this.camTarget.z = damp(this.camTarget.z, want.z, rig.follow, dt)
 
-    const hor = Math.cos(rig.pitch) * rig.distance
+    // 연출용 클로즈업. zoom 0 이면 평소, 1 이면 바짝.
+    const zoom = this.zoom ?? 0
+    const dist = rig.distance * (1 - zoom) + 9.5 * zoom
+    const hor = Math.cos(rig.pitch) * dist
     const off = this._off ??= new THREE.Vector3()
-    off.set(Math.sin(rig.yaw) * hor, Math.sin(rig.pitch) * rig.distance, Math.cos(rig.yaw) * hor)
+    off.set(Math.sin(rig.yaw) * hor, Math.sin(rig.pitch) * dist, Math.cos(rig.yaw) * hor)
 
     // 흔들림은 카메라 위치에만 준다. 타겟까지 흔들면 화면이 멀미난다.
     this.shake = Math.max(0, this.shake - dt * 3.2)

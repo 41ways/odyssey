@@ -70,14 +70,15 @@ export class Telegraph {
     u.uHalfAngle.value = opts.halfAngle ?? Math.PI
     u.uInner.value = (opts.inner ?? 0) / (opts.range || 1)
     u.uProgress.value = 0
-    u.uAlpha.value = 1
+    // 넓을수록 옅게. 반지름 11짜리 장판이 반지름 3짜리만큼 진하면 화면이 통째로 덮인다.
+    u.uAlpha.value = clamp(1.15 - (opts.range ?? 3) * 0.045, 0.42, 1)
     u.uColor.value.set(opts.color ?? '#ff3a2e')
     mesh.scale.setScalar(opts.range)
     mesh.position.set(opts.x, 0.03, opts.z)
     mesh.rotation.z = opts.facing ?? 0   // 평면을 눕혔으니 로컬 z 회전이 월드 yaw 가 된다
     mesh.visible = true
     this.scene.add(mesh)
-    const rec = { mesh, t: 0, dur: opts.duration, fade: 0 }
+    const rec = { mesh, t: 0, dur: opts.duration, fade: 0, alpha0: u.uAlpha.value }
     this.live.push(rec)
     return rec
   }
@@ -91,7 +92,7 @@ export class Telegraph {
       const u = r.mesh.material.uniforms
       if (r.fade > 0) {
         r.fade -= dt
-        u.uAlpha.value = clamp(r.fade / 0.12, 0, 1)
+        u.uAlpha.value = r.alpha0 * clamp(r.fade / 0.12, 0, 1)
         if (r.fade <= 0) this.#free(i, r)
         continue
       }

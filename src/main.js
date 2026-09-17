@@ -8,6 +8,10 @@ import { separate } from './combat/actor.js'
 import { Player } from './player/player.js'
 import { kikonesWarrior, kikonesArcher, circePig } from './enemy/kikones.js'
 import { Hud } from './ui/hud.js'
+import { TitleScreen } from './ui/title.js'
+import { EquipCard } from './ui/equipcard.js'
+import { StagePicker } from './ui/stagepicker.js'
+import { STAGES } from './stage/stages.js'
 import { LevelUp } from './ui/levelup.js'
 import { Pickups } from './combat/pickup.js'
 import { rollChoices, newStats, newlyUnlocked, TIERS, UPGRADES } from './player/stats.js'
@@ -37,6 +41,8 @@ class Game {
     this.hud = new Hud(uiRoot)
     this.hud.setUpgradePool([...UPGRADES, ...RELICS])
     this.levelUp = new LevelUp(uiRoot)
+    this.equipCard = new EquipCard(uiRoot)
+    this.equipFx = null
 
     this.enemies = []
     this.corpses = []
@@ -59,13 +65,20 @@ class Game {
       if (e.code === 'BracketRight') this.run.next()   // 시험용: 다음 판으로
     })
 
+    // 스테이지 고르기 — Tab 또는 주소의 ?stage=N
+    this.picker = new StagePicker(uiRoot, STAGES, i => this.jumpTo(i))
+
     this.loop = createLoop({
       update: dt => this.update(dt),
       render: () => this.draw(),
       fx: real => { this.fx.update(real); this._real = real },
     })
     this.loop.start()
-    this.run.start()
+    // 시작 화면을 먼저 보여 주고, 아무 키나 누르면 첫 판이 열린다
+    const from = Number(new URLSearchParams(location.search).get('stage'))
+    const startAt = Number.isFinite(from) && from >= 1 ? Math.min(from, STAGES.length) - 1 : 0
+    this.paused = true
+    new TitleScreen(uiRoot).wait().then(() => { this.paused = false; this.run.start(startAt) })
   }
 
   /* ── 필드 ─────────────────────────────────────────────── */
@@ -197,6 +210,70 @@ class Game {
     this.run.start()
   }
 
+  /** 시험용 — 아무 판이나 그 자리에서 연다. */
+  async jumpTo(index) {
+    this.paused = false
+    this.equipFx = null
+    this.equipCard.close()
+    this.hud.hideCredits()
+    const p = this.player
+    p.hp = p.maxHp; p.dead = false; p.action.stop(); p.rolling = 0; p.stagger = 0
+    await this.run.start(index)
+  }
+
+  /**
+   * 장비를 입는 순간을 보여 준다.
+   * 카드가 바로 뜨면 무엇이 몸에 붙었는지 모르고 지나간다. 한 박자를 준다 —
+   * 카메라가 당겨지고, 붙은 조각이 청동빛으로 달아올랐다 식는다.
+   */
+  presentGear(piece, meshes) {
+    return new Promise(resolve => {
+      this.hud.clearBanner()          // 스테이지 배너와 겹치면 둘 다 안 읽힌다
+      this.equipCard.open(piece.name, piece.line)
+      this.fx.ring(this.player.pos.x, this.player.pos.z, { color: '#ffd27a', radius: 3.0, life: 0.6 })
+      this.fx.shake(0.22)
+      this.equipFx = { t: 0, dur: 1.9, meshes, done: resolve, rings: 0 }
+    })
+  }
+
+  #driveEquipFx(dt) {
+    const e = this.equipFx
+    if (!e) return
+    e.t += dt
+    const k = Math.min(e.t / e.dur, 1)
+
+    // 카메라: 빠르게 당겼다가 천천히 놓는다
+    this.render3d.zoom = Math.min(k / 0.16, 1) * (1 - Math.max(0, (k - 0.66) / 0.34))
+
+    // 붙은 조각이 달아올랐다 식는다. 세게 주면 몸 전체가 타 보인다.
+    const heat = Math.pow(1 - Math.min(k / 0.55, 1), 1.6) * 1.15
+    for (const m of e.meshes) {
+      const mats = Array.isArray(m.material) ? m.material : [m.material]
+      for (const mat of mats) if (mat?.emissive) mat.emissive.setRGB(heat, heat * 0.72, heat * 0.3)
+    }
+
+    // 발밑에서 머리까지 빛이 훑고 올라간다
+    const want = Math.floor(k / 0.11)
+    while (e.rings < want && e.rings < 4) {
+      const y = 0.12 + e.rings * 0.5
+      this.fx.ring(this.player.pos.x, this.player.pos.z, { color: '#ffe0a0', radius: 1.0, life: 0.4, y })
+      e.rings++
+    }
+
+    this.equipCard.drive(k)
+
+    if (k >= 1) {
+      this.render3d.zoom = 0
+      for (const m of e.meshes) {
+        const mats = Array.isArray(m.material) ? m.material : [m.material]
+        for (const mat of mats) if (mat?.emissive) mat.emissive.setRGB(0, 0, 0)
+      }
+      this.equipCard.close()
+      this.equipFx = null
+      e.done()
+    }
+  }
+
   onWaveSay(text) { this.hud.toast(text) }
   onBossSay(text) { this.hud.toast(text, 2.8) }
 
@@ -256,13 +333,16 @@ class Game {
     this._queue = (this._queue ?? []).concat(pieces)
     while (this._queue.length) {
       const piece = this._queue.shift()
-      this.player.equip(piece.id)
-      this.fx.ring(this.player.pos.x, this.player.pos.z, { color: '#ffd27a', radius: 3.6, life: 0.6 })
+      this.paused = true
+      const meshes = this.player.equip(piece.id)
+      await this.presentGear(piece, meshes)
+      this.paused = false
       await this.offerUpgrade(piece.name, piece.line)
     }
   }
 
   draw() {
+    this.#driveEquipFx(this._real ?? 1 / 60)
     const cam = this.render3d.camera
     this.player.sync(cam)
     for (const e of this.enemies) e.sync(cam)
@@ -294,3 +374,64 @@ function makeReticle() {
 await Promise.all([models.preload(), preloadCharacter()])
 const game = new Game(document.getElementById('app'), document.getElementById('ui'))
 window.__game = game
+
+/**
+ * 개발용 화면 캡처. window.__shot('이름.png') → shots/ 에 떨어진다.
+ * 3D 캔버스 위에 HUD(DOM) 를 SVG foreignObject 로 얹어 한 장으로 만든다.
+ */
+if (import.meta.env?.DEV) {
+  /** 패널이 숨어 있으면 rAF 가 멈춰 캐릭터가 바인드 포즈(T포즈)로 남는다. 손으로 돌려 준다. */
+  window.__tick = (n = 60) => {
+    for (let i = 0; i < n; i++) { game.fx.update(1 / 60); game.update(1 / 60) }
+    game._real = 1 / 60
+    game.draw()
+  }
+
+  window.__shot = async (name = 'shot.png', settle = 45) => {
+    if (settle) window.__tick(settle)
+    game.draw()                                   // 캔버스 내용을 확실히 채워 두고 읽는다
+    const src = game.render3d.canvas
+    const w = src.width, h = src.height
+    const out = document.createElement('canvas')
+    out.width = w; out.height = h
+    const g2 = out.getContext('2d')
+    g2.drawImage(src, 0, 0)
+
+    // HUD 를 통째로 SVG 안에 넣어 그린다. 실패하면 3D 만 담는다.
+    try {
+      const ui = document.getElementById('ui')
+      const css = [...document.styleSheets].map(s => {
+        try { return [...s.cssRules].map(r => r.cssText).join('\n') } catch { return '' }
+      }).join('\n')
+      // outerHTML 은 <br> 처럼 안 닫힌 태그를 그대로 뱉어서 XML 파서가 거부한다.
+      // XMLSerializer 는 XML 로 맞춰 준다.
+      const body = new XMLSerializer().serializeToString(ui)
+      // 캡처에서만 빼는 것들:
+      //  - backdrop-filter 는 foreignObject 안에서 화면 전체를 뭉갠다
+      //  - animation 은 정지 스냅샷에서 0% 키프레임(대개 opacity:0)으로 굳어 버린다
+      const safeCss = css
+        .replace(/backdrop-filter\s*:[^;}]*;?/g, '')
+        .replace(/-webkit-backdrop-filter\s*:[^;}]*;?/g, '')
+        .replace(/[^-\w]animation(-\w+)?\s*:[^;}]*;?/g, ' ')
+        .replace(/&/g, '&amp;')
+      const html = `<div xmlns="http://www.w3.org/1999/xhtml" style="width:${innerWidth}px;height:${innerHeight}px">
+        <style>${safeCss}</style>${body}</div>`
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${innerWidth}" height="${innerHeight}">
+        <foreignObject width="100%" height="100%">${html}</foreignObject></svg>`
+      const img = new Image()
+      await new Promise((ok, no) => {
+        img.onload = ok; img.onerror = no
+        img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg)
+      })
+      g2.drawImage(img, 0, 0, w, h)
+    } catch (err) {
+      console.warn('[shot] HUD 합성 실패, 3D 만 담는다:', err)
+    }
+
+    const r = await fetch('/__shot', {
+      method: 'POST',
+      body: JSON.stringify({ name, data: out.toDataURL('image/png') }),
+    })
+    return r.json()
+  }
+}

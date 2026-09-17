@@ -150,8 +150,10 @@ function buildFromModel() {
     gear: {
       equip(id) {
         worn.add(id)
-        for (const part of GEAR_PARTS[id] ?? []) rig.equip(part)
-        if (props[id]) props[id].visible = true
+        const shown = []
+        for (const part of GEAR_PARTS[id] ?? []) shown.push(...rig.equip(part))
+        if (props[id]) { props[id].visible = true; props[id].traverse(o => { if (o.isMesh) shown.push(o) }) }
+        return shown           // 방금 붙은 것들. 연출이 여기에 빛을 준다
       },
       reset() { worn.clear(); rig.unequipAll(); for (const p of Object.values(props)) p.visible = false },
       has(id) { return worn.has(id) },
@@ -440,8 +442,8 @@ export class Player extends Actor {
     this.fx.ring(this.pos.x, this.pos.z, { color: full ? '#ffe08a' : '#ff9a4a', radius: 1.1, life: 0.2 })
   }
 
-  /** 전리품을 입힌다. 처치 수가 임계에 닿을 때 부른다. */
-  equip(id) { this.gear.equip(id) }
+  /** 전리품을 입힌다. 처치 수가 임계에 닿을 때 부른다. @returns 방금 붙은 메시들 */
+  equip(id) { return this.gear.equip(id) ?? [] }
 
   #visual(dt, rolling) {
     this.animT += dt

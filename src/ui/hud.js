@@ -1,63 +1,77 @@
 import { clamp } from '../core/math.js'
 import { TUNING } from '../player/player.js'
+import { installTheme, meanderURI } from './theme.js'
+
+const MEANDER = meanderURI('#c8973e', 0.9)
 
 const CSS = `
 #hud { position:absolute; inset:0; pointer-events:none;
-  font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",sans-serif; color:#e9e2d6; }
+  font-family:var(--body); color:var(--ivory); }
 #hud .bottom { position:absolute; left:50%; bottom:34px; transform:translateX(-50%);
   display:flex; flex-direction:column; align-items:center; gap:10px; }
-#hud .hp { width:360px; height:20px; background:#160f0e; border:2px solid #3a2a22;
-  border-radius:3px; overflow:hidden; box-shadow:0 6px 24px rgba(0,0,0,.6); position:relative; }
+/* 체력 — 도기 띠 하나. 청동 테두리 두 줄 사이에 테라코타. */
+#hud .hp { width:380px; height:22px; background:#160f0c; border:1px solid #6a4a24;
+  border-radius:2px; overflow:hidden; position:relative;
+  box-shadow:inset 0 0 0 1px rgba(200,151,62,.22), 0 8px 26px rgba(0,0,0,.65); }
 #hud .hp i { position:absolute; inset:0; transform-origin:left center; display:block;
-  background:linear-gradient(180deg,#e85b45,#a52c22); transition:transform .08s linear; }
+  background:linear-gradient(180deg,#c85a3a,#7a2216); transition:transform .08s linear; }
 #hud .hp b { position:absolute; inset:0; transform-origin:left center; display:block;
   background:#f5d7a0; opacity:.5; transition:transform .5s cubic-bezier(.2,.7,.3,1) .12s; }
 #hud .hp span { position:absolute; inset:0; display:grid; place-items:center;
-  font-size:12px; font-weight:700; letter-spacing:.04em; text-shadow:0 1px 3px #000; }
-#hud .xp { width:360px; height:5px; background:#181208; border:1px solid #372a18;
-  border-radius:3px; overflow:hidden; position:relative; }
+  font-family:var(--serif); font-size:12px; font-weight:700; letter-spacing:.1em;
+  text-shadow:0 1px 3px #000; }
+#hud .xp { width:380px; height:5px; background:#181208; border:1px solid #4a3620;
+  border-radius:2px; overflow:hidden; position:relative; }
 #hud .xp i { display:block; height:100%; width:100%; transform-origin:left center;
   background:linear-gradient(90deg,#9c6f2e,#ffd27a); transition:transform .22s ease-out; }
-#hud .lv { position:absolute; left:0; top:9px; width:360px; text-align:center;
+#hud .lv { position:absolute; left:0; top:9px; width:380px; text-align:center;
   font-size:11px; color:#8b7a60; letter-spacing:.05em; white-space:nowrap; }
 #hud .pips { display:flex; gap:8px; }
-#hud .pip { width:52px; height:7px; border-radius:4px; background:#1d1712;
-  border:1px solid #3a2f26; overflow:hidden; }
+#hud .pip { width:56px; height:8px; border-radius:1px; background:#16120d;
+  border:1px solid #4a3620; overflow:hidden;
+  box-shadow:inset 0 0 0 1px rgba(200,151,62,.12); }
 #hud .pip i { display:block; height:100%; width:100%; transform-origin:left center;
-  background:linear-gradient(90deg,#5aa8ff,#9ad4ff); }
-#hud .pip.empty i { background:#3a4a5e; }
-#hud .keys { position:absolute; left:20px; bottom:20px; font-size:12px; line-height:1.8;
-  color:#8b8378; letter-spacing:.02em; }
+  background:linear-gradient(90deg,#8a6a2e,#e8c98a); }
+#hud .pip.empty i { background:#3a3128; }
+#hud .keys { position:absolute; left:22px; bottom:20px; font-size:11.5px; line-height:1.9;
+  color:#7d7264; letter-spacing:.02em; }
 #hud .keys .grown { color:#c8a16a; margin-top:4px; font-size:11.5px; letter-spacing:.03em; }
-#hud .keys kbd { background:#221b16; border:1px solid #3d332b; border-radius:4px;
-  padding:1px 6px; color:#d8cdbd; font-family:inherit; font-size:11px; }
-#hud .stats { position:absolute; right:18px; top:16px; font-size:12px; text-align:right;
-  color:#7d7568; font-variant-numeric:tabular-nums; line-height:1.7; }
-#hud .stats b { color:#e8c98a; font-size:22px; font-weight:800; }
+#hud .keys kbd { background:#1c1611; border:1px solid #4a3a28; border-radius:2px;
+  padding:1px 7px; color:#d8c39b; font-family:var(--serif); font-size:10.5px; letter-spacing:.06em; }
+#hud .stats { position:absolute; right:20px; top:18px; font-size:11px; text-align:right;
+  color:#7d7264; font-variant-numeric:tabular-nums; line-height:1.8;
+  font-family:var(--serif); letter-spacing:.16em; }
+#hud .stats b { color:var(--bronze); font-size:24px; font-weight:700; letter-spacing:.02em; }
 #hud .banner { position:absolute; left:0; right:0; top:19%; text-align:center; opacity:0;
   transition:opacity .5s, transform .5s; transform:translateY(10px); pointer-events:none; }
 #hud .banner.on { opacity:1; transform:none; }
-#hud .banner h1 { font-size:40px; font-weight:800; letter-spacing:.3em; text-indent:.3em;
-  color:#f0e2c6; text-shadow:0 4px 34px rgba(0,0,0,.9); }
-#hud .banner p { margin-top:12px; font-size:14px; letter-spacing:.14em; color:#b09a74; }
+#hud .banner h1 { font-family:var(--serif); font-size:44px; font-weight:700;
+  letter-spacing:.28em; text-indent:.28em; color:var(--ivory);
+  text-shadow:0 0 50px rgba(200,151,62,.35), 0 4px 34px rgba(0,0,0,.95); }
+#hud .banner p { margin-top:14px; font-size:14px; letter-spacing:.06em; color:#b09a74; }
+#hud .banner .rule { height:14px; width:min(520px,72vw); margin:16px auto 0;
+  background-image:${MEANDER}; background-repeat:repeat-x; background-position:center; opacity:.4; }
 #hud .toast { position:absolute; left:0; right:0; top:34%; text-align:center; opacity:0;
-  transition:opacity .35s; pointer-events:none;
-  font-size:16px; letter-spacing:.12em; color:#e0b77a; text-shadow:0 2px 14px #000; }
+  transition:opacity .35s; pointer-events:none; font-family:var(--serif);
+  font-size:17px; letter-spacing:.16em; color:#e0b77a; text-shadow:0 2px 18px #000; }
 #hud .toast.on { opacity:1; }
 #hud .wave { position:absolute; left:50%; top:20px; transform:translateX(-50%);
-  font-size:12px; letter-spacing:.1em; color:#8b8378; font-variant-numeric:tabular-nums; }
-#hud .wave b { color:#e8c98a; font-weight:700; }
+  font-family:var(--serif); font-size:12px; letter-spacing:.22em; color:#8f8172;
+  font-variant-numeric:tabular-nums; }
+#hud .wave b { color:var(--bronze); font-weight:700; }
 #hud .boss { position:absolute; left:50%; top:52px; transform:translateX(-50%);
   width:min(620px, 72vw); opacity:0; transition:opacity .4s; }
 #hud .boss.on { opacity:1; }
 #hud .boss .who { display:flex; justify-content:space-between; align-items:baseline;
   margin-bottom:6px; }
-#hud .boss .who b { font-size:17px; font-weight:800; letter-spacing:.1em; color:#f0e2c6; }
-#hud .boss .who span { font-size:11px; letter-spacing:.14em; color:#9a8a72; }
-#hud .boss .bar { height:11px; background:#1a0e0c; border:1px solid #4a2a22;
-  border-radius:2px; overflow:hidden; position:relative; }
+#hud .boss .who b { font-family:var(--serif); font-size:18px; font-weight:700;
+  letter-spacing:.18em; color:var(--ivory); }
+#hud .boss .who span { font-size:11px; letter-spacing:.16em; color:#9a8a72; }
+#hud .boss .bar { height:12px; background:#140b09; border:1px solid #6a3a24;
+  border-radius:1px; overflow:hidden; position:relative;
+  box-shadow:inset 0 0 0 1px rgba(200,151,62,.18), 0 6px 22px rgba(0,0,0,.6); }
 #hud .boss .bar i { position:absolute; inset:0; transform-origin:left center; display:block;
-  background:linear-gradient(180deg,#d8452f,#7a1a12); transition:transform .1s linear; }
+  background:linear-gradient(180deg,#c03a26,#5f140e); transition:transform .1s linear; }
 #hud .boss .bar u { position:absolute; inset:0; transform-origin:left center; display:block;
   background:#f5d7a0; opacity:.4; transition:transform .6s cubic-bezier(.2,.7,.3,1) .15s; }
 #hud .boss .phases { position:absolute; inset:0; display:flex; pointer-events:none; }
@@ -67,26 +81,32 @@ const CSS = `
   background:linear-gradient(180deg, rgba(4,3,6,.95), rgba(8,5,4,.98)); }
 #hud .credits.on { display:grid; }
 #hud .credits .in { text-align:center; max-width:620px; padding:0 24px; animation:lvlIn .8s ease; }
-#hud .credits h1 { font-size:34px; font-weight:800; letter-spacing:.34em; text-indent:.34em;
-  color:#c0392b; margin-bottom:10px; }
-#hud .credits .score { font-size:52px; font-weight:800; color:#e8c98a;
+#hud .credits h1 { font-family:var(--serif); font-size:38px; font-weight:700;
+  letter-spacing:.34em; text-indent:.34em; color:var(--blood); margin-bottom:10px;
+  text-shadow:0 0 44px rgba(168,50,42,.4); }
+#hud .credits .score { font-family:var(--serif); font-size:56px; font-weight:700; color:var(--bronze);
   font-variant-numeric:tabular-nums; margin:22px 0 6px; }
-#hud .credits .score small { display:block; font-size:12px; letter-spacing:.2em;
+#hud .credits .score small { display:block; font-family:var(--serif); font-size:11px; letter-spacing:.3em;
   color:#8b8378; font-weight:600; margin-bottom:8px; }
 #hud .credits .list { margin-top:26px; text-align:left; display:flex; flex-wrap:wrap;
   gap:6px 10px; justify-content:center; }
-#hud .credits .list span { font-size:12px; color:#a49a8c; border:1px solid #3a322a;
-  border-radius:3px; padding:3px 9px; }
-#hud .credits .again { margin-top:30px; font-size:12px; letter-spacing:.18em; color:#7d7568; }
+#hud .credits .list span { font-size:12px; color:#bda87f; border:1px solid #4a3a28;
+  border-radius:2px; padding:4px 10px; background:rgba(28,20,14,.6); }
+#hud .credits .again { margin-top:32px; font-family:var(--serif); font-size:12px;
+  letter-spacing:.3em; color:#7d7264; }
+#hud .credits .band { height:14px; width:min(560px,80vw); margin:0 auto 26px;
+  background-image:${MEANDER}; background-repeat:repeat-x; background-position:center; opacity:.45; }
 #hud .dead { position:absolute; inset:0; z-index:40; display:grid; place-items:center;
   background:rgba(10,4,4,.72); opacity:0; transition:opacity .6s; }
 #hud .dead.on { opacity:1; }
-#hud .dead p { font-size:52px; font-weight:800; letter-spacing:.34em; color:#c0392b;
-  text-shadow:0 4px 30px #000; }
+#hud .dead p { font-family:var(--serif); font-size:56px; font-weight:700;
+  letter-spacing:.34em; text-indent:.34em; color:var(--blood);
+  text-shadow:0 0 50px rgba(168,50,42,.4), 0 4px 30px #000; }
 `
 
 export class Hud {
   constructor(root) {
+    installTheme()
     const style = document.createElement('style')
     style.textContent = CSS
     document.head.appendChild(style)
@@ -112,12 +132,13 @@ export class Hud {
       <div class="boss"><div class="who"><b></b><span></span></div>
         <div class="bar"><u></u><i></i><div class="phases"></div></div></div>
       <div class="credits"><div class="in">
+        <div class="band"></div>
         <h1></h1><p class="sub2"></p>
         <div class="score"><small>입힌 피해</small><em class="num"></em></div>
         <div class="list"></div>
         <div class="again">다시 시작 — R</div>
       </div></div>
-      <div class="banner"><h1></h1><p></p></div>
+      <div class="banner"><h1></h1><p></p><div class="rule"></div></div>
       <div class="toast"></div>
       <div class="dead"><p>죽음</p></div>`
     root.appendChild(el)
@@ -154,6 +175,8 @@ export class Hud {
     clearTimeout(this._bannerT)
     this._bannerT = setTimeout(() => this.bannerEl.classList.remove('on'), hold * 1000)
   }
+
+  clearBanner() { clearTimeout(this._bannerT); this.bannerEl.classList.remove('on') }
 
   /** 웨이브가 바뀔 때 한 줄. */
   toast(text, hold = 2.2) {

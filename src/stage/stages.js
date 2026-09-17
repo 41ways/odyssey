@@ -35,6 +35,7 @@ export const STAGES = [
     clear: '“아무도 나를 해치지 않았다”  그가 그렇게 외쳤다.',
     arena: { radius: 15, ground: 'cyclops', repeat: 7, wallColor: '#1a1714', rockColor: '#3d372f' },
     env: {
+      camDistance: 30,
       bg: '#07080a', fog: 0.032, fogColor: '#0a0b0e', exposure: 1.0,
       key: '#ff9a52', keyIntensity: 2.2, rim: '#4a6ea8', rimIntensity: 0.8,
       hemiSky: '#1e2838', hemiGround: '#0c0a08', hemiIntensity: 0.35,
@@ -48,6 +49,7 @@ export const STAGES = [
     clear: '배 한 척만 남았다.',
     arena: { radius: 17, ground: 'telepylos', repeat: 8, wallColor: '#2a2e33', rockColor: '#4a4f55' },
     env: {
+      camDistance: 26,
       bg: '#0c1014', fog: 0.02, fogColor: '#121820', exposure: 1.06,
       key: '#cfd8e8', keyIntensity: 2.0, rim: '#5f7fa8', rimIntensity: 1.2,
       hemiSky: '#4a5a72', hemiGround: '#181c20', hemiIntensity: 0.6,
@@ -61,6 +63,7 @@ export const STAGES = [
     clear: '돼지가 다시 사람이 되었다.',
     arena: { radius: 16, ground: 'aiaia', repeat: 7, wallColor: '#23301f', rockColor: '#3e4a34' },
     env: {
+      camDistance: 24,
       bg: '#0a1208', fog: 0.022, fogColor: '#101a10', exposure: 1.08,
       key: '#e8d08a', keyIntensity: 2.1, rim: '#a06fd0', rimIntensity: 1.3,
       hemiSky: '#54704a', hemiGround: '#141a10', hemiIntensity: 0.55,
@@ -87,6 +90,7 @@ export const STAGES = [
     clear: '노래가 멎었다.',
     arena: { radius: 14, ground: 'ship', repeat: 5, wallColor: '#141a22', rocks: false },
     env: {
+      camDistance: 24,
       bg: '#060c14', fog: 0.03, fogColor: '#0a121c', exposure: 1.02,
       key: '#bfd8ff', keyIntensity: 1.8, rim: '#7f5fd0', rimIntensity: 1.4,
       hemiSky: '#2a3d5a', hemiGround: '#0a1018', hemiIntensity: 0.5,
@@ -104,6 +108,7 @@ export const STAGES = [
     ],
     arena: { radius: 15, ground: 'ship', repeat: 5, wallColor: '#10161e', rocks: false },
     env: {
+      camDistance: 26,
       bg: '#04080e', fog: 0.034, fogColor: '#070d16', exposure: 1.0,
       key: '#9fc0e8', keyIntensity: 1.7, rim: '#4a7fd0', rimIntensity: 1.5,
       hemiSky: '#223349', hemiGround: '#060a10', hemiIntensity: 0.45,
@@ -136,6 +141,7 @@ export const STAGES = [
     clear: '',
     arena: { radius: 16, ground: 'shore', repeat: 8, wallColor: '#241f1a', rockColor: '#4a4238' },
     env: {
+      camDistance: 23,
       bg: '#0a0c12', fog: 0.02, fogColor: '#10131a', exposure: 1.04,
       key: '#e8c8a0', keyIntensity: 2.0, rim: '#6f7fd0', rimIntensity: 1.2,
       hemiSky: '#3a4258', hemiGround: '#14120e', hemiIntensity: 0.55,
