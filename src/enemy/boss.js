@@ -25,6 +25,8 @@ const base = (cfg, shape, onFire) => ({
   pick: cfg.pick,                       // { min, max, cooldown, weight }
   groggy: cfg.groggy ?? 0,              // 끝나고 멍한 시간. 반격 창이다
   pulls: cfg.pulls ?? 0,                // 초당 몇 유닛으로 끌어당기는가
+  breakable: cfg.breakable ?? false,    // 맞으면 끊기는가 (Boss.hurt)
+  breakSay: cfg.breakSay,               // 끊었을 때 한 줄
   onStart(b, run) {
     run.origin = { x: b.pos.x, z: b.pos.z }
     run.lockFacing = b.facing
@@ -84,6 +86,41 @@ export const ring = cfg => base(cfg,
     if (ringHit(run.origin.x, run.origin.z, cfg.inner, cfg.outer, b.world.player)) {
       landed(b, run, cfg, run.origin.x, run.origin.z)
     }
+  })
+
+/**
+ * 노래 — 정면으로 퍼지고 등 뒤 한 조각만 조용하다.
+ *
+ * 왜 이 보스에게 이걸 주는가. 앞의 보스들은 정답이 각각 물러서기(거인),
+ * 표적 바꾸기(왕), 들어가기(마녀)였다. 셋 다 **거리**에 관한 답이다.
+ * 이것 하나는 **방향**에 관한 답으로 둔다 — 가까이 있어도 되고 멀리 있어도
+ * 되는데, 등 뒤여야 한다.
+ *
+ * 부채꼴이 거의 다 덮이므로 장판에서 **안 칠해진 조각**이 정답이 된다.
+ * 장판이 위험을 그리는 판에서, 안전한 데를 그려서 보여 주는 건 이것뿐이다.
+ *
+ * 노래는 안 아프다 — 붙잡는다. 맞으면 오래 느려진다. 그러면 그 다음 탄막이
+ * 아픈 것이 된다. 아픈 걸 두 번 겹치면 즉사표가 되고, 즉사표는 배울 기회를
+ * 안 준다.
+ */
+export const gaze = cfg => base(cfg,
+  (b, run) => {
+    // 시전이 시작되는 순간 나를 본다. 그 뒤로는 안 돈다 — 돌면 등 뒤가 없다.
+    run.lockFacing = Math.atan2(run.aim.x - b.pos.x, run.aim.z - b.pos.z)
+    return { x: run.origin.x, z: run.origin.z, facing: run.lockFacing,
+      range: cfg.range ?? 26, halfAngle: cfg.halfAngle ?? Math.PI * 0.5,
+      color: cfg.color ?? '#8fd6ff' }
+  },
+  (b, run) => {
+    const p = b.world.player
+    b.fx.meanderRing(run.origin.x, run.origin.z, { color: '#bfe4ff', radius: 4.5, life: 0.9, spin: 1.2 })
+    if (!sectorHit(run.origin, run.lockFacing, cfg.range ?? 26, cfg.halfAngle ?? Math.PI * 0.5, p)) return
+    p.hurt(cfg.damage ?? 12, { from: run.origin, knockback: 0, hitstop: 0.12,
+      stagger: cfg.stagger ?? 0.2, color: '#8fd6ff' })
+    p.slow?.(cfg.slowFor ?? 3.2, cfg.slowTo ?? 0.42)
+    b.world.onBossSay?.(cfg.caughtSay ?? '노래가 발을 붙든다')
+    b.world.particles?.converge({ x: p.pos.x, y: 1.1, z: p.pos.z, count: 26, radius: 4.0,
+      color: '#bfe4ff', size: 0.15, life: 0.9 })
   })
 
 /** 조준선을 깔고 쏘는 직선기. */
@@ -240,8 +277,34 @@ export const summon = cfg => base(cfg,
       const a = rand(0, Math.PI * 2)
       const r = rand(2.5, cfg.radius ?? 5)
       const kind = cfg.mix ? pickFrom(cfg.mix) : cfg.kind
-      b.world.spawnMinion?.(kind, run.origin.x + Math.sin(a) * r, run.origin.z + Math.cos(a) * r)
+      const e = b.world.spawnMinion?.(kind, run.origin.x + Math.sin(a) * r, run.origin.z + Math.cos(a) * r)
+      // 부름꾼. 이 표가 붙은 놈이 살아 있는 동안 보스는 안 깎인다 (Boss.#warded).
+      // 잡졸이 그냥 수를 늘리는 게 아니라 **먼저 치워야 하는 것**이 된다.
+      if (e && cfg.guards) e.guardsBoss = b
     }
+    if (cfg.guards) b.fx.ring(b.pos.x, b.pos.z, { color: '#8fd06a', radius: b.radius * 3.2, life: 0.7 })
+  })
+
+/**
+ * 끊어야 하는 시전.
+ *
+ * 긴 시전 동안 아무것도 안 하면 보스가 체력을 되찾는다. 때리면 끊긴다.
+ * 이게 왜 다른 파훼인가 — 다른 패턴은 다 "피하는 것" 이라 정답이 물러서기다.
+ * 이것 하나는 정답이 **들어가기**다. 한 판에 도망만 있으면 리듬이 하나뿐이다.
+ *
+ * @param cfg.heal  최대 체력의 몇 할을 되찾는가
+ */
+export const mend = cfg => base({ ...cfg, breakable: true },
+  (b, run) => ({ x: run.origin.x, z: run.origin.z, facing: 0,
+    range: cfg.radius ?? 3.2, halfAngle: Math.PI, color: cfg.color ?? '#7fe0a0' }),
+  (b, run) => {
+    // 여기까지 왔으면 못 끊은 것이다
+    const back = b.maxHp * (cfg.heal ?? 0.14)
+    b.hp = Math.min(b.maxHp, b.hp + back)
+    b.fx.number(b.pos.clone().setY(b.cfg.barHeight ?? 3), `+${Math.round(back)}`, { color: '#7fe0a0', size: 26 })
+    b.fx.ring(b.pos.x, b.pos.z, { color: '#7fe0a0', radius: (cfg.radius ?? 3.2) * 1.5, life: 0.7 })
+    b.world.particles?.converge({ x: b.pos.x, y: 1.4, z: b.pos.z, count: 34, radius: 5.5,
+      color: '#9ff0c0', size: 0.16, life: 0.7 })
   })
 
 /* ── 보스 ────────────────────────────────────────────────── */
@@ -328,6 +391,20 @@ export class Boss extends Actor {
     return ph ? this.maxHp * (ph.below ?? 0.5) : 0
   }
 
+  /**
+   * 부름꾼이 살아 있는가.
+   *
+   * 라이스트리고네스의 왕은 혼자 싸우지 않는다 — 항구 전체가 돌아섰다.
+   * 그래서 왕을 때리는 게 답이 아니고, 부른 것들을 먼저 치우는 게 답이다.
+   * 잡졸을 "무시하고 보스만 때리면 되는 것" 으로 두면 소환 패턴은
+   * 그냥 화면이 지저분해지는 일에 그친다.
+   */
+  #warded() {
+    if (!this.cfg.guarded) return null
+    const g = this.world.enemies?.filter(e => e.guardsBoss === this && !e.dead) ?? []
+    return g.length ? g : null
+  }
+
   hurt(amount, opts = {}) {
     if (this.dead) return 'dead'
 
@@ -335,6 +412,28 @@ export class Boss extends Actor {
     if (this.downed) {
       this.fx?.number(this.pos.clone().setY((this.cfg.barHeight ?? 3) * 0.6),
         this.downed.hint ?? '약점', { color: '#8fb6ff', size: 18 })
+      return 'iframe'
+    }
+
+    // 끊어야 하는 시전은 몸이 열려 있다 — 맞으면 끊기고, 끊은 값으로 그로기를 준다.
+    // 피해는 그대로 들어간다. 끊는 게 손해면 아무도 안 끊는다.
+    const run = this.action
+    if (run.active && run.def?.breakable && run.phase !== 'recovery') {
+      // stop() 이 def 를 비운다. 먼저 꺼내 둬야 한다 —
+      // 안 그러면 끊는 순간마다 게임이 죽는다.
+      const say = run.def.breakSay
+      this.action.stop()
+      this.fx?.number(this.pos.clone().setY(this.cfg.barHeight ?? 3), '끊었다', { color: '#ffd166', size: 26 })
+      this.fx?.ring(this.pos.x, this.pos.z, { color: '#ffd166', radius: this.radius * 3.4, life: 0.6 })
+      this.fx?.shake(0.35)
+      if (say) this.world.onBossSay?.(say)
+      this.setGroggy(this.cfg.breakGroggy ?? 2.4)
+    }
+
+    const guards = this.#warded()
+    if (guards) {
+      this.fx?.number(this.pos.clone().setY((this.cfg.barHeight ?? 3) * 0.7),
+        `부름 ${guards.length}`, { color: '#8fd06a', size: 18 })
       return 'iframe'
     }
 
@@ -367,6 +466,19 @@ export class Boss extends Actor {
         this.fx.ring(w.x, w.z, { color: '#ffd166', radius: w.r * 1.2, life: 0.8 })
       }
       return
+    }
+
+    // 부름꾼이 살아 있으면 왕과 부름꾼을 실로 잇는다. 맞아 보고 나서야
+    // "안 깎인다" 를 알게 되면 그건 파훼가 아니라 버그로 읽힌다.
+    const guards = this.#warded()
+    if (guards) {
+      this.wardT = (this.wardT ?? 0) + dt
+      if (this.wardT % 0.55 < dt) {
+        this.fx.ring(this.pos.x, this.pos.z, { color: '#8fd06a', radius: this.radius * 2.6, life: 0.5 })
+        for (const g of guards) {
+          this.fx.ring(g.pos.x, g.pos.z, { color: '#8fd06a', radius: g.radius * 2.4, life: 0.5 })
+        }
+      }
     }
 
     // 페이즈 전환

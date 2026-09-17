@@ -1,4 +1,4 @@
-import { Boss, slam, stomp, ring, lance, volley, spray, summon, suck, lob } from './boss.js'
+import { Boss, slam, stomp, ring, lance, volley, spray, summon, suck, lob, mend, gaze } from './boss.js'
 import { rand } from '../core/math.js'
 
 /**
@@ -72,11 +72,20 @@ export const POLYPHEMOS = {
 }
 
 /* ── 안티파테스 (라이스트리고네스 족장) ──────────────────
-   1페는 부하를 불러 셋이 덤비고, 2페는 혼자 창과 활을 같이 쓴다. */
+   파훼: **부름꾼을 먼저 치운다.**
+
+   이 자는 혼자 싸우지 않는다. 열한 척을 가라앉힌 건 왕의 창이 아니라
+   절벽 위에서 던진 돌이었다. 그래서 왕만 두들기는 길을 막았다 —
+   부른 것이 하나라도 살아 있으면 왕은 안 깎인다 (Boss.#warded).
+
+   덕분에 이 판의 리듬이 폴리페모스와 정반대가 된다. 거인 판은 큰 놈 하나를
+   보고 피하는 판이고, 여기는 **시선을 나눠야 하는** 판이다. 왕의 창을 피하면서
+   활잡이를 먼저 끊어야 하니까. 파훼가 다르면 판이 다르다. */
 export const ANTIPHATES = {
   id: 'antiphates', name: '안티파테스', title: '식인 거인의 왕',
   hp: 760, radius: 1.5, mass: 90, speed: 3.6, keepRange: [3.4, 7.4], gap: [1.1, 1.9],
   barHeight: 5.4, groggyMult: 1.9,
+  guarded: true,           // 부름꾼이 살아 있으면 몸이 안 열린다
   // 왕이다. 청동을 두르고 나온다.
   look: { height: 4.6, bulk: 1.25, tint: '#9aa2ac',
     gear: ['legs', 'feet', 'body', 'arms', 'pauldron'] },
@@ -84,19 +93,30 @@ export const ANTIPHATES = {
     {
       below: 1,
       say: '항구 전체가 우리를 향해 돌아섰다',
-      onEnter: b => { for (let i = 0; i < 2; i++) b.world.spawnMinion?.('warrior', b.pos.x + rand(-4, 4), b.pos.z + rand(-4, 4)) },
+      // 처음부터 둘을 세워 둔다. 시작하자마자 "왕이 안 깎인다" 를 배워야
+      // 그 다음부터 부름 패턴이 위협으로 읽힌다.
+      onEnter: b => {
+        for (let i = 0; i < 2; i++) {
+          const e = b.world.spawnMinion?.('warrior', b.pos.x + rand(-4, 4), b.pos.z + rand(-4, 4))
+          if (e) e.guardsBoss = b
+        }
+      },
       patterns: [
         slam({ id: 'cleave', startup: 0.72, active: 0.1, recovery: 0.7, range: 5.4, halfAngle: 0.9,
           damage: 22, pick: { max: 6.5, weight: 3, cooldown: 2.2 } }),
         lance({ id: 'hurl', startup: 0.85, active: 0.08, recovery: 0.7, range: 22, halfAngle: 0.08,
           damage: 24, pick: { min: 4, weight: 3, cooldown: 3 } }),
-        summon({ id: 'call', startup: 1.0, active: 0.1, recovery: 0.9, kind: 'archer', count: 1, radius: 6,
-          pick: { weight: 2, cooldown: 9 } }),
+        // 부름. 활잡이 둘이 절벽 쪽에 선다 — 살아 있으면 왕이 안 깎이니
+        // 이 패턴이 나온 순간 표적이 바뀐다.
+        summon({ id: 'call', startup: 1.2, active: 0.1, recovery: 0.9, kind: 'archer', count: 2, radius: 7,
+          guards: true, say: '왕이 절벽 위를 부른다', pick: { weight: 3, cooldown: 11 } }),
       ],
     },
     {
       below: 0.45,
       say: '부하가 다 죽자 혼자서 둘을 한다',
+      // 2페는 부름이 없다. 여기서도 불러 대면 판이 계속 잡졸 정리가 되고,
+      // 왕과 단둘이 되는 순간이 안 온다 — 마지막은 둘만 남아야 한다.
       patterns: [
         slam({ id: 'cleave2', startup: 0.55, active: 0.1, recovery: 0.55, range: 5.8, halfAngle: 1.1,
           damage: 24, pick: { max: 7, weight: 3, cooldown: 1.8 } }),
@@ -112,11 +132,23 @@ export const ANTIPHATES = {
 }
 
 /* ── 키르케 ──────────────────────────────────────────────
-   직접 때리지 않는다. 돼지를 불러 막고 뒤에서 마법을 던진다. */
+   직접 때리지 않는다. 돼지를 불러 막고 뒤에서 마법을 던진다.
+
+   파훼: **잔을 끊는다.**
+
+   앞의 두 보스는 둘 다 정답이 "물러서기" 다 — 거인의 장판을 보고 피하고,
+   왕의 부름꾼을 밖에서 정리한다. 세 판 연속 도망이면 리듬이 하나뿐이다.
+   그래서 이 여자에게는 **들어가야 이기는** 패턴을 준다.
+
+   그 여자는 잔을 들고 있다. 그 잔으로 사람을 짐승으로 만들었고, 같은 잔으로
+   자기 상처를 덮는다. 잔을 드는 동안은 몸이 열려 있다 — 그때 때리면 끊기고
+   오래 멍해진다. 안 끊으면 체력의 두 할이 돌아온다. 7초 시전을 보고도
+   물러서면 싸움이 길어지는 게 아니라 **안 끝난다**. */
 export const KIRKE = {
   id: 'kirke', name: '키르케', title: '아이아이에의 마녀',
   hp: 620, radius: 0.6, mass: 24, speed: 4.4, keepRange: [7, 11], gap: [0.8, 1.4],
   barHeight: 2.4, groggyMult: 1.6, turnHalf: 0.1,
+  breakGroggy: 3.2,        // 끊었을 때 열리는 반격 창. 들어간 값을 돌려준다
   // 후드를 눌러쓴 여자 몸. 얼굴이 보이지 않아야 '마녀'로 읽힌다.
   look: { set: 'witch', height: 1.76, bulk: 0.96, tint: '#b58ad8',
     gear: ['legs', 'feet', 'body', 'arms', 'hood'] },
@@ -136,6 +168,13 @@ export const KIRKE = {
           count: 1, spread: 0, damage: 12, speed: 4.6, bullet: '#c77dff', bulletSize: 0.5,
           range: 60, homing: 1.5, parryable: true, hex: true,
           pick: { weight: 3, cooldown: 7 } }),
+        // 잔. 시전이 길고(2.4초) 장판이 발밑에만 깔린다 — 아프지 않은 장판이라
+        // 처음 보면 그냥 밟고 들어가게 된다. 그게 정답이다.
+        // 멀리 있을 때만 든다 (min: 6) — 붙어 있는데 들면 공짜로 끊긴다.
+        mend({ id: 'cup', startup: 2.4, active: 0.1, recovery: 1.1, radius: 3.0, heal: 0.20,
+          say: '잔을 입으로 가져간다 — 저걸 깨야 한다',
+          breakSay: '잔이 깨졌다',
+          pick: { min: 6, weight: 3, cooldown: 13 } }),
       ],
     },
     {
@@ -156,13 +195,30 @@ export const KIRKE = {
           pick: { weight: 3, cooldown: 6 } }),
         ring({ id: 'ward', startup: 0.7, active: 0.1, recovery: 0.8, inner: 2.0, outer: 6.5,
           damage: 20, color: '#c77dff', pick: { weight: 2, cooldown: 6 } }),
+        // 2페의 잔은 더 빨리 들고 더 많이 되찾는다. 돼지를 뚫고 들어가야 하니
+        // 시간이 짧아진 만큼 '지금 가야 한다' 가 분명해진다.
+        mend({ id: 'cup2', startup: 1.8, active: 0.1, recovery: 0.9, radius: 3.4, heal: 0.24,
+          say: '또 잔을 든다',
+          breakSay: '잔이 깨졌다',
+          pick: { min: 5, weight: 4, cooldown: 10 } }),
       ],
     },
   ],
 }
 
 /* ── 세이렌 ──────────────────────────────────────────────
-   바닥으로 들어갔다가 내 발밑에서 솟는다. 탄막과 흡수. */
+   바닥으로 들어갔다가 내 발밑에서 솟는다. 탄막과 흡수.
+
+   파훼: **등 뒤로 돌아간다.**
+
+   앞의 셋은 정답이 다 거리였다 — 물러서기(거인), 표적 바꾸기(왕),
+   들어가기(마녀). 이 판은 방향이다. 노래는 정면 반쪽을 통째로 덮고
+   등 뒤 한 조각만 조용하다. 가까이 있어도 되고 멀리 있어도 되는데,
+   뒤여야 한다 (boss.js 의 gaze).
+
+   장판이 거의 다 칠해지므로, 이 판에서는 **안 칠해진 조각**이 정답이 된다.
+   그리고 노래는 안 아프다 — 붙잡는다. 잡히면 그 다음 탄막이 아픈 것이 되고,
+   그게 이 여자가 노래로 배를 가라앉히는 방식이다. */
 export const SIREN = {
   id: 'siren', name: '세이렌', title: '노래하는 것',
   hp: 680, radius: 0.7, mass: 26, speed: 3.2, keepRange: [5, 9], gap: [0.7, 1.3],
@@ -189,6 +245,12 @@ export const SIREN = {
           damage: 16, color: '#b48cff',
           onEnd(b) { b.hp = Math.min(b.maxHp, b.hp + 28) },   // 닿으면 빨아먹는다
           pick: { max: 4.5, weight: 3, cooldown: 4 } }),
+        // 노래. 처음이라 시전을 길게(1.9초) 준다 — 장판을 보고 "뒤로 돌아야
+        // 한다" 를 스스로 알아낼 시간이다. 한 번 잡혀 보면 다음부터는 안다.
+        gaze({ id: 'aria', startup: 1.9, active: 0.12, recovery: 1.5,
+          range: 26, halfAngle: Math.PI * 0.5, damage: 10, slowFor: 3.0, slowTo: 0.45,
+          say: '노래가 정면으로 퍼진다 — 등 뒤로 돌아라',
+          groggy: 1.1, pick: { weight: 4, cooldown: 9 } }),
       ],
     },
     {
@@ -206,6 +268,13 @@ export const SIREN = {
           damage: 20, color: '#b48cff',
           onEnd(b) { b.hp = Math.min(b.maxHp, b.hp + 34) },
           pick: { max: 5, weight: 3, cooldown: 3.4 } }),
+        // 2페의 노래는 더 넓고(0.62π) 더 빠르다. 조용한 조각이 좁아지니
+        // 1페에서 배운 답을 더 정확히 내야 한다 — 답이 바뀌는 게 아니라
+        // 같은 답의 여유가 줄어드는 쪽이 배운 것을 안 버린다.
+        gaze({ id: 'aria2', startup: 1.25, active: 0.12, recovery: 1.1,
+          range: 30, halfAngle: Math.PI * 0.62, damage: 12, slowFor: 3.4, slowTo: 0.40,
+          say: '비명이 갑판을 훑는다',
+          groggy: 0.9, pick: { weight: 5, cooldown: 7 } }),
       ],
     },
   ],
