@@ -4,6 +4,8 @@ import { sectorHit } from '../combat/hit.js'
 import { dist2d, dampAngle, rand, clamp } from '../core/math.js'
 import { buildFigure, wrapFigure } from '../render/figure.js'
 import { models } from '../render/models.js'
+import { createCharacter } from '../render/character.js'
+import { buildSpearProp, buildBowProp } from '../player/gear.js'
 
 /**
  * 키코네스족 — 이스마로스의 첫 적.
@@ -71,8 +73,32 @@ const ARCHER_SHOT = {
   },
 }
 
-function buildKikones({ palette, weapon, scale, bulk, model }) {
-  // 외부 모델이 있으면 그걸 쓴다. 없으면 코드로 만든 인체로 돌아간다.
+/** 프롭을 거는 자리. character.js 가 본 축을 캐릭터 축으로 맞춰 준다. */
+const ENEMY_MOUNT = {
+  spear: { bone: 'hand_r', rotation: [-0.15, 0, 0.12], position: [0, -0.02, 0.02] },
+  bow: { bone: 'hand_l', rotation: [Math.PI / 2, 0, 0], position: [0, -0.02, 0.02] },
+}
+
+function buildKikones({ palette, weapon, scale, bulk, model, gltf }) {
+  // 플레이어와 같은 몸·같은 애니메이션을 쓴다. 색과 차림만 다르다.
+  if (gltf) {
+    const rig = createCharacter({ height: gltf.height, tint: gltf.tint, gear: gltf.gear, bulk: gltf.bulk ?? 1 })
+    if (rig) {
+      const mats = [...rig.mats]
+      if (weapon === 'spear') {
+        const sp = buildSpearProp()
+        rig.attachTo(ENEMY_MOUNT.spear.bone, sp.group, ENEMY_MOUNT.spear)
+        mats.push(...sp.mats)
+      } else if (weapon === 'bow') {
+        const bw = buildBowProp()
+        rig.attachTo(ENEMY_MOUNT.bow.bone, bw.group, ENEMY_MOUNT.bow)
+        mats.push(...bw.mats)
+      }
+      return { rig, mats }
+    }
+  }
+
+  // 별도 모델 파일이 지정돼 있으면 그것도 본다
   const rig = model && models.create(model)
   if (rig) return { rig, mats: rig.mats }
 
@@ -139,8 +165,8 @@ class Kikones extends Actor {
     this._run += (clamp(this._moved, 0, 1) - this._run) * 0.18
     this._moved *= 0.86
     let attack = null
-    const run = this.action
-    if (run.active) {
+    if (this.action.active) {
+      const run = this.action
       const d = run.def
       if (run.t < d.startup) attack = { wind: Math.pow(run.t / d.startup, 0.5), swing: 0 }
       else {
@@ -150,8 +176,12 @@ class Kikones extends Actor {
         attack = { wind: (1 - hit) * out, swing: Math.sin(hit * Math.PI / 2) * out }
       }
     }
+    const run = this.action
     this.rig.pose({
       t: this.animT, run: this._run, attack, draw: null, roll: 0,
+      attackId: run.def?.id,
+      attackDuration: run.active ? run.total : 0.5,
+      dead: this.dead,
       flinch: this.stagger > 0 ? clamp(this.stagger / 0.3, 0, 1) : 0,
     }, dt)
   }
@@ -199,6 +229,7 @@ export function kikonesWarrior(world, fx) {
     hp: 58, radius: 0.46, mass: 1.6, speed: 4.2, keepRange: [2.4, 3.1], barHeight: 2.05, xp: 4,
     look: {
       weapon: 'spear', scale: 0.98, bulk: 1.0, model: 'kikonesWarrior',
+      gltf: { height: 1.78, bulk: 1.04, tint: '#c2705e', gear: ['legs', 'feet', 'body', 'arms'] },
       palette: { skin: '#9c7048', cloth: '#7d3a2e', leather: '#4a3526', bronze: '#9c7434', accent: '#5a2a22', dark: '#241a14' },
     },
     pickAction(e, d) {
@@ -214,6 +245,7 @@ export function kikonesArcher(world, fx) {
     hp: 40, radius: 0.42, mass: 1.2, speed: 4.6, keepRange: [7.5, 10.5], barHeight: 1.95, xp: 5,
     look: {
       weapon: 'bow', scale: 0.95, bulk: 0.92, model: 'kikonesArcher',
+      gltf: { height: 1.72, bulk: 0.94, tint: '#7f86c8', gear: ['legs', 'feet', 'body'] },
       palette: { skin: '#9c7048', cloth: '#4a3a6b', leather: '#3a2f22', bronze: '#9c7434', accent: '#2f2648', dark: '#1e1a24' },
     },
     pickAction(e, d) {
@@ -229,6 +261,7 @@ export function dummy(world, fx, hp = 99999) {
     hp, radius: 0.55, mass: 40, speed: 0, keepRange: [0, 0], barHeight: 2.1,
     look: {
       weapon: null, scale: 1.0, bulk: 1.15,
+      gltf: { height: 1.8, bulk: 1.2, tint: '#7d7566', gear: ['legs', 'feet', 'body', 'arms'] },
       palette: { skin: '#7a6a52', cloth: '#4a4237', leather: '#3d352c', bronze: '#6f6252', accent: '#4a4237', dark: '#2a251e' },
     },
     pickAction: () => null,

@@ -278,3 +278,19 @@ export function buildCapeProp() {
   g.add(clasp)
   return { group: g, cloth, mats: M.mats }
 }
+
+/** 창. 키코네스 전사가 든다. */
+export function buildSpearProp() {
+  const M = propMaterials()
+  const g = new THREE.Group()
+  const add = m => { m.castShadow = true; g.add(m); return m }
+  const shaft = add(new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, 1.95, 6), M.wood))
+  shaft.position.y = -0.55
+  const head = add(new THREE.Mesh(new THREE.ConeGeometry(0.058, 0.26, 6), M.bronze))
+  head.position.y = -1.6; head.rotation.x = Math.PI
+  const collar = add(new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.038, 0.07, 6), M.bronze))
+  collar.position.y = -1.45
+  const butt = add(new THREE.Mesh(new THREE.ConeGeometry(0.034, 0.12, 6), M.bronze))
+  butt.position.y = 0.46
+  return { group: g, mats: M.mats }
+}

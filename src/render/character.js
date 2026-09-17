@@ -84,7 +84,14 @@ function rebind(scene, boneByName) {
   return meshes
 }
 
-export function createCharacter({ height = 1.82, facing = 0 } = {}) {
+/**
+ * @param {object} o
+ *   height  키. 원본이 몇 미터든 여기 맞춰진다
+ *   tint    몸·장비 색조. 적을 부족색으로 물들일 때 쓴다
+ *   gear    처음부터 입고 시작할 조각들
+ *   bulk    가로 비율. 1보다 크면 육중해 보인다
+ */
+export function createCharacter({ height = 1.82, facing = 0, tint = null, gear: initialGear = [], bulk = 1 } = {}) {
   if (!cache) return null
 
   const root = new THREE.Group()
@@ -94,20 +101,33 @@ export function createCharacter({ height = 1.82, facing = 0 } = {}) {
   const box = new THREE.Box3().setFromObject(model)
   const size = new THREE.Vector3(); box.getSize(size)
   const scale = size.y > 1e-4 ? height / size.y : 1
-  model.scale.setScalar(scale)
+  model.scale.set(scale * bulk, scale, scale * bulk)
   const box2 = new THREE.Box3().setFromObject(model)
   model.position.y -= box2.min.y
   model.rotation.y = facing
 
+  // 재질은 캐릭터마다 따로 갖는다.
+  // 공유하면 한 마리가 맞을 때 같은 재질을 쓰는 전부가 같이 번쩍인다.
+  // 텍스처는 클론끼리 공유되므로 메모리는 거의 안 늘어난다.
   const mats = []
+  const clonedBySource = new Map()
+  const ownMaterial = src => {
+    if (!src) return src
+    let m = clonedBySource.get(src)
+    if (!m) {
+      m = src.clone()
+      if (tint && m.color) m.color.multiply(new THREE.Color(tint))
+      clonedBySource.set(src, m)
+      mats.push(m)
+    }
+    return m
+  }
   const collect = o => {
     if (!o.isMesh) return
     o.castShadow = true
     o.receiveShadow = true
     o.frustumCulled = false     // 스키닝 메시는 바운딩이 어긋나 사라지는 일이 있다
-    for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
-      if (m && !mats.includes(m)) mats.push(m)
-    }
+    o.material = Array.isArray(o.material) ? o.material.map(ownMaterial) : ownMaterial(o.material)
   }
   model.traverse(collect)
   root.add(model)
@@ -129,6 +149,8 @@ export function createCharacter({ height = 1.82, facing = 0 } = {}) {
       m.bind(m.skeleton, m.bindMatrix)
     }
   }
+
+  for (const id of initialGear) for (const m of gearMeshes[id] ?? []) m.visible = true
 
   const mixer = new THREE.AnimationMixer(model)
   const actions = {}
