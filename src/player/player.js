@@ -5,7 +5,8 @@ import { sectorHit } from '../combat/hit.js'
 import { clamp, damp, dampAngle } from '../core/math.js'
 import { newStats } from './stats.js'
 import { buildFigure, wrapFigure } from '../render/figure.js'
-import { buildGear, buildWeapons, KIT } from './gear.js'
+import { buildGear, buildWeapons, KIT, buildSwordProp, buildBowProp, buildHelmetProp, buildCapeProp } from './gear.js'
+import { createCharacter } from '../render/character.js'
 
 /**
  * 기본값은 일부러 느리다. 이동도 활도 처음엔 답답하고, 성장으로 풀어 나간다.
@@ -17,11 +18,13 @@ export const TUNING = {
   roll: {
     charges: 3,
     regen: 2.5,           // 충전 하나 차는 데 걸리는 시간. 가벼운 몸으로 줄인다
-    duration: 0.44,
-    distance: 6.0,        // 회피 거리는 성장으로 안 건드린다. 도망 수단은 일정해야 한다
-    iframeStart: 0.04,
-    iframeEnd: 0.32,      // 0.28초 무적. 짧게 잡아야 회피가 실력이 된다
-    recovery: 0.10,
+    // 거리를 6.0 → 2.0 으로 줄이면서 시간도 같이 줄였다.
+    // 0.44초에 2.0 을 가면 초속 4.5 로 걷는 것(6.1)보다 느려져서 구르는 맛이 죽는다.
+    duration: 0.32,
+    distance: 2.0,        // 회피 거리는 성장으로 안 건드린다. 도망 수단은 일정해야 한다
+    iframeStart: 0.03,
+    iframeEnd: 0.24,      // 0.21초 무적. 짧게 잡아야 회피가 실력이 된다
+    recovery: 0.08,
   },
   bow: {
     minDraw: 0.28,        // 여기까진 당겨야 나간다. 연사 방지
@@ -67,10 +70,78 @@ export const SLASH = {
   slash3: slash({ id: 'slash3', startup: 0.17, active: 0.10, recovery: 0.46, cancelAt: 0.42, next: null, move: 2.0, range: 3.8, halfAngle: 1.95, damage: 28, knockback: 11, hitstop: 0.11, stagger: 0.42 }),
 }
 
-/** 오디세우스. 몸은 뼈대 하나, 장비는 관절에 달린 조각들. */
-function buildOdysseus() {
-  // 전리품 장비가 관절에 직접 달리므로 플레이어는 코드 인체를 쓴다.
-  // odysseus.glb 를 붙이려면 gear.js 의 부착점을 그 모델의 본 이름에 맞춰야 한다.
+/**
+ * 전리품 단계 → 실제 장비 조각.
+ * GLTF 파츠가 없는 투구·망토는 본에 매다는 프롭으로 채운다.
+ */
+const GEAR_PARTS = {
+  pants: ['legs', 'feet'],
+  tunic: ['body', 'arms'],
+  pauldrons: ['pauldron'],
+  helmet: [],
+  cape: [],
+}
+
+/**
+ * 프롭을 본에 거는 자리.
+ * character.js 가 본 축을 캐릭터 축(+Y 위, +Z 앞)으로 맞춰 주므로 여기 값은 직관적이다.
+ */
+const MOUNT = {
+  sword: { bone: 'hand_r', rotation: [-0.25, 0, 0.1], position: [0, -0.02, 0.02] },
+  bow: { bone: 'hand_l', rotation: [Math.PI / 2, 0, 0], position: [0, -0.02, 0.02] },
+  helmet: { bone: 'Head', rotation: [0, 0, 0], position: [0, 0.14, 0.01] },
+  cape: { bone: 'spine_03', rotation: [0, 0, 0], position: [0, 0.12, -0.07] },
+}
+
+/** 실제 모델로 만든 오디세우스. 모델이 없으면 null. */
+function buildFromModel() {
+  const rig = createCharacter({ height: 1.82 })
+  if (!rig) return null
+
+  const sword = buildSwordProp()
+  const bow = buildBowProp()
+  const helmet = buildHelmetProp()
+  const cape = buildCapeProp()
+
+  rig.attachTo(MOUNT.sword.bone, sword.group, MOUNT.sword)
+  rig.attachTo(MOUNT.bow.bone, bow.group, MOUNT.bow)
+  rig.attachTo(MOUNT.helmet.bone, helmet.group, MOUNT.helmet)
+  rig.attachTo(MOUNT.cape.bone, cape.group, MOUNT.cape)
+  helmet.group.visible = false
+  cape.group.visible = false
+
+  // 발밑 표식
+  const mark = new THREE.Mesh(
+    new THREE.RingGeometry(0.46, 0.56, 32),
+    new THREE.MeshBasicMaterial({ color: '#8fc6ff', transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending })
+  )
+  mark.rotation.x = -Math.PI / 2
+  mark.position.y = 0.02
+  rig.root.add(mark)
+
+  const props = { helmet: helmet.group, cape: cape.group }
+  const worn = new Set()
+
+  return {
+    rig,
+    weapons: { sword: sword.group, bowHand: bow.group, bowBack: null },
+    cape,
+    gear: {
+      equip(id) {
+        worn.add(id)
+        for (const part of GEAR_PARTS[id] ?? []) rig.equip(part)
+        if (props[id]) props[id].visible = true
+      },
+      reset() { worn.clear(); rig.unequipAll(); for (const p of Object.values(props)) p.visible = false },
+      has(id) { return worn.has(id) },
+      cape: cape.cloth,
+    },
+    mats: [...rig.mats, ...sword.mats, ...bow.mats, ...helmet.mats, ...cape.mats],
+  }
+}
+
+/** 코드로 만든 오디세우스. 모델이 없을 때의 대체품. */
+function buildProcedural() {
   const fig = buildFigure({
     scale: 1.02, bulk: 1.05,
     palette: {
@@ -90,7 +161,6 @@ function buildOdysseus() {
   loin.castShadow = true
   fig.j.hips.add(loin)
 
-  // 발밑 표식 — 쿼터뷰에서 내 위치를 놓치지 않게
   const mark = new THREE.Mesh(
     new THREE.RingGeometry(0.46, 0.56, 32),
     new THREE.MeshBasicMaterial({ color: '#8fc6ff', transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending })
@@ -99,7 +169,14 @@ function buildOdysseus() {
   mark.position.y = 0.02
   fig.root.add(mark)
 
-  return { fig, rig: wrapFigure(fig), gear, weapons, mats: [...fig.mats, ...gear.mats, ...weapons.mats] }
+  return {
+    fig, rig: wrapFigure(fig), gear, weapons,
+    mats: [...fig.mats, ...gear.mats, ...weapons.mats],
+  }
+}
+
+function buildOdysseus() {
+  return buildFromModel() ?? buildProcedural()
 }
 
 export class Player extends Actor {
@@ -110,11 +187,12 @@ export class Player extends Actor {
     this.projectiles = projectiles
 
     const built = buildOdysseus()
-    this.fig = built.fig
+    this.fig = built.fig ?? null          // 코드 인체일 때만 있다
     this.rig = built.rig
+    this.modelDriven = !built.fig         // 실제 모델이면 포즈를 클립이 맡는다
     this.gear = built.gear
     this.weapons = built.weapons
-    this.vis = built.fig.root
+    this.vis = built.rig.root
     this.group.add(this.vis)
     this.bodyMats = built.mats
     this.kills = 0
@@ -302,24 +380,35 @@ export class Player extends Actor {
       ? clamp((this.drawing - TUNING.bow.minDraw) / (TUNING.bow.fullDraw - TUNING.bow.minDraw), 0, 1)
       : null
 
+    const rollK = rolling ? 1 - this.rolling / TUNING.roll.duration : 0
+
     this.rig.pose({
       t: this.animT,
       run: this._run,
       attack,
+      attackId: run.def?.id,
+      attackDuration: run.active ? run.total / (this.actionRate || 1) : 0.4,
       draw: attack ? null : drawK,
-      roll: rolling ? 1 - this.rolling / TUNING.roll.duration : 0,
+      roll: rollK,
+      rollDuration: TUNING.roll.duration,
+      dead: this.dead,
       flinch: this.stagger > 0 ? clamp(this.stagger / 0.3, 0, 1) : 0,
     }, dt)
 
-    // 활은 당길 때만 손으로 온다
+    // 활은 당길 때만 손으로 온다 (코드 인체는 등에 매달아 둔 활이 따로 있다)
     const drawing = this.drawing > 0
-    this.weapons.bowHand.visible = drawing
-    this.weapons.bowBack.visible = !drawing
+    if (this.weapons.bowBack) {
+      this.weapons.bowHand.visible = drawing
+      this.weapons.bowBack.visible = !drawing
+    } else if (this.weapons.bowHand) {
+      this.weapons.bowHand.visible = true
+    }
 
     // 망토는 달리면 뒤로 젖혀지고, 구르면 말린다
-    if (this.gear.cape) {
+    const cape = this.gear.cape
+    if (cape) {
       const want = rolling ? 1.1 : this._run * 0.55 + Math.sin(this.animT * 5.2) * 0.06 * this._run
-      this.gear.cape.rotation.x = damp(this.gear.cape.rotation.x, want, 0.07, dt)
+      cape.rotation.x = damp(cape.rotation.x, want, 0.07, dt)
     }
 
     // 활 조준선 — group 이 이미 facing 만큼 돌아있어서 로컬 +Z 가 곧 조준 방향이다

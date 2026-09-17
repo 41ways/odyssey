@@ -1,3 +1,10 @@
 node_modules/
 dist/
 .DS_Store
+
+# 모델 원본은 용량이 커서 안 올린다. art/README.md 참고
+art/*
+!art/README.md
+
+# 브라우저 다운로드가 프로젝트 루트에 떨어지는 일이 있다. 원본은 art/ 로 옮길 것
+*.zip

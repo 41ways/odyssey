@@ -10,11 +10,17 @@
     "preview": "vite preview"
   },
   "devDependencies": {
+    "@gltf-transform/core": "^4.5.0",
+    "@gltf-transform/extensions": "^4.5.0",
+    "@gltf-transform/functions": "^4.5.0",
+    "draco3dgltf": "^1.5.7",
     "vite": "^7.1.5"
   },
   "dependencies": {
-    "three": "^0.180.0",
-    "postprocessing": "^6.37.8"
+    "postprocessing": "^6.37.8",
+    "three": "^0.180.0"
   },
-  "engines": { "node": ">=20" }
+  "engines": {
+    "node": ">=20"
+  }
 }

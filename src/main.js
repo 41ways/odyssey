@@ -13,6 +13,7 @@ import { Pickups } from './combat/pickup.js'
 import { rollChoices, newStats } from './player/stats.js'
 import { KIT, kitProgress } from './player/gear.js'
 import { models } from './render/models.js'
+import { preloadCharacter } from './render/character.js'
 import { rand } from './core/math.js'
 
 /**
@@ -209,7 +210,7 @@ class Game {
 }
 
 // 있는 모델만 먼저 받아 둔다. 없으면 코드 인체로 돌아가므로 게임은 항상 시작된다.
-await models.preload()
+await Promise.all([models.preload(), preloadCharacter()])
 const game = new Game(document.getElementById('app'), document.getElementById('ui'))
 // 튜닝용 핸들. 콘솔에서 __game.player.pos 같은 걸 바로 만질 수 있다.
 window.__game = game

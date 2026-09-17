@@ -185,3 +185,96 @@ export function buildWeapons(fig) {
 
   return { mats, sword, bowHand, bowBack }
 }
+
+
+/* ── 본에 매다는 프롭 ─────────────────────────────────────────
+   GLTF 캐릭터에는 무기도 투구도 망토도 없다. 관절에 직접 걸어 준다.
+   코드 인체와 같은 조각을 쓰므로 모양이 어긋나지 않는다. */
+
+function propMaterials() {
+  const mats = []
+  const mk = (c, r, m = 0, o = {}) => {
+    const x = new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: m, ...o })
+    mats.push(x)
+    return x
+  }
+  return {
+    mats,
+    steel: mk('#efe9dc', 0.22, 0.95),
+    bronze: mk('#c08a3e', 0.32, 0.85),
+    wood: mk('#6b4a2c', 0.8),
+    crest: mk('#a8322a', 0.92),
+    wool: mk('#8e2b22', 0.95, 0, { side: THREE.DoubleSide }),
+    string: mk('#e8dcc0', 0.9),
+  }
+}
+
+/** 칼 한 자루. 손 관절에 건다. */
+export function buildSwordProp() {
+  const M = propMaterials()
+  const g = new THREE.Group()
+  const add = m => { m.castShadow = true; g.add(m); return m }
+  const blade = add(new THREE.Mesh(new THREE.BoxGeometry(0.105, 0.62, 0.05), M.steel))
+  blade.position.y = -0.36
+  const tip = add(new THREE.Mesh(new THREE.ConeGeometry(0.062, 0.14, 4), M.steel))
+  tip.position.y = -0.73; tip.rotation.x = Math.PI; tip.rotation.y = Math.PI / 4
+  const guard = add(new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.04, 0.06), M.bronze))
+  guard.position.y = -0.05
+  add(new THREE.Mesh(new THREE.CylinderGeometry(0.019, 0.019, 0.11, 8), M.wood))
+  const pommel = add(new THREE.Mesh(new THREE.SphereGeometry(0.028, 8, 6), M.bronze))
+  pommel.position.y = 0.06
+  return { group: g, mats: M.mats }
+}
+
+/** 활. */
+export function buildBowProp() {
+  const M = propMaterials()
+  const g = new THREE.Group()
+  const add = m => { m.castShadow = true; g.add(m); return m }
+  const arc = add(new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.02, 6, 22, Math.PI * 1.15), M.wood))
+  arc.rotation.z = Math.PI * 0.42
+  const str = add(new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.62, 4), M.string))
+  str.position.x = 0.125
+  return { group: g, mats: M.mats }
+}
+
+/** 코린토스식 투구. 머리 관절에 건다. */
+export function buildHelmetProp() {
+  const M = propMaterials()
+  const g = new THREE.Group()
+  const add = m => { m.castShadow = m.receiveShadow = true; g.add(m); return m }
+  const dome = add(new THREE.Mesh(new THREE.SphereGeometry(0.145, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.68), M.bronze))
+  dome.position.y = 0.02; dome.scale.set(1, 1.12, 1.05)
+  const band = add(new THREE.Mesh(new THREE.TorusGeometry(0.145, 0.018, 6, 18), M.bronze))
+  band.position.y = -0.01; band.rotation.x = Math.PI / 2; band.scale.z = 1.05
+  const nose = add(new THREE.Mesh(new THREE.BoxGeometry(0.032, 0.14, 0.03), M.bronze))
+  nose.position.set(0, -0.05, 0.142)
+  for (const s of [-1, 1]) {
+    const cheek = add(new THREE.Mesh(new THREE.BoxGeometry(0.028, 0.13, 0.09), M.bronze))
+    cheek.position.set(0.115 * s, -0.055, 0.075)
+    cheek.rotation.y = -0.35 * s
+  }
+  const fin = add(new THREE.Mesh(new THREE.BoxGeometry(0.026, 0.04, 0.26), M.bronze))
+  fin.position.set(0, 0.135, -0.01)
+  const plume = add(new THREE.Mesh(new THREE.BoxGeometry(0.052, 0.09, 0.27), M.crest))
+  plume.position.set(0, 0.185, -0.015)
+  const tail = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.026, 0.14, 4, 8), M.crest))
+  tail.position.set(0, 0.145, -0.19); tail.rotation.x = 1.3
+  return { group: g, mats: M.mats }
+}
+
+/** 붉은 망토. 등 관절에 건다. */
+export function buildCapeProp() {
+  const M = propMaterials()
+  const g = new THREE.Group()
+  // 어깨에서 허리 아래까지. 넓게 펴면 판때기로 보인다.
+  const cloth = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.17, 0.28, 0.72, 18, 3, true, Math.PI * 0.55, Math.PI * 0.9), M.wool)
+  cloth.castShadow = true
+  cloth.position.set(0, -0.3, -0.02)
+  g.add(cloth)
+  const clasp = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 6), M.bronze)
+  clasp.position.set(0.13, 0.03, 0.05)
+  g.add(clasp)
+  return { group: g, cloth, mats: M.mats }
+}
