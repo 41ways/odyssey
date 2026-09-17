@@ -9,6 +9,9 @@ import { installTheme, meanderURI, laurelURI } from './theme.js'
  * 여신을 가운데 세우면 글과 카드가 그 위에 얹혀 얼굴을 가린다.
  * 왼쪽에 세워 두고 오른쪽 한 단으로 말을 받는다 — 서로를 안 덮는다.
  *
+ * 글단은 화면 오른쪽 끝이 아니라 여신 옆에 붙인다. 끝에 붙여 두면
+ * 넓은 화면에서 둘 사이가 허허벌판이 되고, 시선이 한 번 더 건너뛰어야 한다.
+ *
  * 초상은 public/img/athena.webp 를 쓴다. 없으면 올빼미 문양으로 대체한다.
  */
 const PORTRAIT = '/img/athena.webp?v=2'
@@ -41,8 +44,9 @@ const CSS = `
 /* 빛기둥 — 위에서 내려온다 */
 #bless .beam { position:absolute; left:23%; top:-10%; width:34vw; height:120vh;
   transform:translateX(-50%) scaleY(.2); transform-origin:50% 0%; opacity:0;
-  background:linear-gradient(180deg, rgba(255,232,170,.34), rgba(255,220,140,.10) 45%, transparent 78%);
-  filter:blur(8px); transition:transform 1.0s cubic-bezier(.2,.9,.3,1), opacity .8s ease; }
+  background:radial-gradient(ellipse 58% 96% at 50% 2%,
+    rgba(255,232,170,.36), rgba(255,220,140,.11) 44%, transparent 76%);
+  filter:blur(10px); transition:transform 1.0s cubic-bezier(.2,.9,.3,1), opacity .8s ease; }
 #bless.up .beam { transform:translateX(-50%) scaleY(1); opacity:1; }
 
 #bless .figure { position:absolute; left:23%; bottom:-2vh; transform:translate(-50%, -14%);
@@ -55,8 +59,9 @@ const CSS = `
   transform:translate(-50%,-50%); z-index:-1; pointer-events:none;
   background:radial-gradient(circle, rgba(255,226,160,.40), rgba(180,140,60,.16) 38%, transparent 66%); }
 
-#bless .said { position:absolute; right:4.5vw; top:12vh; width:min(660px, 52vw);
-  text-align:left; opacity:0; transition:opacity .7s ease .5s; }
+#bless .said { position:absolute; left:39%; top:50%; width:min(900px, 58vw);
+  transform:translateY(-230px); text-align:left;
+  opacity:0; transition:opacity .7s ease .5s; }
 #bless.up .said { opacity:1; }
 #bless .band { height:14px; background-image:${meanderURI('#e8c98a', 0.95)};
   background-repeat:repeat-x; background-position:center; opacity:.45; }
@@ -64,15 +69,16 @@ const CSS = `
 #bless .laurel { width:26px; height:62px; background-image:${laurelURI('#e8c98a')};
   background-repeat:no-repeat; background-size:contain; }
 #bless .laurel.r { transform:scaleX(-1); }
-#bless .said h2 { font-family:var(--serif); font-size:46px; font-weight:700;
+#bless .said h2 { font-family:var(--serif); font-size:clamp(30px, 3.2vw, 44px); white-space:nowrap; font-weight:700;
   letter-spacing:.26em; text-indent:.26em; color:#fff2d4; margin:0 0 6px;
   text-shadow:0 0 70px rgba(255,214,130,.75), 0 0 26px rgba(255,214,130,.5), 0 6px 26px #000; }
 #bless .said .t { font-size:12.5px; letter-spacing:.34em; color:#c3a877; margin:2px 0 18px 4px; }
 #bless .said p { font-size:15px; line-height:2.0; color:#cdba95; text-shadow:0 2px 14px #000; }
 #bless .said p em { color:#fff3da; font-style:normal; }
 
-#bless .cards { position:absolute; right:4.5vw; bottom:15vh; width:min(660px, 52vw);
-  display:flex; gap:14px; justify-content:flex-start; opacity:0;
+#bless .cards { position:absolute; left:39%; top:50%; width:min(900px, 58vw);
+  transform:translateY(-10px);
+  display:flex; gap:16px; justify-content:flex-start; opacity:0;
   transition:opacity .6s ease .85s; }
 #bless.up .cards { opacity:1; }
 #bless button { flex:1 1 0; min-width:0; padding:0 0 18px; text-align:left; cursor:pointer;
@@ -90,18 +96,28 @@ const CSS = `
   color:#a88c52; margin-bottom:10px; }
 #bless .bname { font-family:var(--serif); font-size:18px; font-weight:700;
   margin-bottom:10px; color:#fff1d6; }
-#bless .bdesc { font-size:12.5px; line-height:1.7; color:#f0cf93; font-weight:700; }
+#bless .bdesc { font-size:13px; line-height:1.75; color:#f0cf93; font-weight:700; }
 #bless .bflavor { font-size:11px; line-height:1.65; color:#95866c; margin-top:12px;
   padding-top:11px; border-top:1px solid #45381f; }
 #bless .num { position:absolute; top:19px; right:14px; font-family:var(--serif);
   font-size:10px; color:#8a7548; border:1px solid #4d3f22; border-radius:2px; padding:2px 6px; }
 `
 
+/* 좁은 화면에서는 여신을 뒤로 물리고 글을 가운데로 */
+const NARROW = `
+@media (max-width: 900px) {
+  #bless .figure { left:50%; opacity:.28; }
+  #bless.up .figure { opacity:.28; }
+  #bless .said, #bless .cards { left:50%; width:min(600px, 92vw);
+    transform:translateX(-50%) translateY(-220px); }
+  #bless .cards { transform:translateX(-50%) translateY(-20px); }
+}`
+
 export class BlessingScreen {
   constructor(root) {
     installTheme()
     const st = document.createElement('style')
-    st.textContent = CSS
+    st.textContent = CSS + NARROW
     document.head.appendChild(st)
     this.el = document.createElement('div')
     this.el.id = 'bless'
@@ -125,7 +141,7 @@ export class BlessingScreen {
         <div class="said">
           <div class="band"></div>
           <div class="crown"><div class="laurel"></div>
-            <h2>아테나</h2>
+            <h2>아테나의 은총</h2>
           <div class="laurel r"></div></div>
           <div class="t">회색 눈의 여신</div>
           <p>${said}</p>

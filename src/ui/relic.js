@@ -9,7 +9,7 @@ import { installTheme, meanderURI } from './theme.js'
  *
  * 초상은 public/img/agamemnon.png 를 쓴다. 없으면 그림자 형상으로 대체한다.
  */
-const PORTRAIT = '/img/agamemnon.webp'
+const PORTRAIT = '/img/agamemnon.webp?v=4'
 
 /** 사진이 없을 때 쓰는 그림자. 빈 칸으로 두는 것보다 낫다. */
 const shadeSVG = encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="260" height="300" viewBox="0 0 260 300">

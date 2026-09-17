@@ -296,6 +296,48 @@ class Game {
     return pick
   }
 
+  /**
+   * 판이 바뀌는 순간을 덮는 막.
+   *
+   * 땅과 빛이 한 프레임에 갈리면 다른 데로 '뚝' 떨어진 것처럼 보인다.
+   * 어둠으로 덮고, 덮인 동안 갈고, 다시 걷으면서 카메라가 천천히 내려앉는다.
+   * 걷히는 시간이 곧 "여기가 어디인지 둘러보는 시간"이 된다.
+   *
+   * @param apply 막이 내려가 있는 동안 할 일 (땅·빛 교체)
+   */
+  async curtain(apply, { out = 0.42, hold = 0.12, into = 1.15 } = {}) {
+    const veil = this._veil ??= (() => {
+      const d = document.createElement('div')
+      d.style.cssText = 'position:absolute;inset:0;z-index:52;pointer-events:none;'
+        + 'background:#06050a;opacity:0;transition:opacity .42s ease'
+      this.uiRoot.appendChild(d)
+      return d
+    })()
+
+    veil.style.transitionDuration = `${out}s`
+    veil.style.opacity = '1'
+    await new Promise(r => setTimeout(r, out * 1000))
+
+    await apply?.()
+    await new Promise(r => setTimeout(r, hold * 1000))
+
+    // 카메라가 한 뼘 물러난 자리에서 제자리로 내려앉는다
+    this.settle = { t: 0, dur: into * 1.5 }
+    veil.style.transitionDuration = `${into}s`
+    veil.style.opacity = '0'
+    await new Promise(r => setTimeout(r, into * 1000 * 0.55))
+  }
+
+  #driveSettle(dt) {
+    const s = this.settle
+    if (!s) return
+    if (this.cutscene) { this.settle = null; return }    // 연출이 카메라를 쓰는 중이면 비킨다
+    s.t += dt
+    const k = Math.min(1, s.t / s.dur)
+    this.render3d.zoom = -0.34 * Math.pow(1 - k, 2.4)
+    if (k >= 1) { this.render3d.zoom = 0; this.settle = null }
+  }
+
   /** 저승으로 걸어 들어간다. 끝나면 유물 화면이 열린다. */
   playCutscene(make) {
     return new Promise(resolve => {
@@ -610,6 +652,7 @@ class Game {
   draw() {
     const real = this._real ?? 1 / 60
     this.#driveCutscene(real)
+    this.#driveSettle(real)
     this.#driveEquipFx(real)
     const cam = this.render3d.camera
     if (this.cutscene) this.player.updateVisualOnly(real)
@@ -692,10 +735,26 @@ if (import.meta.env?.DEV) {
         } catch { /* 못 가져오면 그냥 둔다 */ }
       }))
 
+      // 인라인 style 의 background-image 도 foreignObject 안에서는 못 불러온다
+      const styled = [...ui.querySelectorAll('[style*="url("]')]
+      const savedStyle = styled.map(el => el.getAttribute('style'))
+      await Promise.all(styled.map(async el => {
+        const m = el.style.backgroundImage?.match(/url\((["']?)([^)"']+)\1\)/)
+        if (!m || m[2].startsWith('data:')) return
+        try {
+          const blob = await (await fetch(m[2])).blob()
+          const uri = await new Promise(ok => {
+            const fr = new FileReader(); fr.onload = () => ok(fr.result); fr.readAsDataURL(blob)
+          })
+          el.style.backgroundImage = `url("${uri}")`
+        } catch { /* 못 가져오면 그냥 둔다 */ }
+      }))
+
       // outerHTML 은 <br> 처럼 안 닫힌 태그를 그대로 뱉어서 XML 파서가 거부한다.
       // XMLSerializer 는 XML 로 맞춰 준다.
       const body = new XMLSerializer().serializeToString(ui)
       imgs.forEach((im, i) => { if (saved[i]) im.setAttribute('src', saved[i]) })
+      styled.forEach((el, i) => { if (savedStyle[i]) el.setAttribute('style', savedStyle[i]) })
       // 캡처에서만 빼는 것들:
       //  - backdrop-filter 는 foreignObject 안에서 화면 전체를 뭉갠다
       //  - animation 은 정지 스냅샷에서 0% 키프레임(대개 opacity:0)으로 굳어 버린다

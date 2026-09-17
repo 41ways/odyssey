@@ -127,6 +127,7 @@ class Models {
     model.position.z -= (box2.min.z + box2.max.z) / 2
 
     if (cfg.rotationY) model.rotation.y = cfg.rotationY
+    const baseY = model.position.y
 
     const mats = []
     model.traverse(o => {
@@ -145,6 +146,9 @@ class Models {
     const actions = {}
     if (mixer) for (const [k, clip] of Object.entries(clips)) actions[k] = mixer.clipAction(clip)
 
+    // 달리기 클립이 없는 모델(받아 온 동물 대부분)은 가만히 서서 미끄러진다.
+    // 클립을 만들 수는 없으니 몸통을 위아래로 흔들고 앞으로 기울여 흉내만 낸다.
+    const trot = { t: 0, baseY }
     let current = null
     const play = (name, fade = 0.16) => {
       const next = actions[name] ?? actions.idle
@@ -158,13 +162,23 @@ class Models {
       root, mats, mixer, actions,
       /** figure.js 의 poseFigure 와 같은 자리에서 불린다. */
       pose(state, dt) {
-        if (!mixer) return
-        if (state.roll > 0) play('roll')
-        else if (state.attack) play('attack', 0.08)
-        else if (state.draw != null) play('aim')
-        else if (state.run > 0.12) play('run')
-        else play('idle')
-        mixer.update(dt)
+        const running = state.run > 0.12
+        if (mixer) {
+          if (state.roll > 0) play('roll')
+          else if (state.attack) play('attack', 0.08)
+          else if (state.draw != null) play('aim')
+          else if (running) play('run')
+          else play('idle')
+          mixer.update(dt)
+        }
+        if (!actions.run) {
+          // 걸음 시늉 — 있는 클립이 달리기를 맡고 있으면 건드리지 않는다
+          trot.t += dt * (running ? 9 : 0)
+          const k = running ? 1 : 0
+          trot.k = (trot.k ?? 0) + ((k - (trot.k ?? 0)) * Math.min(1, dt * 8))
+          model.position.y = trot.baseY + Math.abs(Math.sin(trot.t)) * 0.09 * trot.k
+          model.rotation.x = -0.12 * trot.k + Math.sin(trot.t * 2) * 0.03 * trot.k
+        }
       },
     }
   }

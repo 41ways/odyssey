@@ -16,6 +16,9 @@ const [src, name, tolArg, widthArg] = process.argv.slice(2)
 // FADE_PX=150 을 같이 주면 그 위 150줄이 서서히 사라진다 — 자른 자리가 안 보이게
 const CUT = Number(process.env.CUT_BELOW ?? 0)
 const FADE = Number(process.env.FADE_PX ?? 0)
+// 인물이 원본 테두리에 닿아 잘려 있으면 그 변만 흐리게 눅인다.
+// 안 그러면 화면에 칼로 자른 듯한 직선이 남는다 (아가멤논의 망토가 그랬다).
+const EDGE = Number(process.env.FADE_EDGE ?? 0)
 const TRIM = process.env.TRIM === '1'   // 남은 여백을 잘라 낸다
 if (!src || !name) { console.error('쓰기: node tools/dechecker.mjs <png> <이름> [여유값] [폭]'); process.exit(1) }
 const TOL = Number(tolArg ?? 12)
@@ -143,6 +146,36 @@ for (let i = 0; i < N; i++) {
   }
   out[o + 3] = a
   if (a) kept++
+}
+
+if (EDGE) {
+  const at = i => out[i * 4 + 3]
+  const touching = side => {
+    let n = 0, tot = 0
+    if (side === 'left' || side === 'right') {
+      const x = side === 'left' ? 0 : W - 1
+      for (let y = 0; y < H; y++) { tot++; if (at(y * W + x) > 24) n++ }
+    } else {
+      const y = side === 'top' ? 0 : H - 1
+      for (let x = 0; x < W; x++) { tot++; if (at(y * W + x) > 24) n++ }
+    }
+    return n / tot > 0.015
+  }
+  const ramp = (d) => Math.min(1, d / EDGE)
+  const sides = ['left', 'right', 'top', 'bottom'].filter(touching)
+  if (sides.length) console.log(`  (테두리에 닿은 변을 눅인다: ${sides.join(', ')})`)
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const o = (y * W + x) * 4
+      if (!out[o + 3]) continue
+      let k = 1
+      if (sides.includes('left')) k = Math.min(k, ramp(x))
+      if (sides.includes('right')) k = Math.min(k, ramp(W - 1 - x))
+      if (sides.includes('top')) k = Math.min(k, ramp(y))
+      if (sides.includes('bottom')) k = Math.min(k, ramp(H - 1 - y))
+      out[o + 3] = Math.round(out[o + 3] * k)
+    }
+  }
 }
 
 mkdirSync('public/img', { recursive: true })

@@ -87,15 +87,23 @@ export class Run {
     await this.#enterBoss()
   }
 
-  /** 구간 하나를 연다 — 땅·빛을 갈고, 플레이어를 세우고, 현판을 띄운다. */
+  /**
+   * 구간 하나를 연다 — 땅·빛을 갈고, 플레이어를 세우고, 현판을 띄운다.
+   *
+   * 갈아 끼우는 건 어둠 뒤에서 한다. 앞에서 갈면 한 프레임 만에
+   * 다른 데로 떨어진 것처럼 보인다.
+   */
   async #scene(part, intro, { banner = true } = {}) {
     const g = this.game
-    g.clearField()
-    await g.render3d.applyStage(part)
-    g.arenaRadius = g.render3d.arenaRadius
-    g.player.pos.set(0, 0, Math.min(6, g.arenaRadius - 3))
-    g.player.vel.set(0, 0, 0)
-    g.render3d.camTarget.copy(g.player.pos)
+    await g.curtain(async () => {
+      g.clearField()
+      await g.render3d.applyStage(part)
+      g.arenaRadius = g.render3d.arenaRadius
+      g.player.pos.set(0, 0, Math.min(6, g.arenaRadius - 3))
+      g.player.vel.set(0, 0, 0)
+      g.player.action.stop()
+      g.render3d.camTarget.copy(g.player.pos)
+    })
     if (banner) g.hud.banner(this.stage.name, intro, 3.4)
   }
 

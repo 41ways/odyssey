@@ -20,6 +20,19 @@ const CSS = `
    어디를 떠나 어디로 가는지에 따라 하늘과 물을 바꾼다. */
 #lude .scene { position:absolute; inset:0; opacity:0; transition:opacity 1.4s ease; }
 #lude.on .scene { opacity:1; }
+
+/* 그림 한 장이 들어오면 그게 배경이 된다. 없으면 아래 CSS 장면이 그대로 남는다.
+   느리게 밀려 나가는 것만으로도 정지 그림이 '지나가는 풍경'이 된다. */
+#lude .plate-img { position:absolute; inset:-4%; background-size:cover;
+  background-position:center; opacity:0; transition:opacity 1.6s ease;
+  animation:ludeDrift 26s ease-in-out infinite alternate; }
+#lude.on .plate-img { opacity:1; }
+@keyframes ludeDrift {
+  from { transform:scale(1.04) translate3d(-1.2%, 0, 0) }
+  to   { transform:scale(1.10) translate3d(1.2%, -1%, 0) } }
+#lude .plate-img::after { content:''; position:absolute; inset:0;
+  background:linear-gradient(180deg, rgba(4,3,6,.62) 0%, rgba(4,3,6,.18) 34%,
+    rgba(4,3,6,.30) 66%, rgba(4,3,6,.78) 100%); }
 #lude .sky { position:absolute; inset:0 0 44% 0; }
 #lude .water { position:absolute; inset:56% 0 0 0; }
 #lude .horizon { position:absolute; left:0; right:0; top:56%; height:1px;
@@ -191,10 +204,12 @@ export class Interlude {
    * @param o.lines   한 줄씩 뜰 글. 각 { text, hold }
    * @param o.dest    아래에 작게 뜨는 목적지 (선택)
    * @param o.scene   SCENES 의 이름 — sea·dawn·storm·fire·ashdawn·whirl·landfall·night
+   * @param o.art      배경 그림 주소. 있으면 CSS 장면 위에 덮인다 (없으면 조용히 무시)
    */
-  play({ lines, dest, scene = 'sea' }) {
+  play({ lines, dest, scene = 'sea', art = null }) {
     return new Promise(resolve => {
-      const back = SCENES[scene] ? SCENES[scene]() : SCENES.sea()
+      const back = (SCENES[scene] ? SCENES[scene]() : SCENES.sea())
+        + (art ? `<div class="plate-img" data-src="${art}"></div>` : '')
 
       this.el.innerHTML = `${back}
         <div class="plate">
@@ -206,6 +221,15 @@ export class Interlude {
         <button class="skip" type="button">SKIP</button>`
       this.el.classList.add('on')
       document.body.style.cursor = 'default'
+
+      // 그림은 받아지고 나서야 붙인다. 없는 파일이면 CSS 장면 그대로 간다.
+      const imgEl = this.el.querySelector('.plate-img')
+      if (imgEl) {
+        const probe = new Image()
+        probe.onload = () => { imgEl.style.backgroundImage = `url("${imgEl.dataset.src}")` }
+        probe.onerror = () => imgEl.remove()
+        probe.src = imgEl.dataset.src
+      }
 
       const span = this.el.querySelector('.line span')
       const destEl = this.el.querySelector('.dest')

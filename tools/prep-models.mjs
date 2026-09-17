@@ -43,6 +43,16 @@ const JOBS = [
   { src: path.join(PARTS, 'Male_Peasant_Body.gltf'), out: 'gear-body.glb' },
   { src: path.join(PARTS, 'Male_Peasant_Arms.gltf'), out: 'gear-arms.glb' },
   { src: path.join(PARTS, 'Male_Ranger_Acc_Pauldron.gltf'), out: 'gear-pauldron.glb' },
+
+  // 키르케 — 후드 쓴 여자 몸. 뼈대가 같아서 같은 클립으로 움직인다.
+  // 받아 올 수 있는 CC0 마녀 모델은 전부 정적이라 보스가 서 있기만 한다.
+  { src: path.join(BASE, 'Superhero_Female_FullBody.gltf'), out: 'witch-body.glb' },
+  { src: path.join(PARTS, 'Female_Ranger_Legs.gltf'), out: 'witch-legs.glb' },
+  { src: path.join(PARTS, 'Female_Ranger_Feet.gltf'), out: 'witch-feet.glb' },
+  { src: path.join(PARTS, 'Female_Ranger_Body.gltf'), out: 'witch-body-cloth.glb' },
+  { src: path.join(PARTS, 'Female_Ranger_Arms.gltf'), out: 'witch-arms.glb' },
+  { src: path.join(PARTS, 'Female_Ranger_Head_Hood.gltf'), out: 'witch-hood.glb' },
+  { src: path.join(PARTS, 'Female_Ranger_Acc_Pauldrons.gltf'), out: 'witch-pauldron.glb' },
 ]
 
 /**

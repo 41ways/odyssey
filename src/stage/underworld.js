@@ -22,7 +22,7 @@ import { clamp } from '../core/math.js'
  */
 export const INTRO_TIME = 9.6
 
-const PORTRAIT = '/img/agamemnon.webp?v=3'
+const PORTRAIT = '/img/agamemnon.webp?v=4'
 
 /** 가장자리로 갈수록 사라지는 둥근 빛 한 장. 뒤에서 형체를 떠받친다. */
 function haloTexture() {

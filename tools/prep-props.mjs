@@ -15,9 +15,11 @@ const SRC = path.join(ROOT, 'art/props')
 const OUT = path.join(ROOT, 'public/models')
 
 /** 이름을 바꿔 내보내는 것들. 없으면 파일 이름 그대로 간다. */
-const RENAME = { 'pig-alt': 'pig' }
+const RENAME = {}
 /** 손대지 않을 것 — 쓰지 않기로 한 후보 */
-const SKIP = new Set(['pig'])          // pig-alt 쪽이 걷고 뛰는 클립까지 있다
+// pig-alt 는 걷기·뛰기 클립까지 있지만 각이 너무 져서 사람 모델과 따로 논다.
+// 부드러운 쪽을 쓰고, 없는 달리기는 models.js 가 몸통을 흔들어 메운다.
+const SKIP = new Set(['pig-alt'])
 
 fs.mkdirSync(OUT, { recursive: true })
 for (const f of fs.readdirSync(SRC).filter(f => f.endsWith('.glb'))) {

@@ -429,6 +429,7 @@ export class Boss extends Actor {
 function buildBossBody(look) {
   const rig = createCharacter({
     height: look.height, tint: look.tint, gear: look.gear ?? [], bulk: look.bulk ?? 1,
+    set: look.set ?? 'hero',
   })
   if (rig) return { rig, mats: rig.mats }
   const fig = buildFigure({ scale: look.height / 1.8, bulk: look.bulk ?? 1, palette: look.palette ?? {

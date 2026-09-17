@@ -59,22 +59,29 @@ const CSS = `
 
 #diff .cards { display:flex; gap:18px; justify-content:center; margin-top:44px;
   width:min(1000px, 92vw); }
-#diff button { flex:1 1 0; min-width:0; padding:0 0 22px; text-align:left; cursor:pointer;
-  color:var(--ivory); font:inherit; border:1px solid #5b4a2a; border-radius:4px;
+/* 단추는 자리에서 안 움직인다. 떠오르는 건 그 안의 판이다 —
+   단추가 커서 밑에서 빠져나가면 hover 가 켜졌다 꺼졌다 하며 떤다.
+   단추에 위아래 여백을 미리 잡아 두고 판만 그 안에서 뜬다. */
+#diff button { flex:1 1 0; min-width:0; padding:10px 0; border:0; background:none;
+  text-align:left; cursor:pointer; color:var(--ivory); font:inherit;
+  opacity:0; transition:opacity .9s ease; }
+#diff.up button { opacity:1; }
+#diff.up button:nth-child(1) { transition-delay:.55s; }
+#diff.up button:nth-child(2) { transition-delay:.70s; }
+#diff.up button:nth-child(3) { transition-delay:.85s; }
+#diff .face { position:relative; overflow:hidden; border-radius:4px; padding:0 0 22px;
+  border:1px solid #5b4a2a;
   background:linear-gradient(180deg, rgba(42,33,18,.92) 0%, rgba(26,20,11,.95) 46%, rgba(14,10,6,.97) 100%);
   box-shadow:inset 0 0 0 1px rgba(232,201,138,.13), 0 22px 52px rgba(0,0,0,.7);
-  opacity:0; transform:translateY(18px);
-  transition:opacity .9s ease, transform .6s cubic-bezier(.2,.9,.3,1),
-             border-color .16s, box-shadow .16s; position:relative; overflow:hidden; }
-#diff.up button { opacity:1; transform:none; }
-#diff.up button:nth-child(1) { transition-delay:.55s, .55s, 0s, 0s; }
-#diff.up button:nth-child(2) { transition-delay:.70s, .70s, 0s, 0s; }
-#diff.up button:nth-child(3) { transition-delay:.85s, .85s, 0s, 0s; }
-#diff button:hover { transform:translateY(-8px); border-color:#ffd88a;
+  transform:translateY(0);
+  transition:transform .18s cubic-bezier(.2,.9,.3,1), border-color .16s, box-shadow .16s; }
+#diff button:hover .face, #diff button:focus-visible .face {
+  transform:translateY(-8px); border-color:#ffd88a;
   box-shadow:inset 0 0 0 1px rgba(255,216,138,.5), 0 30px 66px rgba(0,0,0,.8),
              0 0 50px rgba(255,205,120,.24); }
 #diff button .top { height:13px; background-image:${meanderURI()};
-  background-repeat:repeat-x; background-position:center; opacity:.45; }
+  background-repeat:repeat-x; background-position:center; opacity:.45;
+  transition:opacity .16s; }
 #diff button:hover .top { opacity:1; }
 #diff .pad { padding:18px 20px 0; }
 #diff .tag { font-family:var(--serif); font-size:10px; letter-spacing:.26em;
@@ -121,14 +128,16 @@ export class DifficultyScreen {
           </div>
           <div class="cards">
             ${SAILS.map((s, i) => `
-              <button data-i="${i}">
-                <div class="top"></div>
-                <span class="num">${i + 1}</span>
-                <div class="pad">
-                  <div class="tag">${s.tag}</div>
-                  <div class="dname">${s.name}</div>
-                  <div class="dline">${s.line}</div>
-                  <div class="dflavor">${s.flavor}</div>
+              <button data-i="${i}" type="button">
+                <div class="face">
+                  <div class="top"></div>
+                  <span class="num">${i + 1}</span>
+                  <div class="pad">
+                    <div class="tag">${s.tag}</div>
+                    <div class="dname">${s.name}</div>
+                    <div class="dline">${s.line}</div>
+                    <div class="dflavor">${s.flavor}</div>
+                  </div>
                 </div>
               </button>`).join('')}
           </div>

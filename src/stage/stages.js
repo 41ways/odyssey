@@ -265,6 +265,8 @@ export function interludeFor(fromIndex) {
   const lines = SAILING[from.id] ?? ['배를 밀었다.']
   return {
     scene: PASSAGE[from.id] ?? 'sea',
+    // 그림이 들어오면 그게 배경이 된다. 없으면 CSS 장면이 그대로 남는다.
+    art: `/img/lude-${from.id}.webp`,
     lines: lines.map((text, i) => ({ text, hold: i === lines.length - 1 ? 3000 : 2800 })),
     dest: `${to.name} — ${to.title}`,
   }

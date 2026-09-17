@@ -13,15 +13,35 @@ import { clamp } from '../core/math.js'
  *
  * 에셋: Quaternius (CC0) — tools/prep-models.mjs 가 원본에서 뽑아 최적화한다.
  */
-const FILES = {
-  body: '/models/hero-body.glb',
-  anims: '/models/anims.glb',
-  gear: {
-    legs: '/models/gear-legs.glb',
-    feet: '/models/gear-feet.glb',
-    body: '/models/gear-body.glb',
-    arms: '/models/gear-arms.glb',
-    pauldron: '/models/gear-pauldron.glb',
+const ANIMS = '/models/anims.glb'
+
+/**
+ * 몸 한 벌 = 뼈대 하나 + 그 뼈대에 스킨된 조각들.
+ * 뼈 이름이 같아서 어느 벌이든 같은 클립으로 움직인다.
+ */
+const SETS = {
+  hero: {
+    body: '/models/hero-body.glb',
+    gear: {
+      legs: '/models/gear-legs.glb',
+      feet: '/models/gear-feet.glb',
+      body: '/models/gear-body.glb',
+      arms: '/models/gear-arms.glb',
+      pauldron: '/models/gear-pauldron.glb',
+    },
+  },
+  // 키르케. 받아 올 수 있는 CC0 마녀는 전부 정적 모델이라 보스가 서 있기만 한다.
+  // 후드 쓴 여자 몸으로 만들면 오디세우스와 같은 클립을 그대로 쓴다.
+  witch: {
+    body: '/models/witch-body.glb',
+    gear: {
+      legs: '/models/witch-legs.glb',
+      feet: '/models/witch-feet.glb',
+      body: '/models/witch-body-cloth.glb',
+      arms: '/models/witch-arms.glb',
+      pauldron: '/models/witch-pauldron.glb',
+      hood: '/models/witch-hood.glb',
+    },
   },
 }
 
@@ -40,10 +60,11 @@ const CLIP = {
 
 const ONE_SHOT = new Set([CLIP.attack, CLIP.roll, CLIP.hurt, CLIP.die, CLIP.shoot])
 
-let cache = null
+/** 벌 이름 → { body, clips, gear } · 못 불러온 벌은 false */
+const cache = {}
 
 export async function preloadCharacter() {
-  if (cache !== null) return cache
+  if (cache.hero !== undefined) return cache.hero
   const loader = new GLTFLoader()
   const draco = new DRACOLoader()
   draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.7/')
@@ -55,23 +76,33 @@ export async function preloadCharacter() {
     return loader.loadAsync(url)
   }
 
-  try {
-    const [body, anims, ...gearList] = await Promise.all([
-      get(FILES.body), get(FILES.anims),
-      ...Object.values(FILES.gear).map(get),
-    ])
-    const gear = {}
-    Object.keys(FILES.gear).forEach((k, i) => { gear[k] = gearList[i] })
-    cache = { body, clips: anims.animations, gear }
-    console.info(`[character] 모델 준비됨 — 클립 ${anims.animations.length}종`)
-  } catch (err) {
-    cache = false
-    console.info('[character] 모델이 없어 코드 인체로 간다:', err.message)
+  // 클립은 한 벌만 받아 전부 돌려 쓴다. 뼈대가 같으니 그래도 된다.
+  let clips = []
+  try { clips = (await get(ANIMS)).animations } catch (err) {
+    console.info('[character] 애니메이션이 없어 코드 인체로 간다:', err.message)
+    for (const k of Object.keys(SETS)) cache[k] = false
+    return false
   }
-  return cache
+
+  await Promise.all(Object.entries(SETS).map(async ([name, spec]) => {
+    try {
+      const [body, ...gearList] = await Promise.all([
+        get(spec.body), ...Object.values(spec.gear).map(get),
+      ])
+      const gear = {}
+      Object.keys(spec.gear).forEach((k, i) => { gear[k] = gearList[i] })
+      cache[name] = { body, clips, gear }
+    } catch (err) {
+      cache[name] = false
+      console.info(`[character] '${name}' 벌 없음 — 코드 인체로 간다:`, err.message)
+    }
+  }))
+  const ok = Object.entries(cache).filter(([, v]) => v).map(([k]) => k)
+  console.info(`[character] 준비된 몸: ${ok.join(', ') || '없음'} · 클립 ${clips.length}종`)
+  return cache.hero
 }
 
-export const hasCharacter = () => !!cache
+export const hasCharacter = (set = 'hero') => !!cache[set]
 
 /** 장비 메시를 몸의 뼈대에 다시 묶는다. 뼈 이름이 같아야 한다 (66개 일치 확인됨). */
 function rebind(scene, boneByName) {
@@ -90,12 +121,14 @@ function rebind(scene, boneByName) {
  *   tint    몸·장비 색조. 적을 부족색으로 물들일 때 쓴다
  *   gear    처음부터 입고 시작할 조각들
  *   bulk    가로 비율. 1보다 크면 육중해 보인다
+ *   set     몸 한 벌 — 'hero' 아니면 'witch'
  */
-export function createCharacter({ height = 1.82, facing = 0, tint = null, gear: initialGear = [], bulk = 1 } = {}) {
-  if (!cache) return null
+export function createCharacter({ height = 1.82, facing = 0, tint = null, gear: initialGear = [], bulk = 1, set = 'hero' } = {}) {
+  const kit = cache[set] || cache.hero
+  if (!kit) return null
 
   const root = new THREE.Group()
-  const model = cloneRigged(cache.body.scene)
+  const model = cloneRigged(kit.body.scene)
 
   // 키 맞추기 — 원본이 몇 미터든 선언한 키로 맞춘다
   const box = new THREE.Box3().setFromObject(model)
@@ -138,7 +171,7 @@ export function createCharacter({ height = 1.82, facing = 0, tint = null, gear: 
 
   // 장비 — 미리 붙여 두고 숨긴다. 얻을 때 켜기만 하면 된다.
   const gearMeshes = {}
-  for (const [key, gltf] of Object.entries(cache.gear)) {
+  for (const [key, gltf] of Object.entries(kit.gear)) {
     const piece = cloneRigged(gltf.scene)
     const meshes = rebind(piece, boneByName)
     gearMeshes[key] = meshes
@@ -154,7 +187,7 @@ export function createCharacter({ height = 1.82, facing = 0, tint = null, gear: 
 
   const mixer = new THREE.AnimationMixer(model)
   const actions = {}
-  for (const clip of cache.clips) {
+  for (const clip of kit.clips) {
     const a = mixer.clipAction(clip)
     if (ONE_SHOT.has(clip.name)) { a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true }
     actions[clip.name] = a

@@ -108,7 +108,9 @@ export const KIRKE = {
   id: 'kirke', name: '키르케', title: '아이아이에의 마녀',
   hp: 620, radius: 0.6, mass: 24, speed: 4.4, keepRange: [7, 11], gap: [0.8, 1.4],
   barHeight: 2.4, groggyMult: 1.6, turnHalf: 0.1,
-  look: { height: 1.76, bulk: 0.94, tint: '#c88ad0', gear: ['legs', 'feet', 'body'] },
+  // 후드를 눌러쓴 여자 몸. 얼굴이 보이지 않아야 '마녀'로 읽힌다.
+  look: { set: 'witch', height: 1.76, bulk: 0.96, tint: '#b58ad8',
+    gear: ['legs', 'feet', 'body', 'arms', 'hood'] },
   phases: [
     {
       below: 1,
