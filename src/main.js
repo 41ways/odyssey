@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { World } from './render/world.js'
+import { World, CAMERA_RIG } from './render/world.js'
 import { Fx } from './render/fx.js'
 import { Input } from './core/input.js'
 import { createLoop } from './core/loop.js'
@@ -9,6 +9,7 @@ import { separate } from './combat/actor.js'
 import { Player } from './player/player.js'
 import { kikonesWarrior, kikonesArcher, circePig } from './enemy/kikones.js'
 import { Hud } from './ui/hud.js'
+import { meanderURI } from './ui/theme.js'
 import { TitleScreen } from './ui/title.js'
 import { DifficultyScreen, SAILS } from './ui/difficulty.js'
 import { EquipCard } from './ui/equipcard.js'
@@ -267,6 +268,85 @@ class Game {
     this.paused = true
     await this.presentGear(piece, meshes)
     this.paused = false
+  }
+
+  /**
+   * 한 컷 연출 — 검은 띠를 위아래로 물리고, 카메라를 한 곳에 붙이고,
+   * 가운데에 이름을 띄운다.
+   *
+   * 판이 바뀌는 자리마다 이게 없으면 "웨이브가 끝났다 → 갑자기 보스가 서 있다"
+   * 가 된다. 사이에 한 호흡을 넣어야 만난 것이 된다.
+   *
+   * @param o.title  큰 글자 (보스 이름)
+   * @param o.sub    작은 글자 (칭호나 한 줄)
+   * @param o.at     카메라가 볼 자리 {x, z}. 없으면 플레이어를 본다
+   * @param o.zoom   0~1. 클수록 바짝
+   * @param o.hold   글자를 띄워 두는 시간(초)
+   */
+  async cinema({ title, sub = '', at = null, zoom = 0.45, hold = 2.2, lead = 0.7 } = {}) {
+    const box = this._cinema ??= (() => {
+      // 모양은 <style> 로 뺀다. 인라인 style 에 뇌문 data URI 를 넣으면
+      // 그 안의 날것 <svg 때문에 화면 캡처용 XML 직렬화가 통째로 깨진다.
+      const st = document.createElement('style')
+      st.textContent = `
+#cinema { position:absolute; inset:0; z-index:54; pointer-events:none; overflow:hidden; }
+#cinema .cn-bar { position:absolute; left:0; right:0; height:11vh; background:#05040a;
+  transition:transform .9s cubic-bezier(.2,.8,.2,1); }
+#cinema .cn-top { top:0; transform:translateY(-100%); }
+#cinema .cn-bot { bottom:0; transform:translateY(100%); }
+#cinema.on .cn-top, #cinema.on .cn-bot { transform:translateY(0); }
+#cinema .cn-card { position:absolute; left:0; right:0; bottom:19vh; text-align:center;
+  opacity:0; transform:translateY(10px);
+  transition:opacity .7s ease, transform .9s cubic-bezier(.2,.8,.3,1); }
+#cinema.say .cn-card { opacity:1; transform:none; }
+#cinema .cn-rule { height:13px; width:min(420px,64vw); margin:0 auto 20px;
+  background-image:${meanderURI()}; background-repeat:repeat-x;
+  background-position:center; opacity:.5; }
+#cinema .cn-title { font-family:var(--display); font-weight:500;
+  font-size:clamp(30px,4.2vw,56px); letter-spacing:.14em; color:#f2e6cc;
+  text-shadow:0 0 70px rgba(232,200,132,.45), 0 6px 30px #000; }
+#cinema .cn-sub { font-family:var(--serif); font-size:12.5px; letter-spacing:.42em;
+  text-indent:.42em; color:#b79b6a; margin-top:14px; }`
+      document.head.appendChild(st)
+
+      const d = document.createElement('div')
+      d.id = 'cinema'
+      d.innerHTML = `
+        <div class="cn-bar cn-top"></div>
+        <div class="cn-bar cn-bot"></div>
+        <div class="cn-card">
+          <div class="cn-rule"></div>
+          <div class="cn-title"></div>
+          <div class="cn-sub"></div>
+        </div>`
+      this.uiRoot.appendChild(d)
+      return d
+    })()
+
+    box.querySelector('.cn-title').textContent = title ?? ''
+    box.querySelector('.cn-sub').textContent = sub ?? ''
+
+    this.#freeze()
+    this.settle = null                 // 판이 열리는 몸풀기와 카메라를 두고 다투지 않게
+    // 평소의 추적은 거의 즉시 붙는다. 연출에서는 그게 '순간이동' 으로 보여서
+    // 시선이 건너간 게 아니라 화면이 갈린 것처럼 읽힌다. 잠깐 느리게 만든다.
+    const follow0 = CAMERA_RIG.follow
+    CAMERA_RIG.follow = 0.42
+    if (at) this.camFocus = new THREE.Vector3(at.x, 0, at.z)
+    this.render3d.zoom = zoom
+    box.classList.add('on')
+    await new Promise(r => setTimeout(r, lead * 1000))
+
+    box.classList.add('say')
+    await new Promise(r => setTimeout(r, hold * 1000))
+
+    box.classList.remove('say', 'on')
+    // 카메라는 글자보다 느리게 돌아온다 — 딱 끊기면 다시 '뚝' 이 된다
+    this.settle = { t: 0, dur: 1.2 }
+    this.camFocus = null
+    await new Promise(r => setTimeout(r, 700))
+    CAMERA_RIG.follow = follow0
+    this.#thaw()
   }
 
   /** ★시험용 무적. 배포 전에 이 메서드째로 지운다. */
@@ -703,7 +783,10 @@ class Game {
     for (const c of this.corpses) { c.sync(cam); c.group.position.y = -Math.min(c.deathT / 0.45, 1) * 1.6 }
     this.reticle.position.set(this.input.aim.x, 0.05, this.input.aim.z)
     this.reticle.visible = this.input.pointerInside
-    this.render3d.updateCamera(this.player.pos, this.input.pointerInside ? this.input.aim : null, this._real ?? 1 / 60)
+    // 연출 중에는 카메라가 다른 것을 본다
+    this.render3d.updateCamera(this.camFocus ?? this.player.pos,
+      this.camFocus ? null : (this.input.pointerInside ? this.input.aim : null),
+      this._real ?? 1 / 60)
     this.render3d.render()
     this.hud.update(this.player, {
       totalDamage: this.totalDamage, dt: this._real ?? 1 / 60,
@@ -805,7 +888,15 @@ if (import.meta.env?.DEV) {
         .replace(/-webkit-backdrop-filter\s*:[^;}]*;?/g, '')
         .replace(/[^-\w]animation(-\w+)?\s*:[^;}]*;?/g, ' ')
       // CSS 안의 url(/img/...) 도 foreignObject 에서는 못 불러온다. 같이 구워 넣는다.
-      for (const m of [...new Set([...safeCss.matchAll(/url\((["']?)(\/[^)"']+)\1\)/g)].map(m => m[2]))]) {
+      // 단 '지금 화면에 실제로 쓰이는 것' 만. 시작 화면처럼 이미 사라진 화면의
+      // 큰 그림까지 구워 넣으면 data URL 한도를 넘겨 합성이 통째로 실패한다.
+      const used = new Set()
+      for (const el of [ui, ...ui.querySelectorAll('*')]) {
+        const bg = getComputedStyle(el).backgroundImage
+        if (!bg || bg === 'none') continue
+        for (const u of bg.matchAll(/url\(["']?(\/[^)"']+)["']?\)/g)) used.add(u[1])
+      }
+      for (const m of [...used]) {
         try {
           const blob = await (await fetch(m)).blob()
           const uri = await new Promise(ok => {
@@ -819,6 +910,7 @@ if (import.meta.env?.DEV) {
         <style>${safeCss}</style>${body}</div>`
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${innerWidth}" height="${innerHeight}">
         <foreignObject width="100%" height="100%">${html}</foreignObject></svg>`
+      // blob: 로 넘기면 캔버스가 오염돼 toDataURL 이 막힌다. data: 여야 한다.
       const img = new Image()
       await new Promise((ok, no) => {
         img.onload = ok; img.onerror = no

@@ -127,13 +127,17 @@ export class Run {
     // 거지 차림이었다면 여기서 벗는다
     if (stage.beggar) await g.setBeggar(false)
 
-    await this.#scene(cfg, cfg.intro)
+    await this.#scene(cfg, cfg.intro, { banner: false })
     const b = makeBoss(cfg.id, g, g.fx)
     b.pos.set(0, 0, -Math.min(7, g.arenaRadius - 4))
     b.facing = Math.PI
     g.track(b)
     this.boss = b
+
+    // 만나는 장면. 체력바는 이 뒤에 붙여야 이름이 두 번 나오지 않는다
+    await g.cinema({ title: b.cfg.name, sub: b.cfg.title ?? '', at: b.pos, zoom: 0.5, hold: 2.3 })
     g.hud.setBoss(b)
+    if (cfg.intro) g.hud.banner(this.stage.name, cfg.intro, 2.4)
   }
 
   update(dt) {
@@ -159,9 +163,16 @@ export class Run {
     if (this.cleared) return
     this.cleared = true
     const g = this.game
-    g.hud.setBoss(null)
-    if (this.stage.clear) g.hud.banner(`${this.stage.name} 통과`, this.stage.clear, 3.4)
-    setTimeout(() => this.#afterStage(true), 1800)
+    const fell = this.boss
+    setTimeout(async () => {
+      g.hud.setBoss(null)
+      // 쓰러진 자리를 한 번 보고 간다. 바로 은총 화면이 뜨면 이긴 실감이 없다
+      await g.cinema({
+        title: `${fell?.cfg?.name ?? this.stage.name} 쓰러짐`,
+        sub: this.stage.clear ?? '', at: fell?.pos, zoom: 0.55, hold: 2.2, lead: 0.9,
+      })
+      this.#afterStage(true)
+    }, 900)
   }
 
   /**

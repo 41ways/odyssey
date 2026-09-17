@@ -240,7 +240,34 @@ export class Boss extends Actor {
     this.fx.number(this.pos.clone().setY(this.cfg.barHeight ?? 3), '그로기', { color: '#ffd166', size: 26 })
   }
 
+  /**
+   * 약점을 맞혀야 다음 페이즈가 열리는 보스는, 그 전까지 체력이 더 안 깎인다.
+   * 안 그러면 쓰러뜨려 놓고 계속 두들겨서 눈 한 번 안 쏘고 끝난다 —
+   * 파훼법이 있는 보스에게 파훼법을 안 써도 되는 길을 열어 주면 안 된다.
+   */
+  #hpFloor() {
+    if (this.weakPointDone) return 0
+    const ph = this.cfg.phases.find(p => p.needsWeakPoint)
+    return ph ? this.maxHp * (ph.below ?? 0.5) : 0
+  }
+
   hurt(amount, opts = {}) {
+    if (this.dead) return 'dead'
+
+    // 쓰러져 있는 동안은 몸통을 아무리 때려도 안 깎인다. 약점만 통한다.
+    if (this.downed) {
+      this.fx?.number(this.pos.clone().setY((this.cfg.barHeight ?? 3) * 0.6),
+        this.downed.hint ?? '약점', { color: '#8fb6ff', size: 18 })
+      return 'iframe'
+    }
+
+    const floor = this.#hpFloor()
+    if (floor > 0) {
+      const room = Math.max(0, this.hp - floor)
+      if (room <= 0) return 'iframe'
+      amount = Math.min(amount, room)
+    }
+
     // 그로기 중에는 더 아프게 맞는다
     const mult = this.groggy > 0 ? (this.cfg.groggyMult ?? 1.8) : 1
     return super.hurt(amount * mult, { ...opts, knockback: 0, stagger: 0, crit: this.groggy > 0 })
@@ -253,9 +280,14 @@ export class Boss extends Actor {
     // 쓰러져 있는 동안은 아무것도 안 한다. 약점을 맞아야 일어난다.
     if (this.downed) {
       this.downedT = (this.downedT ?? 0) + dt
-      if (this.downedT % 0.5 < dt) {
-        this.fx.number(this.pos.clone().setY((this.cfg.barHeight ?? 3) + 0.6),
+      const w = this.getWeakPoint()
+      if (this.downedT % 0.5 < dt && w) {
+        this.fx.number(new THREE.Vector3(w.x, w.y + 0.5, w.z),
           this.downed.hint ?? '약점', { color: '#ffd166', size: 20 })
+      }
+      // 어디를 쏘라는 건지 바닥에도 표시한다
+      if (w && this.downedT % 0.9 < dt) {
+        this.fx.ring(w.x, w.z, { color: '#ffd166', radius: w.r * 1.2, life: 0.8 })
       }
       return
     }
@@ -338,9 +370,29 @@ export class Boss extends Actor {
   getWeakPoint() {
     if (!this.downed) return null
     const w = this.cfg.weakPoint ?? {}
+
+    // 눈은 머리에 붙어 있다. 서 있을 때와 무릎 꿇었을 때의 높이가 다르니
+    // 좌표를 손으로 적어 두면 한쪽에서 반드시 어긋난다. 머리뼈를 따라간다.
+    this._head ??= (() => {
+      let found = null
+      this.rig?.root?.traverse(o => { if (!found && o.isBone && /head/i.test(o.name)) found = o })
+      return found ?? false
+    })()
+    if (this._head) {
+      const p = this._head.getWorldPosition(this._headAt ??= new THREE.Vector3())
+      return {
+        x: p.x + Math.sin(this.facing) * (w.face ?? 0.25),
+        y: p.y,
+        z: p.z + Math.cos(this.facing) * (w.face ?? 0.25),
+        r: w.r ?? 0.9,
+        requires: w.requires ?? null,
+      }
+    }
+
     return {
       x: this.pos.x + Math.sin(this.facing) * (w.z ?? 0.6),
-      y: w.y ?? 1.6,
+      // 서 있을 때의 높이가 아니라 주저앉은 높이. 여기 안 맞추면 화살이 머리 위를 지나간다
+      y: w.downY ?? w.y ?? 1.6,
       z: this.pos.z + Math.cos(this.facing) * (w.z ?? 0.6),
       r: w.r ?? 0.9,
       requires: w.requires ?? null,
@@ -415,6 +467,7 @@ export class Boss extends Actor {
       attackId: run.def?.id, attackDuration: run.active ? run.total : 1,
       dead: this.dead,
       down: !!this.downed,
+      downHold: this.cfg.downHold ?? 0.3,
       flinch: this.groggy > 0 ? 1 : 0,
     }, dt)
 

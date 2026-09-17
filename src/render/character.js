@@ -269,6 +269,26 @@ export function createCharacter({ height = 1.82, facing = 0, tint = null, gear: 
     unequipAll() { for (const list of Object.values(gearMeshes)) for (const m of list) m.visible = false },
 
     pose(s, dt) {
+      // 쓰러져 있는 동안 — 죽는 동작을 쓰되 끝까지 가지 않는다.
+      // 끝까지 가면 완전히 엎어져서 '죽었다'로 읽히고, 드러난 약점도 바닥에 묻힌다.
+      const die = actions[CLIP.die]
+      if (s.down) {
+        if (lastOneShot !== 'down') {
+          play(CLIP.die, { fade: 0.22, speed: 1, restart: true })
+          lastOneShot = 'down'
+          if (die) die.paused = false
+        }
+        if (die) {
+          // 끝까지 가면 등을 대고 완전히 눕는다. 그러면 '죽었다' 로 읽히고
+          // 드러난 약점(눈)도 바닥에 붙어 맞히기가 어려워진다. 무릎 꿇는 자리에서 멈춘다.
+          const stopAt = die.getClip().duration * (s.downHold ?? 0.3)
+          if (die.time >= stopAt) { die.time = stopAt; die.paused = true }
+        }
+        mixer.update(dt)
+        return
+      }
+      if (die?.paused) die.paused = false
+
       if (s.dead) play(CLIP.die, { fade: 0.2, speed: 1 })
       else if (s.roll > 0) {
         if (lastOneShot !== 'roll') { play(CLIP.roll, { fade: 0.06, speed: fitSpeed(CLIP.roll, s.rollDuration ?? 0.44), restart: true }); lastOneShot = 'roll' }

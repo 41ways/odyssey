@@ -18,7 +18,8 @@ export const POLYPHEMOS = {
   turnHalf: 0.55,        // 고개를 천천히 돌린다. 스치듯 따라붙지 못한다
   barHeight: 6, groggyMult: 2.4, pace: 1.0,
   // 눈. 쓰러졌을 때만 드러나고, 화살로만 찌를 수 있다.
-  weakPoint: { y: 4.3, z: 0.9, r: 1.15, requires: 'arrow' },
+  // 머리뼈를 따라간다. face 는 이마 앞으로 얼마나 나오는지, r 은 맞는 범위.
+  weakPoint: { face: 0.3, r: 1.5, y: 4.3, downY: 2.2, z: 1.0, requires: 'arrow' },
   look: { height: 5.2, bulk: 1.5, tint: '#c9a07a', gear: ['legs', 'feet'] },
   phases: [
     {
