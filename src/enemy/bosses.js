@@ -86,9 +86,20 @@ export const ANTIPHATES = {
   hp: 760, radius: 1.5, mass: 90, speed: 3.6, keepRange: [3.4, 7.4], gap: [1.1, 1.9],
   barHeight: 5.4, groggyMult: 1.9,
   guarded: true,           // 부름꾼이 살아 있으면 몸이 안 열린다
-  // 왕이다. 청동을 두르고 나온다.
-  look: { height: 4.6, bulk: 1.25, tint: '#9aa2ac',
-    gear: ['legs', 'feet', 'body', 'arms', 'pauldron'] },
+  /**
+   * 왕이다. 그런데 여태 **사람 몸을 4.6 미터로 늘린 것**이었다 —
+   * 청동을 두르긴 했지만 실루엣이 사람이라, '식인 거인의 왕' 이 몸에
+   * 안 보였다. 키만 큰 사람과 거인은 다른 것이다.
+   *
+   * 받아 온 거인으로 바꾼다. Attack · Idle · Run · Walk · HitRecieve ·
+   * Death 일곱 클립이 붙어 있어서 휘두를 때 휘두르는 동작을 한다
+   * (Quaternius, CC0 · CREDITS.md).
+   *
+   * 제 몸이 붙은 보스는 코드 조각을 안 받는데 (buildBossBody), 이 보스는
+   * 원래 조각이 없었으니 잃는 게 없다. 파훼는 부름꾼이고 그건 몸이
+   * 아니라 규칙이다.
+   */
+  look: { model: 'giant', height: 4.6, bulk: 1.25, tint: '#9aa2ac', gear: [] },
   phases: [
     {
       below: 1,

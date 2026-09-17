@@ -45,6 +45,12 @@ export const MANIFEST = {
    * 중심 맞추기를 끈다(center). 뿌리가 원점이어야 벽에 심을 수 있다.
    */
   tentacle: { url: '/models/tentacle.glb', scale: 0.165, center: false },
+  /**
+   * 거인 — Attack · Idle · Run · Walk · Jump · HitRecieve · Death 일곱 클립.
+   * Quaternius (CC0), poly.pizza 경유. 안티파테스가 여태 **사람 몸을 4.6 미터로
+   * 늘린 것**이었다 — 실루엣이 사람이면 '식인 거인의 왕' 이 몸에 안 보인다.
+   */
+  giant: { url: '/models/giant.glb', height: 4.6 },
 }
 
 /** 클립 이름이 제각각이라 느슨하게 맞춘다. 앞에 있는 후보일수록 우선. */
