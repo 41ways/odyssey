@@ -8,6 +8,9 @@ import { separate } from './combat/actor.js'
 import { Player } from './player/player.js'
 import { kikonesWarrior, kikonesArcher, dummy } from './enemy/kikones.js'
 import { Hud } from './ui/hud.js'
+import { LevelUp } from './ui/levelup.js'
+import { Pickups } from './combat/pickup.js'
+import { rollChoices, xpToNext, newStats } from './player/stats.js'
 import { rand } from './core/math.js'
 
 /**
@@ -22,7 +25,14 @@ class Game {
     this.fx = new Fx(this.render3d, uiRoot)
     this.input = new Input(this.render3d.canvas, this.render3d.camera)
     this.projectiles = new Projectiles(this.render3d.scene, this.fx)
+    this.pickups = new Pickups(this.render3d.scene, this.fx)
     this.hud = new Hud(uiRoot)
+    this.levelUp = new LevelUp(uiRoot)
+
+    this.level = 1
+    this.xp = 0
+    this.xpNeed = xpToNext(1)
+    this.paused = false
 
     this.enemies = []
     this.corpses = []
@@ -67,6 +77,10 @@ class Game {
 
   track(enemy) {
     enemy.onHurt = d => { this.totalDamage += d }
+    if (!enemy.isDummy) {
+      const die = enemy.die.bind(enemy)
+      enemy.die = () => { die(); this.pickups.drop(enemy.pos.x, enemy.pos.z, enemy.xpValue ?? 3, 1 + (Math.random() < 0.4 ? 1 : 0)) }
+    }
     this.enemies.push(enemy)
     this.render3d.scene.add(enemy.group)
     return enemy
@@ -99,6 +113,12 @@ class Game {
     this.enemies.length = 0
     this.corpses.length = 0
     this.totalDamage = 0
+    this.pickups.clear()
+    this.level = 1
+    this.xp = 0
+    this.xpNeed = xpToNext(1)
+    this.player.stats = newStats()
+    this.player.applyStats()
     const p = this.player
     p.hp = p.maxHp; p.dead = false; p.rollCharges = 3; p.rolling = 0
     p.stagger = 0; p.invuln = 0; p.action.stop()
@@ -108,6 +128,7 @@ class Game {
   }
 
   update(dt) {
+    if (this.paused) return
     // 히트스톱: 시뮬레이션만 멈춘다. 연출은 실시간으로 계속 흐른다.
     if (this.fx.hitstop > 0) return
 
@@ -124,6 +145,12 @@ class Game {
     const all = [this.player, ...this.enemies]
     separate(all, dt)
     this.projectiles.update(dt, all, this.arenaRadius)
+
+    const gained = this.pickups.update(dt, this.player)
+    if (gained > 0 && !this.player.dead) {
+      this.xp += gained
+      if (this.xp >= this.xpNeed) this.openLevelUp()
+    }
 
     for (let i = this.enemies.length - 1; i >= 0; i--) {
       const e = this.enemies[i]
@@ -142,6 +169,24 @@ class Game {
     }
   }
 
+  /** 레벨업 선택. 고를 때까지 시간을 멈춘다. */
+  async openLevelUp() {
+    if (this.paused) return
+    this.paused = true
+    this.input.held.clear()
+    this.input.buffer.clear()
+    while (this.xp >= this.xpNeed) {
+      this.xp -= this.xpNeed
+      this.level++
+      this.xpNeed = xpToNext(this.level)
+      const pick = await this.levelUp.show(this.level, rollChoices(3))
+      pick.apply(this.player.stats)
+      this.player.applyStats()
+      this.fx.ring(this.player.pos.x, this.player.pos.z, { color: '#9fe0ff', radius: 3.4, life: 0.5 })
+    }
+    this.paused = false
+  }
+
   draw() {
     const cam = this.render3d.camera
     this.player.sync(cam)
@@ -151,7 +196,10 @@ class Game {
     this.reticle.visible = this.input.pointerInside
     this.render3d.updateCamera(this.player.pos, this.input.pointerInside ? this.input.aim : null, this._real ?? 1 / 60)
     this.render3d.render()
-    this.hud.update(this.player, { totalDamage: this.totalDamage, dt: this._real ?? 1 / 60 })
+    this.hud.update(this.player, {
+      totalDamage: this.totalDamage, dt: this._real ?? 1 / 60,
+      xp: this.xp, xpNeed: this.xpNeed, level: this.level,
+    })
   }
 }
 

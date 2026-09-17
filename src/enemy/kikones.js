@@ -21,7 +21,7 @@ function meleeAttack(cfg) {
       run.telegraph = e.fx.telegraph.show({
         x: e.pos.x, z: e.pos.z, facing: e.facing,
         range: cfg.range, halfAngle: cfg.halfAngle, inner: cfg.inner ?? 0,
-        duration: cfg.startup, color: cfg.color ?? '#ff3a2e',
+        duration: cfg.startup / (e.actionRate ?? 1), color: cfg.color ?? '#ff3a2e',
       })
     },
     onActive(e, run) {
@@ -55,7 +55,7 @@ const ARCHER_SHOT = {
     run.origin = { x: e.pos.x, z: e.pos.z }
     run.telegraph = e.fx.telegraph.show({
       x: e.pos.x, z: e.pos.z, facing: e.facing,
-      range: 22, halfAngle: 0.028, duration: 0.85, color: '#ffa032',
+      range: 22, halfAngle: 0.028, duration: 0.85 / (e.actionRate ?? 1), color: '#ffa032',
     })
   },
   onActive(e, run) {
@@ -100,6 +100,7 @@ class Kikones extends Actor {
     this.group.add(vis.group)
     this.bodyMats = vis.mats
     this.attachBar(1.2, '#e0443a', cfg.barHeight)
+    this.xpValue = cfg.xp ?? 3
     this.cooldown = rand(0.4, 1.6)
     this.strafe = Math.random() < 0.5 ? 1 : -1
     this.strafeTimer = rand(0.8, 2.0)
@@ -142,7 +143,7 @@ class Kikones extends Actor {
 
 export function kikonesWarrior(world, fx) {
   return new Kikones(world, fx, {
-    hp: 58, radius: 0.46, mass: 1.6, speed: 4.2, keepRange: [2.4, 3.1], barHeight: 2.05,
+    hp: 58, radius: 0.46, mass: 1.6, speed: 4.2, keepRange: [2.4, 3.1], barHeight: 2.05, xp: 4,
     look: { cloth: '#6b2f2a', skin: '#9c7048', weapon: 'spear' },
     pickAction(e, d) {
       if (d < 3.1) return { def: WARRIOR_SWING, cooldown: rand(1.1, 1.9) }
@@ -154,7 +155,7 @@ export function kikonesWarrior(world, fx) {
 
 export function kikonesArcher(world, fx) {
   return new Kikones(world, fx, {
-    hp: 40, radius: 0.42, mass: 1.2, speed: 4.6, keepRange: [7.5, 10.5], barHeight: 1.95,
+    hp: 40, radius: 0.42, mass: 1.2, speed: 4.6, keepRange: [7.5, 10.5], barHeight: 1.95, xp: 5,
     look: { cloth: '#4a3a6b', skin: '#9c7048', weapon: 'bow' },
     pickAction(e, d) {
       if (d > 4.5 && d < 18) return { def: ARCHER_SHOT, cooldown: rand(1.8, 2.8) }

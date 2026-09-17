@@ -47,7 +47,9 @@ export class ActionRunner {
     if (!this.def) return
     const d = this.def
     const prev = this.t
-    this.t += dt
+    // 공격속도는 액션 시계를 배속하는 것으로 구현한다.
+    // 예고·판정·후딜·캔슬 창이 전부 같은 비율로 따라와서 밸런스가 안 어긋난다.
+    this.t += dt * (d.fixedRate ? 1 : (this.owner.actionRate ?? 1))
 
     const aStart = d.startup, aEnd = d.startup + d.active
     const entering = prev < aStart && this.t >= aStart

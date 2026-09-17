@@ -34,6 +34,7 @@ export class Actor {
     this.dead = false
     this.invuln = 0        // 무적 시간
     this.stagger = 0       // 경직. 남아있으면 행동 불가
+    this.actionRate = 1    // 공격속도 배수. 액션 프레임 전체가 이 비율로 빨라진다
     this.hurtFlash = 0
     this.action = new ActionRunner(this)
     this.group = new THREE.Group()

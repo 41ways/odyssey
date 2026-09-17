@@ -3,23 +3,28 @@ import { Actor } from '../combat/actor.js'
 import { CURVE } from '../combat/action.js'
 import { sectorHit } from '../combat/hit.js'
 import { clamp, dampAngle } from '../core/math.js'
+import { newStats } from './stats.js'
 
+/**
+ * 기본값은 일부러 느리다. 이동도 활도 처음엔 답답하고, 성장으로 풀어 나간다.
+ * 여기 숫자를 올리기 전에 stats.js 의 선택지를 먼저 의심할 것.
+ */
 export const TUNING = {
-  speed: 7.4,
+  speed: 6.1,             // 기본 이동속도. 날랜 발을 모으면 빨라진다
   turnHalf: 0.035,        // 조준 추적 반감기. 작을수록 즉각적
   roll: {
     charges: 3,
-    regen: 1.55,          // 충전 하나 차는 데 걸리는 시간
+    regen: 2.5,           // 충전 하나 차는 데 걸리는 시간. 가벼운 몸으로 줄인다
     duration: 0.44,
-    distance: 6.0,
+    distance: 6.0,        // 회피 거리는 성장으로 안 건드린다. 도망 수단은 일정해야 한다
     iframeStart: 0.04,
     iframeEnd: 0.32,      // 0.28초 무적. 짧게 잡아야 회피가 실력이 된다
     recovery: 0.10,
   },
   bow: {
-    minDraw: 0.16,
-    fullDraw: 0.62,
-    release: 0.20,        // 쏘고 난 후딜
+    minDraw: 0.28,        // 여기까진 당겨야 나간다. 연사 방지
+    fullDraw: 1.05,       // 꽉 채우기까지. 팽팽한 시위로 줄인다
+    release: 0.36,        // 쏘고 난 후딜
   },
 }
 
@@ -34,15 +39,17 @@ function slash(cfg) {
     next: cfg.next,
     move: { distance: cfg.move, curve: CURVE.front },
     onActive(p) {
-      p.fx.slash(p.pos.x, p.pos.z, p.facing, cfg.range, cfg.halfAngle, cfg.id === 'slash3' ? '#ffd28a' : '#fff0d0')
+      const range = cfg.range * p.stats.meleeRange
+      p.fx.slash(p.pos.x, p.pos.z, p.facing, range, cfg.halfAngle, cfg.id === 'slash3' ? '#ffd28a' : '#fff0d0')
       if (cfg.id === 'slash3') p.fx.shake(0.22)
     },
     onHitWindow(p, run) {
+      const range = cfg.range * p.stats.meleeRange
       for (const e of p.world.enemies) {
         if (e.dead || run.hitSet.has(e)) continue
-        if (!sectorHit(p.pos, p.facing, cfg.range, cfg.halfAngle, e)) continue
+        if (!sectorHit(p.pos, p.facing, range, cfg.halfAngle, e)) continue
         run.hitSet.add(e)
-        e.hurt(cfg.damage, {
+        e.hurt(cfg.damage * p.stats.meleeDamage, {
           from: p.pos, knockback: cfg.knockback, hitstop: cfg.hitstop,
           stagger: cfg.stagger, crit: cfg.id === 'slash3',
           color: cfg.id === 'slash3' ? '#ffd166' : '#ffe9a8',
@@ -112,6 +119,7 @@ export class Player extends Actor {
     this.bodyMats = vis.mats
     this.sword = vis.sword
 
+    this.stats = newStats()
     this.rollCharges = TUNING.roll.charges
     this.rollTimer = 0
     this.rolling = 0
@@ -133,12 +141,19 @@ export class Player extends Actor {
 
   get canAct() { return !this.dead && this.rolling <= 0 && this.stagger <= 0 && this.releaseLock <= 0 }
 
+  /** 선택지를 먹은 뒤 부른다. 공격속도는 액션 시계에, 체력은 최대치에 바로 반영된다. */
+  applyStats() {
+    this.actionRate = this.stats.actionRate
+    const want = 120 + this.stats.bonusHp
+    if (want > this.maxHp) { this.hp += want - this.maxHp; this.maxHp = want }
+  }
+
   update(dt, aim) {
     if (this.dead) { this.step(dt, this.world.arenaRadius); return }
 
     // 구르기 충전 회복 — 하나씩 순서대로 찬다
     if (this.rollCharges < TUNING.roll.charges) {
-      this.rollTimer += dt
+      this.rollTimer += dt * this.stats.rollRegen
       if (this.rollTimer >= TUNING.roll.regen) { this.rollTimer -= TUNING.roll.regen; this.rollCharges++ }
     } else this.rollTimer = 0
 
@@ -195,7 +210,7 @@ export class Player extends Actor {
 
     // 활: 누르는 동안 당기고 떼면 쏜다
     if (this.drawing > 0) {
-      this.drawing += dt
+      this.drawing += dt * this.stats.drawRate
       this.facing = dampAngle(this.facing, Math.atan2(aim.x - this.pos.x, aim.z - this.pos.z), TUNING.turnHalf * 2.4, dt)
       if (!this.input.isHeld('bow') && this.drawing >= TUNING.bow.minDraw) this.#release()
       else if (this.drawing > TUNING.bow.fullDraw + 1.2) this.#release()  // 무한 홀드 방지
@@ -215,8 +230,9 @@ export class Player extends Actor {
 
   #moveBy(dt, scale) {
     if (this._move.lengthSq() === 0) return
-    this.pos.x += this._move.x * TUNING.speed * scale * dt
-    this.pos.z += this._move.z * TUNING.speed * scale * dt
+    const v = TUNING.speed * this.stats.moveSpeed * scale
+    this.pos.x += this._move.x * v * dt
+    this.pos.z += this._move.z * v * dt
   }
 
   #startRoll() {
@@ -241,7 +257,7 @@ export class Player extends Actor {
       z: this.pos.z + Math.cos(this.facing) * 0.7,
       dir: this.facing,
       speed: 32 + t * 20,
-      damage: 9 + t * 17,
+      damage: (9 + t * 17) * this.stats.rangedDamage,
       team: 'player',
       pierce: full ? 2 : 0,
       knockback: 3 + t * 5,
