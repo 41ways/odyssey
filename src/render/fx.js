@@ -107,6 +107,27 @@ export class Telegraph {
   }
 }
 
+/** 고리에 두를 뇌문 띠. UI 의 것과 같은 문양이라 화면이 한 결로 묶인다. */
+function makeMeanderTexture() {
+  const c = document.createElement('canvas')
+  c.width = 1024; c.height = 64
+  const g = c.getContext('2d')
+  g.clearRect(0, 0, 1024, 64)
+  g.strokeStyle = '#ffffff'
+  g.lineWidth = 7
+  g.lineCap = 'square'
+  for (let i = 0; i < 32; i++) {
+    const x = i * 32
+    g.beginPath()
+    g.moveTo(x + 2, 56); g.lineTo(x + 2, 10); g.lineTo(x + 24, 10)
+    g.lineTo(x + 24, 34); g.lineTo(x + 12, 34); g.lineTo(x + 12, 24)
+    g.stroke()
+  }
+  const t = new THREE.CanvasTexture(c)
+  t.wrapS = t.wrapT = THREE.RepeatWrapping
+  return t
+}
+
 /* ── 타격 연출 ───────────────────────────────────────────────── */
 
 export class Fx {
@@ -167,6 +188,39 @@ export class Fx {
     return g
   }
 
+  /**
+   * 바닥에 도는 뇌문 고리. 밋밋한 노란 링 대신 쓴다 —
+   * 같은 문양이 UI 에도 깔려 있어서 화면이 한 결로 묶인다.
+   */
+  meanderRing(x, z, { color = '#e8c98a', radius = 2.0, life = 1.6, spin = 1.2 } = {}) {
+    this._meanderTex ??= makeMeanderTexture()
+    const mat = new THREE.MeshBasicMaterial({
+      map: this._meanderTex, color, transparent: true, opacity: 0,
+      depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+    })
+    const m = new THREE.Mesh(new THREE.RingGeometry(radius * 0.78, radius, 96, 1), mat)
+    m.rotation.x = -Math.PI / 2
+    m.position.set(x, 0.05, z)
+    m.renderOrder = 3
+    this.scene.add(m)
+    this._rings.push({ m, t: 0, life, radius: 1, rune: true, spin, disposeGeo: true })
+    return m
+  }
+
+  /** 위에서 내려오는 빛기둥. */
+  shaft(x, z, { color = '#ffe6b8', radius = 0.9, height = 6, life = 1.4 } = {}) {
+    const mat = new THREE.MeshBasicMaterial({
+      color, transparent: true, opacity: 0, depthWrite: false,
+      blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+    })
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.45, radius, height, 20, 1, true), mat)
+    m.position.set(x, height / 2, z)
+    m.renderOrder = 3
+    this.scene.add(m)
+    this._rings.push({ m, t: 0, life, radius: 1, shaft: true, disposeGeo: true })
+    return m
+  }
+
   number(worldPos, text, { color = '#fff', size = 30, crit = false } = {}) {
     const el = document.createElement('div')
     el.className = 'dmg'
@@ -193,10 +247,18 @@ export class Fx {
       if (k >= 1) {
         this.scene.remove(r.m)
         r.m.material.dispose()
+        if (r.disposeGeo) r.m.geometry.dispose()
         this._rings.splice(i, 1)
         continue
       }
-      if (r.grow) {          // 칼 궤적: 살짝 퍼지면서 빠르게 사라진다
+      if (r.rune) {          // 뇌문 고리: 천천히 돌며 떴다 가라앉는다
+        r.m.rotation.z += r.spin * dt
+        r.m.material.opacity = Math.sin(Math.min(k, 1) * Math.PI) * 0.85
+        r.m.scale.setScalar(0.92 + k * 0.12)
+      } else if (r.shaft) {  // 빛기둥: 떴다 사라진다
+        r.m.material.opacity = Math.sin(Math.min(k, 1) * Math.PI) * 0.4
+        r.m.rotation.y += dt * 0.7
+      } else if (r.grow) {   // 칼 궤적: 살짝 퍼지면서 빠르게 사라진다
         r.m.scale.setScalar(0.9 + k * r.grow)
         r.m.material.opacity = 0.5 * (1 - k)
       } else {               // 충격파 링: 크게 번지면서 사라진다

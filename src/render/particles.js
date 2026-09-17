@@ -87,6 +87,30 @@ export class Particles {
     }
   }
 
+  /**
+   * 바깥에서 안으로 모여든다.
+   * 터져 나가는 것과 방향이 반대라, 무언가 '붙는' 순간에 쓴다.
+   */
+  converge(o) {
+    const color = new THREE.Color(o.color ?? '#ffd9a0')
+    const R = o.radius ?? 2.2
+    for (let i = 0; i < (o.count ?? 20); i++) {
+      if (this.live.length >= MAX) break
+      const a = rand(0, Math.PI * 2)
+      const r = R * rand(0.75, 1.15)
+      const y = (o.y ?? 0.9) + rand(-0.5, 1.1)
+      const sp = r / (o.life ?? 0.55)
+      this.live.push({
+        x: o.x + Math.cos(a) * r, y, z: o.z + Math.sin(a) * r,
+        vx: -Math.cos(a) * sp, vy: ((o.y ?? 0.9) - y) / (o.life ?? 0.55), vz: -Math.sin(a) * sp,
+        t: 0, life: (o.life ?? 0.55) * rand(0.85, 1.05),
+        size: (o.size ?? 0.13) * rand(0.7, 1.3),
+        r: color.r, g: color.g, b: color.b,
+        gravity: 0, drag: 0,          // 곧장 빨려 들어가야 한다
+      })
+    }
+  }
+
   /** 날아가는 물체가 흘리는 것. 한두 알씩 계속 떨군다. */
   shed(x, y, z, color, size = 0.09) {
     if (this.live.length >= MAX) return

@@ -13,6 +13,7 @@ import { TitleScreen } from './ui/title.js'
 import { EquipCard } from './ui/equipcard.js'
 import { StagePicker } from './ui/stagepicker.js'
 import { STAGES } from './stage/stages.js'
+import { LOOKS, LOOK_KEYS } from './render/looks.js'
 import { LevelUp } from './ui/levelup.js'
 import { Pickups } from './combat/pickup.js'
 import { rollChoices, newStats, newlyUnlocked, TIERS, UPGRADES } from './player/stats.js'
@@ -65,6 +66,7 @@ class Game {
     addEventListener('keydown', e => {
       if (e.code === 'KeyR') this.restart()
       if (e.code === 'BracketRight') this.run.next()   // 시험용: 다음 판으로
+      if (e.code === 'KeyL') this.cycleLook()          // 시험용: 톤 시안 돌려보기
     })
 
     // 스테이지 고르기 — Tab 또는 주소의 ?stage=N
@@ -82,6 +84,7 @@ class Game {
     const from = Number(q.get('stage'))
     const startAt = Number.isFinite(from) && from >= 1 ? Math.min(from, STAGES.length) - 1 : 0
     const bare = q.get('bare') === '1'
+    this.render3d.look = LOOKS[q.get('look')] ? q.get('look') : 'souls'
     this.paused = true
     new TitleScreen(uiRoot).wait().then(() => { this.paused = false; this.jumpTo(startAt, { bare }) })
   }
@@ -270,9 +273,12 @@ class Game {
     return new Promise(resolve => {
       this.hud.clearBanner()          // 스테이지 배너와 겹치면 둘 다 안 읽힌다
       this.equipCard.open(piece.name, piece.line)
-      this.fx.ring(this.player.pos.x, this.player.pos.z, { color: '#ffd27a', radius: 3.0, life: 0.6 })
-      this.fx.shake(0.22)
-      this.equipFx = { t: 0, dur: 1.9, meshes, done: resolve, rings: 0 }
+      const { x, z } = this.player.pos
+      // 퍼지는 노란 링 대신, 바닥엔 도는 뇌문 고리 하나와 위에서 내려오는 빛기둥
+      this.fx.meanderRing(x, z, { color: '#f0d49a', radius: 2.3, life: 1.7, spin: 0.9 })
+      this.fx.shaft(x, z, { color: '#ffe6b8', radius: 1.0, height: 6.5, life: 1.5 })
+      this.fx.shake(0.18)
+      this.equipFx = { t: 0, dur: 1.9, meshes, done: resolve, pulls: 0 }
     })
   }
 
@@ -292,12 +298,23 @@ class Game {
       for (const mat of mats) if (mat?.emissive) mat.emissive.setRGB(heat, heat * 0.72, heat * 0.3)
     }
 
-    // 발밑에서 머리까지 빛이 훑고 올라간다
-    const want = Math.floor(k / 0.11)
-    while (e.rings < want && e.rings < 4) {
-      const y = 0.12 + e.rings * 0.5
-      this.fx.ring(this.player.pos.x, this.player.pos.z, { color: '#ffe0a0', radius: 1.0, life: 0.4, y })
-      e.rings++
+    // 빛 알갱이가 바깥에서 몸으로 빨려 들어온다 — 무언가 '붙는' 방향이다
+    const want = Math.floor(k / 0.085)
+    while (e.pulls < want && e.pulls < 7) {
+      this.particles.converge({
+        x: this.player.pos.x, y: 0.95, z: this.player.pos.z,
+        count: 9, radius: 2.6, color: '#ffd9a0', size: 0.14, life: 0.5,
+      })
+      e.pulls++
+    }
+    // 다 붙는 순간 한 번 터뜨린다
+    if (!e.popped && k >= 0.52) {
+      e.popped = true
+      this.particles.burst({
+        x: this.player.pos.x, y: 1.0, z: this.player.pos.z,
+        count: 26, color: '#fff0c8', speed: 5.5, size: 0.14, life: 0.5, gravity: 3, up: 1.1,
+      })
+      this.fx.shake(0.28)
     }
 
     this.equipCard.drive(k)

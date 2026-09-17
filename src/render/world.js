@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { damp, rand } from '../core/math.js'
+import { LOOKS } from './looks.js'
 
 /** 로스트아크식 쿼터뷰 리그. 스테이지마다 값만 갈아끼우면 된다. */
 export const CAMERA_RIG = {
@@ -144,10 +145,9 @@ export class World {
       const pp = await import('postprocessing')
       const composer = new pp.EffectComposer(this.renderer, { multisampling: 4 })
       composer.addPass(new pp.RenderPass(this.scene, this.camera))
-      composer.addPass(new pp.EffectPass(this.camera,
-        new pp.BloomEffect({ intensity: 0.85, luminanceThreshold: 0.62, luminanceSmoothing: 0.25, mipmapBlur: true }),
-        new pp.VignetteEffect({ darkness: 0.55, offset: 0.32 }),
-      ))
+      this.bloom = new pp.BloomEffect({ intensity: 0.85, luminanceThreshold: 0.62, luminanceSmoothing: 0.25, mipmapBlur: true })
+      this.vignette = new pp.VignetteEffect({ darkness: 0.55, offset: 0.32 })
+      composer.addPass(new pp.EffectPass(this.camera, this.bloom, this.vignette))
       this.composer = composer
       this.resize()
     } catch (err) {
@@ -159,9 +159,21 @@ export class World {
    * 스테이지 환경을 통째로 갈아끼운다.
    * 땅 텍스처는 필요할 때만 받아 온다 — 아홉 장을 한꺼번에 내려받을 이유가 없다.
    */
+  /** 톤 시안을 바꾼다. 다음 applyStage 부터 반영된다. */
+  setLook(name) {
+    this.look = LOOKS[name] ? name : 'souls'
+    if (this._lastStage) this.applyStage(this._lastStage)
+  }
+
   async applyStage(stage) {
-    const e = stage.env ?? {}
-    const a = stage.arena ?? {}
+    this._lastStage = stage
+    const look = LOOKS[this.look ?? 'souls'] ?? {}
+    // 스테이지가 정한 것 위에 톤을 덮는다. 톤이 말 안 한 건 스테이지 것을 쓴다.
+    const e = { ...(stage.env ?? {}), ...look }
+    const a = { ...(stage.arena ?? {}) }
+    if (look.groundTint) a.groundTint = look.groundTint
+    if (look.wallColor) a.wallColor = look.wallColor
+    if (look.rockColor) a.rockColor = look.rockColor
 
     this.scene.background = new THREE.Color(e.bg ?? '#0a0a10')
     this.scene.fog = new THREE.FogExp2(e.fogColor ?? e.bg ?? '#0d0b12', e.fog ?? 0.018)
@@ -188,7 +200,15 @@ export class World {
     this.rocks.visible = a.rocks !== false
     this.rocks.material.color.set(a.rockColor ?? '#544738')
 
+    this.#setPost(e)
     if (a.ground) await this.#setGround(a.ground, a.repeat ?? 8)
+  }
+
+  #setPost(e) {
+    if (!this.bloom) return
+    this.bloom.intensity = e.bloom ?? 0.85
+    this.bloom.luminanceMaterial.threshold = e.threshold ?? 0.62
+    this.vignette.darkness = e.vignette ?? 0.55
   }
 
   async #setGround(name, repeat) {
