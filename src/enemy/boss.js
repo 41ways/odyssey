@@ -107,7 +107,7 @@ export const volley = cfg => base(cfg,
         x: run.origin.x + Math.sin(a) * 1.1, z: run.origin.z + Math.cos(a) * 1.1,
         dir: a, speed: cfg.speed ?? 12, damage: cfg.damage, team: 'enemy',
         knockback: 5, color: cfg.bullet ?? '#ff5a2e', range: cfg.range ?? 26,
-        radius: cfg.bulletSize ?? 0.34,
+        radius: cfg.bulletSize ?? 0.34, kind: cfg.kind ?? 'rock',
       })
     }
   })
@@ -124,6 +124,7 @@ export const spray = cfg => base(cfg,
         x: run.origin.x + Math.sin(a) * 1.0, z: run.origin.z + Math.cos(a) * 1.0,
         dir: a, speed: cfg.speed ?? 8, damage: cfg.damage, team: 'enemy',
         knockback: 4, color: cfg.bullet ?? '#b48cff', range: 30, radius: cfg.bulletSize ?? 0.36,
+        kind: cfg.kind ?? 'orb',
       })
     }
   })

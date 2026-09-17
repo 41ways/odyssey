@@ -66,8 +66,8 @@ const ARCHER_SHOT = {
     e.world.projectiles.spawn({
       x: run.origin.x + Math.sin(run.lockFacing) * 0.8,
       z: run.origin.z + Math.cos(run.lockFacing) * 0.8,
-      dir: run.lockFacing, speed: 26, damage: 12, team: 'enemy',
-      knockback: 5, color: '#ff5a2e', range: 26,
+      dir: run.lockFacing, speed: 26, damage: 12, team: 'enemy', kind: 'arrow',
+      knockback: 5, color: '#ff8a4a', range: 26,
     })
     e.fx.shake(0.06)
   },

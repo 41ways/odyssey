@@ -4,6 +4,7 @@ import { Fx } from './render/fx.js'
 import { Input } from './core/input.js'
 import { createLoop } from './core/loop.js'
 import { Projectiles } from './combat/projectile.js'
+import { Particles } from './render/particles.js'
 import { separate } from './combat/actor.js'
 import { Player } from './player/player.js'
 import { kikonesWarrior, kikonesArcher, circePig } from './enemy/kikones.js'
@@ -36,7 +37,8 @@ class Game {
     this.arenaRadius = this.render3d.arenaRadius
     this.fx = new Fx(this.render3d, uiRoot)
     this.input = new Input(this.render3d.canvas, this.render3d.camera)
-    this.projectiles = new Projectiles(this.render3d.scene, this.fx)
+    this.particles = new Particles(this.render3d.scene)
+    this.projectiles = new Projectiles(this.render3d.scene, this.fx, this.particles)
     this.pickups = new Pickups(this.render3d.scene, this.fx)
     this.hud = new Hud(uiRoot)
     this.hud.setUpgradePool([...UPGRADES, ...RELICS])
@@ -130,6 +132,7 @@ class Game {
     this.corpses.length = 0
     this.pickups.clear()
     this.projectiles.clear()
+    this.particles.clear()
     this.hud.setBoss(null)
   }
 
@@ -306,7 +309,8 @@ class Game {
 
     const all = [p, ...this.enemies]
     separate(all, dt)
-    this.projectiles.update(dt, all, this.arenaRadius)
+    this.projectiles.update(dt, all, this.arenaRadius, this.render3d.camera)
+    this.particles.update(dt)
 
     const looted = this.pickups.update(dt, p)
     if (looted.length && !p.dead) this.#openLoot(looted)

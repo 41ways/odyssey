@@ -54,7 +54,7 @@ function slash(cfg) {
           p.projectiles.spawn({
             x: p.pos.x + Math.sin(p.facing) * 1.2,
             z: p.pos.z + Math.cos(p.facing) * 1.2,
-            dir: p.facing, speed: 16, damage: 18 * p.stats.meleeDamage,
+            dir: p.facing, speed: 16, damage: 18 * p.stats.meleeDamage, kind: 'fire',
             team: 'player', pierce: 99, radius: 1.5, knockback: 5, hitstop: 0.04,
             color: '#ff6a2a', range: 13,
             ignite: { dps: 11 * p.stats.meleeDamage, seconds: 5, level: 3, from: p },
@@ -424,7 +424,7 @@ export class Player extends Actor {
     this.projectiles.spawn({
       x: this.pos.x + Math.sin(this.facing) * 0.7,
       z: this.pos.z + Math.cos(this.facing) * 0.7,
-      dir: this.facing,
+      dir: this.facing, kind: 'arrow',
       speed: 32 + t * 20,
       damage: (9 + t * 17) * this.stats.rangedDamage,
       team: 'player',
