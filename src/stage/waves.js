@@ -1,29 +1,4 @@
-/**
- * 이스마로스 — 첫 스테이지.
- *
- * 트로이에서 돌아오는 길, 오디세우스 일행이 처음 들른 곳이자 처음 약탈한 곳이다.
- * 여기서 얻은 전리품이 그대로 그의 차림이 된다.
- *
- * 웨이브는 "적을 한 무더기 쏟고 다 잡을 때까지 기다리는" 방식이 아니라,
- * 처치 수에 따라 압박을 올리면서 계속 흘려보낸다. 뱀서식 리듬.
- * 목표 처치 수(goal)는 전리품 마지막 단계(20)보다 조금 위에 둔다 —
- * 마지막 장비를 입고 한 번은 휘둘러 봐야 끝나는 맛이 난다.
- */
-export const ISMAROS = {
-  id: 'ismaros',
-  name: '이스마로스',
-  line: '키코네스족의 해안',
-  intro: '돌아가는 길의 첫 항구. 우리는 이곳을 약탈했다.',
-  clear: '해안이 조용해졌다. 바다가 기다린다.',
-  goal: 24,
-  waves: [
-    // untilKills 까지 이 압박을 유지한다
-    { untilKills: 3, maxAlive: 3, interval: 1.8, mix: { warrior: 1 }, say: null },
-    { untilKills: 8, maxAlive: 4, interval: 1.5, mix: { warrior: 3, archer: 1 }, say: '언덕에서 활잡이가 내려온다' },
-    { untilKills: 15, maxAlive: 6, interval: 1.2, mix: { warrior: 3, archer: 2 }, say: '마을이 깨어났다' },
-    { untilKills: 24, maxAlive: 8, interval: 0.95, mix: { warrior: 3, archer: 2 }, say: '내륙에서 떼로 몰려온다' },
-  ],
-}
+import { rand } from '../core/math.js'
 
 /**
  * 웨이브 진행.

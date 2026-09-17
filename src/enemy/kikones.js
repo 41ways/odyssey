@@ -255,6 +255,29 @@ export function kikonesArcher(world, fx) {
   })
 }
 
+/** 키르케가 부르는 돼지. 약하고 빠르고 자꾸 몸으로 민다. */
+export function circePig(world, fx) {
+  return new Kikones(world, fx, {
+    hp: 34, radius: 0.44, mass: 1.3, speed: 5.6, keepRange: [1.6, 2.2], barHeight: 1.3, xp: 2,
+    weapon: null, scale: 0.75, bulk: 1.25,
+    gltf: { height: 1.05, bulk: 1.45, tint: '#e0a0a8', gear: [] },
+    look: {
+      weapon: null, scale: 0.75, bulk: 1.25,
+      gltf: { height: 1.05, bulk: 1.45, tint: '#e0a0a8', gear: [] },
+      palette: { skin: '#e0a0a8', cloth: '#c88890', leather: '#a06a70', bronze: '#9c7434', accent: '#b07078', dark: '#6a4448' },
+    },
+    pickAction(e, d) {
+      if (d < 2.3) return { def: PIG_CHARGE, cooldown: rand(0.9, 1.5) }
+      return null
+    },
+  })
+}
+
+const PIG_CHARGE = meleeAttack({
+  id: 'gore', startup: 0.36, active: 0.08, recovery: 0.4,
+  range: 2.3, halfAngle: 0.7, damage: 9, knockback: 5, stagger: 0.14, color: '#ff8aa0',
+})
+
 /** 허수아비 — 수치 확인용. 안 죽고 안 움직인다. */
 export function dummy(world, fx, hp = 99999) {
   const d = new Kikones(world, fx, {

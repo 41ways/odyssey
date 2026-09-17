@@ -318,24 +318,43 @@ export function buildHelmetProp() {
 /**
  * 붉은 망토.
  *
- * 천 한 장을 통째로 기울이면 판때기가 흔들리는 것처럼 보인다.
- * 마디를 셋으로 나눠 위에서 아래로 매달고, 각 마디가 윗마디를 뒤늦게 따라가게 한다.
- * 끝으로 갈수록 느슨하게 잡아서 자락이 늦게 따라오도록 했다.
+ * 천 한 장을 통째로 기울이면 판때기가 흔들리는 것처럼 보인다. 두 겹으로 푼다.
+ *  1. 마디 다섯을 위에서 아래로 매달고 감쇠 스프링으로 흔든다 (큰 흐름)
+ *  2. 천 자체를 정점 단계에서 물결치게 한다 (잔결)
+ * 둘 중 하나만 있으면 여전히 뻣뻣하다.
  */
 export function buildCapeProp() {
   const M = propMaterials()
   const g = new THREE.Group()
 
-  // stiff 는 스프링 세기, zeta 는 감쇠비. zeta 가 1 근처면 출렁이지 않고 한 번에 잦아든다.
-  // 아래로 갈수록 무르게 잡아서 자락이 늦게 따라온다.
+  // 정점 물결. 아래로 갈수록 크게 흔들리고, 달릴수록 세진다.
+  const flutter = { time: 0, wind: 0 }
+  M.wool.onBeforeCompile = sh => {
+    sh.uniforms.uTime = { value: 0 }
+    sh.uniforms.uWind = { value: 0 }
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nuniform float uTime;\nuniform float uWind;')
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+        float capeD = clamp(-transformed.y / 0.34 + 0.5, 0.0, 1.0);
+        float capeA = atan(transformed.x, transformed.z);
+        float amp = (0.35 + uWind * 0.9);
+        transformed.x += sin(capeA * 3.2 + uTime * 4.4) * 0.026 * capeD * amp;
+        transformed.z += cos(capeA * 2.4 + uTime * 3.3) * 0.022 * capeD * amp;
+        transformed.y += sin(capeA * 4.6 + uTime * 5.2) * 0.014 * capeD * uWind;`)
+    M.wool.userData.shader = sh
+  }
+
   // stiff 는 스프링 세기, zeta 는 감쇠비. zeta 가 1 근처면 출렁이지 않고 한 번에 잦아든다.
   // share 는 전체 기울기 중 이 마디가 맡는 몫 — 합이 1 이다.
   // 마디가 부모의 자식이라 각도가 더해지므로, 몫으로 나눠 갖지 않으면 수평으로 뻗는다.
   const SPEC = [
-    { len: 0.30, top: 0.165, bot: 0.215, stiff: 120, zeta: 1.0, share: 0.5 },
-    { len: 0.28, top: 0.215, bot: 0.255, stiff: 72, zeta: 0.9, share: 0.3 },
-    { len: 0.27, top: 0.255, bot: 0.30, stiff: 46, zeta: 0.82, share: 0.2 },
+    { len: 0.20, top: 0.150, bot: 0.190, stiff: 150, zeta: 1.0, share: 0.32 },
+    { len: 0.19, top: 0.190, bot: 0.222, stiff: 110, zeta: 0.95, share: 0.24 },
+    { len: 0.18, top: 0.222, bot: 0.252, stiff: 80, zeta: 0.9, share: 0.19 },
+    { len: 0.17, top: 0.252, bot: 0.280, stiff: 58, zeta: 0.86, share: 0.14 },
+    { len: 0.17, top: 0.280, bot: 0.310, stiff: 42, zeta: 0.82, share: 0.11 },
   ]
+  const ARC = { start: Math.PI * 0.54, len: Math.PI * 0.92 }
 
   const segments = []
   let parent = g
@@ -344,53 +363,71 @@ export function buildCapeProp() {
     const pivot = new THREE.Group()
     pivot.position.y = i === 0 ? 0 : -SPEC[i - 1].len
     const mesh = new THREE.Mesh(
-      new THREE.CylinderGeometry(c.top, c.bot, c.len, 16, 1, true, Math.PI * 0.56, Math.PI * 0.88),
-      M.wool)
+      new THREE.CylinderGeometry(c.top, c.bot, c.len, 20, 3, true, ARC.start, ARC.len), M.wool)
     mesh.position.y = -c.len / 2
     mesh.position.z = -0.02
     mesh.castShadow = true
     pivot.add(mesh)
+
+    // 맨 아랫자락에 금빛 선 — 밋밋한 천에 눈이 걸릴 데를 만든다
+    if (i === SPEC.length - 1) {
+      const hem = new THREE.Mesh(
+        new THREE.CylinderGeometry(c.bot, c.bot + 0.004, 0.028, 20, 1, true, ARC.start, ARC.len), M.bronze)
+      hem.position.y = -c.len + 0.012
+      hem.material.side = THREE.DoubleSide
+      pivot.add(hem)
+    }
     parent.add(pivot)
     parent = pivot
     segments.push({ pivot, ...c, ax: 0, vax: 0, az: 0, vaz: 0 })
   }
 
-  const clasp = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 6), M.bronze)
-  clasp.position.set(0.13, 0.03, 0.05)
-  clasp.castShadow = true
-  g.add(clasp)
+  // 어깨 걸쇠 두 개 — 망토가 어디에 걸려 있는지 보이게
+  for (const sx of [-1, 1]) {
+    const clasp = new THREE.Mesh(new THREE.SphereGeometry(0.032, 10, 8), M.bronze)
+    clasp.position.set(0.135 * sx, 0.035, 0.045)
+    clasp.scale.set(1, 1, 0.7)
+    clasp.castShadow = true
+    g.add(clasp)
+  }
 
   let t = 0
   return {
     group: g,
     mats: M.mats,
-    /**
-     * @param {object} s  { run 0..1, turn 초당 회전(rad), rolling }
-     */
+    /** @param {object} s  { run 0..1, turn 초당 회전(rad), rolling } */
     update(dt, s = {}) {
       t += dt
       const run = s.run ?? 0
       const turn = s.turn ?? 0
+
       // 전체 기울기. 서 있으면 거의 수직, 달리면 뒤로 눕고, 구르면 말린다.
       const lean = clamp(s.rolling ? 1.1 : 0.14 + run * 0.62, 0, 1.2)
       const swing = clamp(-turn * 0.11, -0.5, 0.5)
 
       for (let i = 0; i < segments.length; i++) {
         const seg = segments[i]
-        const targetX = lean * seg.share + Math.sin(t * 2.4 + i * 0.9) * 0.02 * (1 - run * 0.6)
-        const targetZ = swing * seg.share + Math.sin(t * 3.1 + i * 1.3) * 0.022
+        // 마디마다 위상을 어긋나게 줘서 한 덩어리로 움직이지 않게 한다
+        const ripple = Math.sin(t * 2.6 + i * 1.7) * 0.018 * (1 - run * 0.5)
+        const targetX = lean * seg.share + ripple
+        const targetZ = swing * seg.share + Math.sin(t * 3.4 + i * 2.1) * 0.02
 
         // 감쇠 스프링. exp 감쇠라 프레임레이트가 흔들려도 결과가 같다.
         const w = Math.sqrt(seg.stiff)
         const decay = Math.exp(-2 * seg.zeta * w * dt)
         seg.vax = (seg.vax + (targetX - seg.ax) * seg.stiff * dt) * decay
         seg.vaz = (seg.vaz + (targetZ - seg.az) * seg.stiff * dt) * decay
-        seg.ax = clamp(seg.ax + seg.vax * dt, -0.15, 0.75)
-        seg.az = clamp(seg.az + seg.vaz * dt, -0.35, 0.35)
-
+        seg.ax = clamp(seg.ax + seg.vax * dt, -0.15, 0.6)
+        seg.az = clamp(seg.az + seg.vaz * dt, -0.3, 0.3)
         seg.pivot.rotation.x = seg.ax
         seg.pivot.rotation.z = seg.az
       }
+
+      // 잔결
+      flutter.time += dt
+      flutter.wind += ((run * 0.8 + Math.abs(turn) * 0.05 + (s.rolling ? 0.6 : 0)) - flutter.wind) * Math.min(1, dt * 6)
+      const sh = M.wool.userData.shader
+      if (sh) { sh.uniforms.uTime.value = flutter.time; sh.uniforms.uWind.value = flutter.wind }
     },
   }
 }

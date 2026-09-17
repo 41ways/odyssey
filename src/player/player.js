@@ -217,6 +217,7 @@ export class Player extends Actor {
     this._rollHits = new Set()
     this._rollFrom = { x: 0, z: 0 }
     this._echo = null
+    this.hexed = 0
     this.vis = built.rig.root
     this.group.add(this.vis)
     this.bodyMats = built.mats
@@ -338,7 +339,9 @@ export class Player extends Actor {
 
   #moveBy(dt, scale) {
     if (this._move.lengthSq() === 0) return
-    const v = TUNING.speed * this.stats.moveSpeed * scale
+    // 키르케의 변신 마법에 걸리면 몸이 무거워진다
+    const hex = this.hexed > 0 ? 0.55 : 1
+    const v = TUNING.speed * this.stats.moveSpeed * scale * hex
     this.pos.x += this._move.x * v * dt
     this.pos.z += this._move.z * v * dt
   }

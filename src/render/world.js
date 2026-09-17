@@ -66,6 +66,7 @@ export class World {
     this.#lights()
     this.arenaRadius = 16
     this.#arena()
+    this._texCache = new Map()
     this.#composer()
 
     addEventListener('resize', () => this.resize())
@@ -73,7 +74,8 @@ export class World {
   }
 
   #lights() {
-    this.scene.add(new THREE.HemisphereLight('#3a4a74', '#140f0a', 0.55))
+    this.hemi = new THREE.HemisphereLight('#3a4a74', '#140f0a', 0.55)
+    this.scene.add(this.hemi)
 
     // 이스마로스 — 불타는 해안. 따뜻한 주광 + 차가운 역광으로 실루엣을 딴다.
     const key = new THREE.DirectionalLight('#ffb478', 2.4)
@@ -92,6 +94,7 @@ export class World {
     const rim = new THREE.DirectionalLight('#6f8cff', 1.1)
     rim.position.set(-9, 6, -11)
     this.scene.add(rim)
+    this.rimLight = rim
   }
 
   #arena() {
@@ -103,6 +106,7 @@ export class World {
     ground.rotation.x = -Math.PI / 2
     ground.receiveShadow = true
     this.scene.add(ground)
+    this.ground = ground
 
     // 투기장 테두리 — 경계가 눈에 보여야 몰리는 느낌이 난다
     const wall = new THREE.Mesh(
@@ -112,6 +116,7 @@ export class World {
     wall.position.y = 1.6
     wall.receiveShadow = true
     this.scene.add(wall)
+    this.wall = wall
 
     // 잡석 — 이동 속도를 눈으로 가늠할 기준점
     const rockGeo = new THREE.DodecahedronGeometry(1, 0)
@@ -127,6 +132,7 @@ export class World {
       rocks.setMatrixAt(i, m)
     }
     this.scene.add(rocks)
+    this.rocks = rocks
   }
 
   async #composer() {
@@ -144,6 +150,69 @@ export class World {
     } catch (err) {
       console.warn('[world] 포스트프로세싱 없이 간다:', err)
     }
+  }
+
+  /**
+   * 스테이지 환경을 통째로 갈아끼운다.
+   * 땅 텍스처는 필요할 때만 받아 온다 — 아홉 장을 한꺼번에 내려받을 이유가 없다.
+   */
+  async applyStage(stage) {
+    const e = stage.env ?? {}
+    const a = stage.arena ?? {}
+
+    this.scene.background = new THREE.Color(e.bg ?? '#0a0a10')
+    this.scene.fog = new THREE.FogExp2(e.fogColor ?? e.bg ?? '#0d0b12', e.fog ?? 0.018)
+    this.renderer.toneMappingExposure = e.exposure ?? 1.05
+
+    this.hemi.color.set(e.hemiSky ?? '#3a4a74')
+    this.hemi.groundColor.set(e.hemiGround ?? '#140f0a')
+    this.hemi.intensity = e.hemiIntensity ?? 0.55
+
+    this.keyLight.color.set(e.key ?? '#ffb478')
+    this.keyLight.intensity = e.keyIntensity ?? 2.4
+    this.rimLight.color.set(e.rim ?? '#6f8cff')
+    this.rimLight.intensity = e.rimIntensity ?? 1.1
+
+    this.setArenaRadius(a.radius ?? 16)
+    this.wall.material.color.set(a.wallColor ?? '#2a2018')
+    this.ground.material.color.set(a.groundTint ?? '#ffffff')
+    this.rocks.visible = a.rocks !== false
+    this.rocks.material.color.set(a.rockColor ?? '#544738')
+
+    if (a.ground) await this.#setGround(a.ground, a.repeat ?? 8)
+  }
+
+  async #setGround(name, repeat) {
+    let tex = this._texCache.get(name)
+    if (!tex) {
+      try {
+        tex = await new THREE.TextureLoader().loadAsync(`/textures/${name}.webp`)
+        tex.wrapS = tex.wrapT = THREE.RepeatWrapping
+        tex.colorSpace = THREE.SRGBColorSpace
+        tex.anisotropy = Math.min(8, this.renderer.capabilities.getMaxAnisotropy())
+        this._texCache.set(name, tex)
+      } catch {
+        console.info(`[world] 바닥 텍스처 없음: ${name} — 절차 생성으로 간다`)
+        return
+      }
+    }
+    tex.repeat.set(repeat, repeat)
+    this.ground.material.map = tex
+    this.ground.material.needsUpdate = true
+  }
+
+  /** 투기장 크기는 스테이지마다 다르다. 보스방은 넓고 잡몹방은 좁다. */
+  setArenaRadius(R) {
+    if (this.arenaRadius === R) return
+    this.arenaRadius = R
+    this.ground.geometry.dispose()
+    this.ground.geometry = new THREE.CircleGeometry(R + 2, 96)
+    this.wall.geometry.dispose()
+    this.wall.geometry = new THREE.CylinderGeometry(R + 2, R + 2.4, 3.2, 96, 1, true)
+    const d = R + 8
+    const c = this.keyLight.shadow.camera
+    c.left = -d; c.right = d; c.top = d; c.bottom = -d
+    c.updateProjectionMatrix()
   }
 
   resize() {
@@ -183,7 +252,7 @@ export class World {
 
     this.camera.position.copy(this.camTarget).add(off).add(this._shakeOff)
     this.camera.lookAt(this.camTarget)
-    this.keyLight.position.copy(this.camTarget).add(new THREE.Vector3(10, 17, 7))
+    this.keyLight.position.copy(this.camTarget).add(this._keyOffset ??= new THREE.Vector3(10, 17, 7))
     this.keyLight.target.position.copy(this.camTarget)
     this.keyLight.target.updateMatrixWorld()
   }

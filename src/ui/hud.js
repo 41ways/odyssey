@@ -47,7 +47,38 @@ const CSS = `
 #hud .wave { position:absolute; left:50%; top:20px; transform:translateX(-50%);
   font-size:12px; letter-spacing:.1em; color:#8b8378; font-variant-numeric:tabular-nums; }
 #hud .wave b { color:#e8c98a; font-weight:700; }
-#hud .dead { position:absolute; inset:0; display:grid; place-items:center;
+#hud .boss { position:absolute; left:50%; top:52px; transform:translateX(-50%);
+  width:min(620px, 72vw); opacity:0; transition:opacity .4s; }
+#hud .boss.on { opacity:1; }
+#hud .boss .who { display:flex; justify-content:space-between; align-items:baseline;
+  margin-bottom:6px; }
+#hud .boss .who b { font-size:17px; font-weight:800; letter-spacing:.1em; color:#f0e2c6; }
+#hud .boss .who span { font-size:11px; letter-spacing:.14em; color:#9a8a72; }
+#hud .boss .bar { height:11px; background:#1a0e0c; border:1px solid #4a2a22;
+  border-radius:2px; overflow:hidden; position:relative; }
+#hud .boss .bar i { position:absolute; inset:0; transform-origin:left center; display:block;
+  background:linear-gradient(180deg,#d8452f,#7a1a12); transition:transform .1s linear; }
+#hud .boss .bar u { position:absolute; inset:0; transform-origin:left center; display:block;
+  background:#f5d7a0; opacity:.4; transition:transform .6s cubic-bezier(.2,.7,.3,1) .15s; }
+#hud .boss .phases { position:absolute; inset:0; display:flex; pointer-events:none; }
+#hud .boss .phases s { flex:1; border-right:1px solid rgba(0,0,0,.6); }
+#hud .boss .phases s:last-child { border:0; }
+#hud .credits { position:absolute; inset:0; z-index:60; display:none; place-items:center;
+  background:linear-gradient(180deg, rgba(4,3,6,.95), rgba(8,5,4,.98)); }
+#hud .credits.on { display:grid; }
+#hud .credits .in { text-align:center; max-width:620px; padding:0 24px; animation:lvlIn .8s ease; }
+#hud .credits h1 { font-size:34px; font-weight:800; letter-spacing:.34em; text-indent:.34em;
+  color:#c0392b; margin-bottom:10px; }
+#hud .credits .score { font-size:52px; font-weight:800; color:#e8c98a;
+  font-variant-numeric:tabular-nums; margin:22px 0 6px; }
+#hud .credits .score small { display:block; font-size:12px; letter-spacing:.2em;
+  color:#8b8378; font-weight:600; margin-bottom:8px; }
+#hud .credits .list { margin-top:26px; text-align:left; display:flex; flex-wrap:wrap;
+  gap:6px 10px; justify-content:center; }
+#hud .credits .list span { font-size:12px; color:#a49a8c; border:1px solid #3a322a;
+  border-radius:3px; padding:3px 9px; }
+#hud .credits .again { margin-top:30px; font-size:12px; letter-spacing:.18em; color:#7d7568; }
+#hud .dead { position:absolute; inset:0; z-index:40; display:grid; place-items:center;
   background:rgba(10,4,4,.72); opacity:0; transition:opacity .6s; }
 #hud .dead.on { opacity:1; }
 #hud .dead p { font-size:52px; font-weight:800; letter-spacing:.34em; color:#c0392b;
@@ -78,6 +109,14 @@ export class Hud {
         <div class="fps">— fps</div>
       </div>
       <div class="wave"></div>
+      <div class="boss"><div class="who"><b></b><span></span></div>
+        <div class="bar"><u></u><i></i><div class="phases"></div></div></div>
+      <div class="credits"><div class="in">
+        <h1></h1><p class="sub2"></p>
+        <div class="score"><small>입힌 피해</small><em class="num"></em></div>
+        <div class="list"></div>
+        <div class="again">다시 시작 — R</div>
+      </div></div>
       <div class="banner"><h1></h1><p></p></div>
       <div class="toast"></div>
       <div class="dead"><p>죽음</p></div>`
@@ -96,6 +135,11 @@ export class Hud {
     this.waveEl = el.querySelector('.wave')
     this.bannerEl = el.querySelector('.banner')
     this.toastEl = el.querySelector('.toast')
+    this.bossEl = el.querySelector('.boss')
+    this.bossFill = el.querySelector('.boss .bar i')
+    this.bossGhost = el.querySelector('.boss .bar u')
+    this.creditsEl = el.querySelector('.credits')
+    this.boss = null
 
     this.pipEls = []
     this._fpsAcc = 0
@@ -119,6 +163,37 @@ export class Hud {
     this._toastT = setTimeout(() => this.toastEl.classList.remove('on'), hold * 1000)
   }
 
+  /** 보스 체력바. 페이즈 경계를 눈금으로 보여 준다. */
+  setBoss(boss) {
+    this.boss = boss
+    this.bossEl.classList.toggle('on', !!boss && !boss.cfg?.endless)
+    if (!boss) return
+    this.bossEl.querySelector('.who b').textContent = boss.cfg.name
+    this.bossEl.querySelector('.who span').textContent = boss.cfg.title ?? ''
+    const marks = this.bossEl.querySelector('.phases')
+    marks.innerHTML = boss.cfg.phases.map(() => '<s></s>').join('')
+  }
+
+  credits(damage, taken, run) {
+    const el = this.creditsEl
+    el.querySelector('h1').textContent = '죽음'
+    el.querySelector('.sub2').textContent = '창은 가오리 뼈로 만든 것이었다. 아들은 아버지를 몰랐다.'
+    el.querySelector('.num').textContent = Math.round(damage).toLocaleString('ko-KR')
+    const names = []
+    for (const [id, n] of taken) {
+      const u = (this._pool ?? []).find(x => x.id === id)
+      names.push(`${u?.name ?? id}${n > 1 ? ` ×${n}` : ''}`)
+    }
+    el.querySelector('.list').innerHTML = names.map(n => `<span>${n}</span>`).join('')
+    el.classList.add('on')
+    document.body.style.cursor = 'default'
+  }
+
+  /** 크레딧에 고른 것의 이름을 띄우려면 선택지 목록이 필요하다. */
+  setUpgradePool(pool) { this._pool = pool }
+
+  hideCredits() { this.creditsEl.classList.remove('on'); document.body.style.cursor = '' }
+
   setCharges(n) {
     while (this.pipEls.length < n) {
       const d = document.createElement('div')
@@ -129,7 +204,7 @@ export class Hud {
     }
   }
 
-  update(player, { totalDamage, dt, kills = 0, kit = null, stage = null }) {
+  update(player, { totalDamage, dt, kills = 0, kit = null, stage = null, index = 0, count = 9 }) {
     const k = clamp(player.hp / player.maxHp, 0, 1)
     this.hpFill.style.transform = `scaleX(${k})`
     this.hpGhost.style.transform = `scaleX(${k})`
@@ -167,8 +242,18 @@ export class Hud {
     if (line !== this._statLine) { this.statsEl.textContent = line; this._statLine = line }
 
     if (stage) {
-      const label = `${stage.name} · <b>${Math.min(kills, stage.goal)}</b> / ${stage.goal}`
+      const prog = stage.goal ? ` · <b>${Math.min(kills, stage.goal)}</b> / ${stage.goal}` : ''
+      const label = `${index + 1} / ${count} · ${stage.name}${prog}`
       if (label !== this._waveLabel) { this.waveEl.innerHTML = label; this._waveLabel = label }
+    }
+
+    if (this.boss && !this.boss.dead) {
+      const k = clamp(this.boss.hp / this.boss.maxHp, 0, 1)
+      this.bossFill.style.transform = `scaleX(${k})`
+      this.bossGhost.style.transform = `scaleX(${k})`
+    } else if (this.boss?.dead) {
+      this.bossFill.style.transform = 'scaleX(0)'
+      this.bossGhost.style.transform = 'scaleX(0)'
     }
 
     this.dmgEl.textContent = Math.round(totalDamage).toLocaleString('ko-KR')
@@ -179,6 +264,7 @@ export class Hud {
       this._fpsAcc = 0; this._fpsN = 0
     }
 
-    this.deadEl.classList.toggle('on', player.dead)
+    // 크레딧이 떠 있으면 사망 암전은 겹치지 않는다 — 두 겹이면 글씨가 안 보인다
+    this.deadEl.classList.toggle('on', player.dead && !this.creditsEl.classList.contains('on'))
   }
 }
