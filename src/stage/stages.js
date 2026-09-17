@@ -12,7 +12,10 @@
 /* ── 구간별 환경 조각 ────────────────────────────────────── */
 
 const SHORE = {
-  arena: { radius: 16, ground: 'ismaros', repeat: 9, wallColor: '#2a2018', rockColor: '#544738' },
+  arena: { radius: 16, ground: 'ismaros', repeat: 9, wallColor: '#2a2018', rockColor: '#544738',
+    // 털린 마을의 가장자리 — 엎어진 항아리와 부서진 기둥
+    props: [{ key: 'jar', count: 9, ring: [1.03, 1.12], scale: [0.8, 1.3], tint: '#8a5f3c' },
+            { key: 'column', count: 3, ring: [1.04, 1.11], scale: [0.7, 1.0], tint: '#b9ac92' }] },
   env: { bg: '#150c08', fog: 0.019, fogColor: '#1a0e08', exposure: 1.05, camDistance: 20.5,
     key: '#ffb478', keyIntensity: 2.4, rim: '#6f8cff', rimIntensity: 1.1,
     hemiSky: '#3a4a74', hemiGround: '#140f0a', hemiIntensity: 0.55 },
@@ -24,38 +27,53 @@ const CAVE = {
     hemiSky: '#1e2838', hemiGround: '#0c0a08', hemiIntensity: 0.35 },
 }
 const CLIFF = {
-  arena: { radius: 17, ground: 'telepylos', repeat: 8, wallColor: '#2a2e33', rockColor: '#4a4f55' },
+  arena: { radius: 17, ground: 'telepylos', repeat: 8, wallColor: '#2a2e33', rockColor: '#4a4f55',
+    // 좁은 만 — 바위 절벽 위로 라이스트리고네스의 집들이 있었다
+    props: [{ key: 'columnRound', count: 5, ring: [1.03, 1.12], scale: [0.9, 1.4], tint: '#9aa0a6' }] },
   env: { bg: '#0c1014', fog: 0.02, fogColor: '#121820', exposure: 1.06, camDistance: 22,
     key: '#cfd8e8', keyIntensity: 2.0, rim: '#5f7fa8', rimIntensity: 1.2,
     hemiSky: '#4a5a72', hemiGround: '#181c20', hemiIntensity: 0.6 },
 }
 const FOREST = {
-  arena: { radius: 16, ground: 'aiaia', repeat: 7, wallColor: '#23301f', rockColor: '#3e4a34' },
+  arena: { radius: 16, ground: 'aiaia', repeat: 7, wallColor: '#23301f', rockColor: '#3e4a34',
+    // 키르케의 숲. 집 둘레에는 약을 담던 항아리가 굴러다닌다
+    props: [{ key: 'tree', count: 22, ring: [1.02, 1.16], scale: [0.85, 1.3] },
+            { key: 'jar', count: 5, ring: [1.03, 1.11], scale: [0.9, 1.2], tint: '#6f5a3a' }] },
   env: { bg: '#0a1208', fog: 0.022, fogColor: '#101a10', exposure: 1.08, camDistance: 21,
     key: '#e8d08a', keyIntensity: 2.1, rim: '#a06fd0', rimIntensity: 1.3,
     hemiSky: '#54704a', hemiGround: '#141a10', hemiIntensity: 0.55 },
 }
 const UNDER = {
   keepEnv: true,        // 톤 시안이 덮지 않는다 — 여기 어둠은 연출이다
-  arena: { radius: 14, ground: 'underworld', repeat: 6, wallColor: '#0e0c10', rocks: false },
+  arena: { radius: 14, ground: 'underworld', repeat: 6, wallColor: '#0e0c10', rocks: false,
+    // 망자의 자리. 기둥은 고르게 둘러선다 — 아무렇게나 두면 폐허가 되고,
+    // 줄을 맞추면 누군가 세운 곳이 된다
+    props: [{ key: 'column', count: 8, ring: [1.12, 1.12], scale: [1.1, 1.1], spread: false, tint: '#4a4258' },
+            { key: 'pedestal', count: 8, ring: [1.02, 1.02], scale: [1, 1], spread: false, offset: 0.39, tint: '#3d3550' }] },
   env: { bg: '#050408', fog: 0.045, fogColor: '#08060c', exposure: 0.95, camDistance: 19,
     key: '#8a7fd0', keyIntensity: 1.2, rim: '#d05a6a', rimIntensity: 0.9,
     hemiSky: '#241e38', hemiGround: '#060508', hemiIntensity: 0.4 },
 }
 const DECK = (radius = 14, cam = 20) => ({
-  arena: { radius, ground: 'ship', repeat: 5, wallColor: '#141a22', rocks: false },
+  arena: { radius, ground: 'ship', repeat: 5, wallColor: '#141a22', rocks: false,
+    // 뱃전 너머로 남은 배들이 따라온다
+    props: [{ key: 'ship', count: 3, ring: [1.18, 1.5], scale: [0.9, 1.3], y: -1.2 }] },
   env: { bg: '#060c14', fog: 0.03, fogColor: '#0a121c', exposure: 1.02, camDistance: cam,
     key: '#bfd8ff', keyIntensity: 1.8, rim: '#7f5fd0', rimIntensity: 1.4,
     hemiSky: '#2a3d5a', hemiGround: '#0a1018', hemiIntensity: 0.5 },
 })
 const STORM = {
-  arena: { radius: 15, ground: 'ship', repeat: 5, wallColor: '#10161e', rocks: false },
+  arena: { radius: 15, ground: 'ship', repeat: 5, wallColor: '#10161e', rocks: false,
+    props: [{ key: 'ship', count: 2, ring: [1.2, 1.55], scale: [0.9, 1.2], y: -1.4 }] },
   env: { bg: '#04080e', fog: 0.034, fogColor: '#070d16', exposure: 1.0, camDistance: 24,
     key: '#9fc0e8', keyIntensity: 1.7, rim: '#4a7fd0', rimIntensity: 1.5,
     hemiSky: '#223349', hemiGround: '#060a10', hemiIntensity: 0.45 },
 }
 const HALL = {
-  arena: { radius: 15, ground: 'ithaca', repeat: 8, wallColor: '#2a2420', rocks: false },
+  arena: { radius: 15, ground: 'ithaca', repeat: 8, wallColor: '#2a2420', rocks: false,
+    // 구혼자들이 스무 해를 먹어 치운 홀
+    props: [{ key: 'column', count: 10, ring: [1.06, 1.06], scale: [1.2, 1.2], spread: false, tint: '#e3d8be' },
+            { key: 'jar', count: 7, ring: [1.04, 1.12], scale: [0.9, 1.3], tint: '#8a5f3c' }] },
   env: { bg: '#0f0a06', fog: 0.024, fogColor: '#160f08', exposure: 1.1, camDistance: 20.5,
     key: '#ffc888', keyIntensity: 2.6, rim: '#8a6fd0', rimIntensity: 0.9,
     hemiSky: '#4a3f5a', hemiGround: '#1a1208', hemiIntensity: 0.5 },

@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
 import { clone as cloneRigged } from 'three/examples/jsm/utils/SkeletonUtils.js'
 
 /**
@@ -16,13 +17,21 @@ export const MANIFEST = {
   kikonesArcher: { url: '/models/kikones-archer.glb', height: 1.74 },
   cyclops: { url: '/models/cyclops.glb', height: 5.2 },
   sheep: { url: '/models/sheep.glb', height: 0.95 },
+  pig: { url: '/models/pig.glb', height: 1.0 },
+  // 소품 — 뼈대가 없다. 무대에 세워 두기만 한다.
+  ship: { url: '/models/ship.glb', height: 6.5 },
+  column: { url: '/models/column.glb', height: 3.4 },
+  columnRound: { url: '/models/column-round.glb', height: 2.9 },
+  tree: { url: '/models/tree.glb', height: 3.4 },
+  jar: { url: '/models/jar.glb', height: 0.75 },
+  pedestal: { url: '/models/pedestal.glb', height: 0.85 },
 }
 
 /** 클립 이름이 제각각이라 느슨하게 맞춘다. 앞에 있는 후보일수록 우선. */
 const CLIP_HINTS = {
   idle: ['idle', 'stand', 'breath', 'tpose'],
   run: ['run', 'walk', 'jog', 'move'],
-  attack: ['attack', 'swing', 'slash', 'punch', 'hit', 'strike'],
+  attack: ['headbutt', 'gore', 'attack', 'swing', 'slash', 'punch', 'hit', 'strike'],
   aim: ['aim', 'draw', 'bow', 'shoot'],
   roll: ['roll', 'dodge', 'dive'],
   hurt: ['hurt', 'damage', 'flinch', 'impact'],
@@ -43,6 +52,11 @@ function matchClips(clips) {
 class Models {
   constructor() {
     this.loader = new GLTFLoader()
+    // prep 단계에서 draco 로 눌러 내보낸다. 디코더가 없으면 파일은 있는데
+    // 조용히 '없는 모델' 로 처리돼 무대가 텅 빈 채로 돌아간다.
+    const draco = new DRACOLoader()
+    draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.7/')
+    this.loader.setDRACOLoader(draco)
     this.cache = new Map()      // key -> gltf | null
     this.missing = new Set()
   }
@@ -57,13 +71,16 @@ class Models {
         if (!head.ok) throw new Error(String(head.status))
         const gltf = await this.loader.loadAsync(cfg.url)
         this.cache.set(key, gltf)
-      } catch {
+      } catch (err) {
         this.cache.set(key, null)
         this.missing.add(key)
+        this._why ??= new Map()
+        this._why.set(key, String(err?.message ?? err))
       }
     }))
     if (this.missing.size) {
-      console.info(`[models] 없어서 코드 인체로 대체: ${[...this.missing].join(', ')}`)
+      console.info('[models] 못 불러온 것:',
+        [...this.missing].map(k => `${k} (${this._why?.get(k) ?? '파일 없음'})`).join(', '))
     }
     return this
   }
@@ -82,15 +99,29 @@ class Models {
     const root = new THREE.Group()
     const model = cloneRigged(gltf.scene)
 
-    // 크기 맞추기 — 선언한 키에 자동으로 맞춘다
-    const box = new THREE.Box3().setFromObject(model)
+    // 크기 맞추기 — 선언한 키에 자동으로 맞춘다.
+    // Box3.setFromObject 는 스킨드 메시에서 뼈대까지 싸잡아 재는 일이 있어
+    // (돼지 한 마리가 203 단위로 나왔다) 지오메트리의 바인드 포즈만 잰다.
+    const measure = () => {
+      const box = new THREE.Box3()
+      model.updateWorldMatrix(true, true)
+      const tmp = new THREE.Box3()
+      model.traverse(o => {
+        if (!o.isMesh || !o.geometry) return
+        if (!o.geometry.boundingBox) o.geometry.computeBoundingBox()
+        tmp.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld)
+        box.union(tmp)
+      })
+      return box
+    }
+    const box = measure()
     const size = new THREE.Vector3()
     box.getSize(size)
     const s = size.y > 1e-4 ? cfg.height / size.y : 1
     model.scale.setScalar(s)
 
     // 발을 바닥에, 중심을 원점에
-    const box2 = new THREE.Box3().setFromObject(model)
+    const box2 = measure()
     model.position.y -= box2.min.y
     model.position.x -= (box2.min.x + box2.max.x) / 2
     model.position.z -= (box2.min.z + box2.max.z) / 2

@@ -80,6 +80,12 @@ const ENEMY_MOUNT = {
 }
 
 function buildKikones({ palette, weapon, scale, bulk, model, gltf }) {
+  // 사람이 아닌 것 — 돼지처럼 제 뼈대와 제 클립을 가진 모델은 그걸 그대로 쓴다.
+  // 사람 몸을 줄여 쓰면 아무리 색을 칠해도 작은 사람으로 보인다.
+  if (model) {
+    const own = models.create(model)
+    if (own) return { rig: own, mats: own.mats }
+  }
   // 플레이어와 같은 몸·같은 애니메이션을 쓴다. 색과 차림만 다르다.
   if (gltf) {
     const rig = createCharacter({ height: gltf.height, tint: gltf.tint, gear: gltf.gear, bulk: gltf.bulk ?? 1 })
@@ -260,8 +266,8 @@ export function circePig(world, fx) {
   return new Kikones(world, fx, {
     hp: 34, radius: 0.44, mass: 1.3, speed: 5.6, keepRange: [1.6, 2.2], barHeight: 1.3, xp: 2,
     weapon: null, scale: 0.75, bulk: 1.25,
-    gltf: { height: 1.05, bulk: 1.45, tint: '#e0a0a8', gear: [] },
     look: {
+      model: 'pig',
       weapon: null, scale: 0.75, bulk: 1.25,
       gltf: { height: 1.05, bulk: 1.45, tint: '#e0a0a8', gear: [] },
       palette: { skin: '#e0a0a8', cloth: '#c88890', leather: '#a06a70', bronze: '#9c7434', accent: '#b07078', dark: '#6a4448' },

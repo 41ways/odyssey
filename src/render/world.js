@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { damp, rand } from '../core/math.js'
 import { LOOKS } from './looks.js'
+import { models } from './models.js'
 
 /** 로스트아크식 쿼터뷰 리그. 스테이지마다 값만 갈아끼우면 된다. */
 export const CAMERA_RIG = {
@@ -203,8 +204,50 @@ export class World {
     this.rocks.visible = a.rocks !== false
     this.rocks.material.color.set(a.rockColor ?? '#544738')
 
+    this.#setProps(a.props)
     this.#setPost(e)
     if (a.ground) await this.#setGround(a.ground, a.repeat ?? 8)
+  }
+
+  /**
+   * 무대 소품 — 기둥·나무·항아리 같은 것들.
+   *
+   * 싸우는 자리에는 아무것도 두지 않는다. 걸리적거리는 순간 장식이 아니라
+   * 장애물이 되고, 충돌 처리가 없으니 뚫고 지나가는 게 보인다.
+   * 그래서 발이 닿는 반지름(R)과 벽(R+2) 사이 두 칸 띠에만 둘러 세운다 —
+   * 화면에는 들어오고 몸에는 안 닿는다. 그보다 밖으로 보내면 벽에 가려 안 보인다.
+   */
+  #setProps(list) {
+    if (this.propGroup) {
+      this.scene.remove(this.propGroup)
+      this.propGroup.traverse(o => { if (o.isMesh) o.geometry?.dispose?.() })
+      this.propGroup = null
+    }
+    if (!list?.length) return
+    const g = new THREE.Group()
+    const R = this.arenaRadius
+    for (const spec of list) {
+      for (let i = 0; i < (spec.count ?? 1); i++) {
+        const made = models.create(spec.key)
+        if (!made) break                       // 파일이 없으면 그냥 소품이 없는 무대다
+        const o = made.root
+        const [r0, r1] = spec.ring ?? [1.03, 1.12]
+        const a = spec.spread === false
+          ? (i / (spec.count ?? 1)) * Math.PI * 2 + (spec.offset ?? 0)
+          : rand(0, Math.PI * 2)
+        const r = R * rand(r0, r1)
+        o.position.set(Math.cos(a) * r, spec.y ?? 0, Math.sin(a) * r)
+        o.rotation.y = rand(0, Math.PI * 2)
+        const sc = spec.scale ? rand(spec.scale[0], spec.scale[1]) : 1
+        o.scale.multiplyScalar(sc)
+        // 받아 온 소품은 제 색이 따로 있다. 그대로 두면 판의 색과 따로 논다.
+        // 재질은 같은 키끼리 공유되므로 판을 바꿀 때마다 다시 칠하면 된다.
+        if (spec.tint) for (const m of made.mats) m.color?.set?.(spec.tint)
+        g.add(o)
+      }
+    }
+    this.propGroup = g
+    this.scene.add(g)
   }
 
   #setPost(e) {
