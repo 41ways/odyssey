@@ -27,36 +27,57 @@ const CSS = `
 #lude .scrim { position:absolute; inset:0; pointer-events:none;
   background:radial-gradient(ellipse 80% 70% at 50% 45%, rgba(4,3,6,.55), rgba(3,2,5,.92) 100%); }
 
-/* 그림은 액자에 넣는다.
+/* 그림은 액자에 걸린다.
    화면 가득 깔면 배경이 되고, 배경이 되면 그냥 지나간다.
-   테를 두르면 '보여 주는 그림' 이 되고, 글은 그 아래 설명이 된다.
 
-   그림이 여러 장이면 한자리에서 갈아 끼우지 않는다. 옆으로 늘어놓고
-   카메라가 옆걸음으로 옮겨 간다 — 큐레이터가 다음 그림 앞으로 걸어가듯이.
-   그래야 '다른 그림' 이 아니라 '다음 그림' 이 된다. */
-#lude .frame { position:relative; flex:0 1 auto;
-  width:min(1060px, 90vw); max-height:62vh; aspect-ratio:1049/603;
+   여러 장이면 한자리에서 갈아 끼우지 않는다. 벽에 나란히 걸어 놓고
+   카메라가 옆으로 옮겨 간다 — 액자도 조명도 같이 흘러야 '그림이 바뀐' 게
+   아니라 '내가 옮겨 간' 것으로 읽힌다.
+
+   처음엔 어둠뿐이고, 위에서 조명 하나가 켜지면서 첫 액자만 떠오른다. */
+#lude .hall { position:relative; flex:0 1 auto; width:100%; height:min(60vh, 62%);
+  overflow:hidden; }
+#lude .wall { position:absolute; inset:0; display:flex;
+  transition:transform 1.9s cubic-bezier(.45,.02,.25,1); }
+#lude .slot { position:relative; flex:0 0 100%; height:100%;
+  display:flex; align-items:center; justify-content:center; }
+
+/* 위에서 내려오는 조명 한 줄. 액자마다 하나씩 달려 같이 흘러간다 */
+#lude .lamp { position:absolute; left:50%; top:-14%; width:76%; height:130%;
+  transform:translateX(-50%); pointer-events:none; opacity:0;
+  transition:opacity 1.5s ease .35s;
+  clip-path:polygon(40% 0%, 60% 0%, 104% 100%, -4% 100%);
+  background:linear-gradient(180deg,
+    rgba(255,240,205,.34) 0%, rgba(255,234,192,.16) 34%,
+    rgba(255,228,180,.06) 62%, transparent 84%);
+  filter:blur(16px); }
+#lude.on .lamp { opacity:1; }
+/* 바닥에 떨어지는 빛 */
+#lude .lamp::after { content:''; position:absolute; left:50%; bottom:-2%;
+  width:92%; height:16%; transform:translateX(-50%);
+  background:radial-gradient(ellipse, rgba(255,236,196,.20), transparent 70%);
+  filter:blur(10px); }
+
+#lude .frame { position:relative;
+  width:min(940px, 78vw); max-height:88%; aspect-ratio:1049/603;
   background-image:url("/img/frame.webp?v=4");
   background-size:100% 100%; background-repeat:no-repeat;
-  opacity:0; transform:translateY(10px) scale(.985);
-  transition:opacity 1.2s ease, transform 1.4s cubic-bezier(.2,.8,.3,1);
-  filter:drop-shadow(0 26px 46px rgba(0,0,0,.8)); }
-#lude.on .frame { opacity:1; transform:none; }
-#lude .frame.out { opacity:0; transform:translateY(-8px) scale(.99);
-  transition:opacity 1.0s ease, transform 1.2s ease; }
-/* 화폭 — 액자 안쪽 구멍의 실제 자리. 테 위에 얹지만 장식 밖으로는 안 나간다 */
+  filter:brightness(.18) saturate(.6);
+  transition:filter 1.8s ease .5s;
+  will-change:filter; }
+/* 조명이 켜지면 액자가 떠오른다 */
+#lude.lit .frame { filter:brightness(1) saturate(1)
+  drop-shadow(0 24px 40px rgba(0,0,0,.75)); }
+
+/* 화폭 — 액자 안쪽 구멍의 실제 자리 */
 #lude .pane { position:absolute; left:9.8%; right:11.2%; top:17.1%; bottom:12.4%;
   overflow:hidden; z-index:2;
   background:radial-gradient(ellipse 66% 58% at 50% 46%, #17102a 0%, #0a0714 58%, #050309 100%);
   /* 테 안쪽 턱이 그림에 드리우는 그늘 */
   box-shadow:inset 0 0 0 1px rgba(0,0,0,.85), inset 0 6px 22px rgba(0,0,0,.75),
              inset 0 -4px 16px rgba(0,0,0,.5); }
-/* 옆으로 늘어선 그림들. 한 칸씩 밀려 간다 */
-#lude .reel { position:absolute; inset:0; display:flex;
-  transition:transform 1.7s cubic-bezier(.45,.02,.25,1); }
-#lude .plate-img { position:relative; flex:0 0 100%; height:100%;
-  background-size:cover; background-position:center;
-  opacity:0; transition:opacity 1.0s ease; }
+#lude .plate-img { position:absolute; inset:0; background-size:cover;
+  background-position:center; opacity:0; transition:opacity 1.0s ease; }
 #lude .plate-img.in { opacity:1; }
 /* 오려 낸 인물은 꽉 채우지 않는다 — 액자 안에 세워 둔다 */
 #lude .plate-img.fig { background-size:contain; background-repeat:no-repeat;
@@ -67,6 +88,7 @@ const CSS = `
 
 /* 글 뒤에 그늘 한 겹. 그림이 밝으면 흰 글씨가 그대로 묻힌다 —
    화면 전체를 어둡게 하면 그림이 죽으니 글 있는 띠만 눌러 준다. */
+#lude.dim .hall { opacity:0; transition:opacity 1.1s ease; }
 #lude .plate { position:relative; flex:0 0 auto; text-align:center;
   width:min(860px, 90vw); padding:10px 20px; opacity:1;
   transition:opacity 1.0s ease, transform 1.2s ease; }
@@ -177,21 +199,28 @@ export class Interlude {
    */
   /** 막이 내려온 뒤에 닫는다 — 곧바로 닫으면 그 틈으로 지난 판이 보인다. */
   close() {
-    this.el.classList.remove('on')
+    this.el.classList.remove('on', 'lit')
     document.body.style.cursor = ''
   }
 
   play({ lines, dest, scene = 'sea', art = null, figure = false, keepOpen = false }) {
     return new Promise(resolve => {
+      const timers0 = []
       const arts = art ? (Array.isArray(art) ? art : [art]) : []
       const back = (SCENES[scene] ? SCENES[scene]() : SCENES.sea()) + '<div class="scrim"></div>'
-      const pane = arts.map((src, i) =>
-        `<div class="plate-img${figure ? ' fig' : ''}" data-i="${i}" data-src="${src}"></div>`).join('')
+      // 액자 하나에 그림 하나. 벽에 나란히 걸어 두고 통째로 옆으로 민다.
+      const wall = arts.map((src, i) => `
+        <div class="slot">
+          <div class="lamp"></div>
+          <div class="frame">
+            <div class="pane">
+              <div class="plate-img${figure ? ' fig' : ''}" data-i="${i}" data-src="${src}"></div>
+            </div>
+          </div>
+        </div>`).join('')
 
       this.el.innerHTML = `${back}
-        ${arts.length ? `<div class="frame">
-          <div class="pane"><div class="reel">${pane}</div></div>
-        </div>` : ''}
+        ${arts.length ? `<div class="hall"><div class="wall">${wall}</div></div>` : ''}
         <div class="plate">
           <div class="band"></div>
           <div class="line"><span></span></div>
@@ -199,7 +228,10 @@ export class Interlude {
           <div class="band"></div>
         </div>
         <button class="skip" type="button">SKIP</button>`
+      this.el.classList.remove('dim')
       this.el.classList.add('on')
+      // 조명은 한 박자 늦게 켠다 — 어둠이 먼저 있어야 켜지는 게 보인다
+      timers0.push(setTimeout(() => this.el.classList.add('lit'), 520))
       document.body.style.cursor = 'default'
 
       // 그림은 받아지고 나서야 붙인다. 없는 파일이면 CSS 장면 그대로 간다.
@@ -215,17 +247,17 @@ export class Interlude {
         probe.onerror = () => el.classList.add('in')
         probe.src = el.dataset.src
       }
-      /** n번째 그림 앞으로 옮겨 간다. 없는 번호면 마지막 그림 앞에 선다. */
-      const reel = this.el.querySelector('.reel')
+      /** n번째 액자 앞으로 옮겨 간다. 없는 번호면 마지막 그림 앞에 선다. */
+      const wallEl = this.el.querySelector('.wall')
       const showPlate = n => {
-        if (!reel || plates.length < 2) return
+        if (!wallEl || plates.length < 2) return
         const i = Math.min(n, plates.length - 1)
-        reel.style.transform = `translateX(${-i * 100}%)`
+        wallEl.style.transform = `translateX(${-i * 100}%)`
       }
 
       const span = this.el.querySelector('.line span')
       const destEl = this.el.querySelector('.dest')
-      const timers = []
+      const timers = timers0
       let done = false
 
       const finish = () => {
@@ -234,6 +266,7 @@ export class Interlude {
         timers.forEach(clearTimeout)
         removeEventListener('keydown', skip)
         // keepOpen 이면 화면을 켠 채로 넘긴다. 다음 판의 막이 내려온 뒤 close() 가 닫는다.
+        this.el.classList.remove('lit')
         if (!keepOpen) this.close()
         resolve()
       }
@@ -257,10 +290,11 @@ export class Interlude {
       if (destEl) timers.push(setTimeout(() => destEl.classList.add('in'), Math.max(600, t - 1400)))
       // 마지막 글줄을 한 번 접고 나간다. 그대로 끊으면 읽다 만 것처럼 남는다.
       const plate = this.el.querySelector('.plate')
-      const frameEl = this.el.querySelector('.frame')
+      // 마지막에는 조명이 먼저 꺼진다
       timers.push(setTimeout(() => {
         plate?.classList.add('out')
-        frameEl?.classList.add('out')
+        this.el.classList.remove('lit')
+        this.el.classList.add('dim')
       }, t + 200))
       timers.push(setTimeout(finish, t + 1300))
     })

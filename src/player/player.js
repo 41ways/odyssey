@@ -8,29 +8,30 @@ import { newStats } from './stats.js'
 import { buildFigure, wrapFigure } from '../render/figure.js'
 import { buildGear, buildWeapons, KIT, buildSwordProp, buildBowProp, buildHelmetProp, buildCapeProp } from './gear.js'
 import { createCharacter } from '../render/character.js'
+import { models } from '../render/models.js'
 
 /**
  * 기본값은 일부러 느리다. 이동도 활도 처음엔 답답하고, 성장으로 풀어 나간다.
  * 여기 숫자를 올리기 전에 stats.js 의 선택지를 먼저 의심할 것.
  */
 export const TUNING = {
-  speed: 6.1,             // 기본 이동속도. 날랜 발을 모으면 빨라진다
+  speed: 5.6,             // 기본 이동속도. 날랜 발을 모으면 빨라진다
   turnHalf: 0.035,        // 조준 추적 반감기. 작을수록 즉각적
   roll: {
     charges: 3,
     regen: 2.5,           // 충전 하나 차는 데 걸리는 시간. 가벼운 몸으로 줄인다
-    // 거리와 시간은 같이 움직인다. 거리만 줄이면 걷는 것(6.1)보다 느려져서
-    // 구르는 게 아니라 기어가는 느낌이 난다. 지금은 초속 8.8.
-    duration: 0.34,
-    distance: 3.0,        // 회피 거리는 성장으로 안 건드린다. 도망 수단은 일정해야 한다
+    // 거리와 시간은 같이 움직인다. 거리만 줄이면 걷는 것(5.6)보다 느려져서
+    // 구르는 게 아니라 기어가는 느낌이 난다. 지금은 초속 9.7.
+    duration: 0.38,
+    distance: 3.7,        // 회피 거리는 성장으로 안 건드린다. 도망 수단은 일정해야 한다
     iframeStart: 0.03,
     iframeEnd: 0.25,      // 0.22초 무적. 짧게 잡아야 회피가 실력이 된다
     recovery: 0.08,
   },
   bow: {
-    minDraw: 0.28,        // 여기까진 당겨야 나간다. 연사 방지
-    fullDraw: 1.05,       // 꽉 채우기까지. 팽팽한 시위로 줄인다
-    release: 0.36,        // 쏘고 난 후딜
+    minDraw: 0.34,        // 여기까진 당겨야 나간다. 연사 방지
+    fullDraw: 1.15,       // 꽉 채우기까지. 팽팽한 시위로 줄인다
+    release: 0.42,        // 쏘고 난 후딜
   },
 }
 
@@ -82,10 +83,17 @@ function slash(cfg) {
   }
 }
 
+/**
+ * 칼 3타.
+ *
+ * 처음엔 훨씬 빨랐는데, 빠르면 '보고 피하는' 싸움이 아니라 '먼저 누르는'
+ * 싸움이 된다. 소울라이크의 박자는 한 번 휘두르면 잠깐 묶이는 데서 나온다.
+ * 선딜과 후딜을 같이 늘려서 한 대 한 대가 결정처럼 느껴지게 했다.
+ */
 export const SLASH = {
-  slash1: slash({ id: 'slash1', startup: 0.09, active: 0.07, recovery: 0.25, cancelAt: 0.21, next: 'slash2', move: 1.0, range: 3.0, halfAngle: 1.05, damage: 12, knockback: 3.5, hitstop: 0.055, stagger: 0.10 }),
-  slash2: slash({ id: 'slash2', startup: 0.08, active: 0.07, recovery: 0.26, cancelAt: 0.21, next: 'slash3', move: 1.1, range: 3.1, halfAngle: 1.25, damage: 14, knockback: 4.0, hitstop: 0.06, stagger: 0.12 }),
-  slash3: slash({ id: 'slash3', startup: 0.17, active: 0.10, recovery: 0.46, cancelAt: 0.42, next: null, move: 2.0, range: 3.8, halfAngle: 1.95, damage: 28, knockback: 11, hitstop: 0.11, stagger: 0.42 }),
+  slash1: slash({ id: 'slash1', startup: 0.13, active: 0.08, recovery: 0.32, cancelAt: 0.27, next: 'slash2', move: 1.0, range: 3.0, halfAngle: 1.05, damage: 12, knockback: 3.5, hitstop: 0.06, stagger: 0.10 }),
+  slash2: slash({ id: 'slash2', startup: 0.12, active: 0.08, recovery: 0.34, cancelAt: 0.28, next: 'slash3', move: 1.1, range: 3.1, halfAngle: 1.25, damage: 14, knockback: 4.0, hitstop: 0.065, stagger: 0.12 }),
+  slash3: slash({ id: 'slash3', startup: 0.22, active: 0.12, recovery: 0.58, cancelAt: 0.52, next: null, move: 2.0, range: 3.8, halfAngle: 1.95, damage: 28, knockback: 11, hitstop: 0.12, stagger: 0.42 }),
 }
 
 /**
@@ -221,6 +229,7 @@ export class Player extends Actor {
     this._rollFrom = { x: 0, z: 0 }
     this._echo = null
     this.hexed = 0
+    this.hexRig = null                    // 돼지로 변했을 때의 몸. 걸릴 때 한 번만 만든다
     this.vis = built.rig.root
     this.group.add(this.vis)
     this.bodyMats = built.mats
@@ -481,6 +490,25 @@ export class Player extends Actor {
       : null
 
     const rollK = rolling ? 1 - this.rolling / TUNING.roll.duration : 0
+
+    // 돼지로 변해 있으면 사람 몸은 숨기고 돼지가 대신 움직인다.
+    // 느려지기만 하고 겉이 그대로면 무슨 일이 일어난 건지 알 수가 없다.
+    const hexed = this.hexed > 0
+    if (hexed && !this.hexRig) {
+      this.hexRig = models.create('pig')
+      if (this.hexRig) {
+        this.hexRig.root.scale.setScalar(1.15)
+        this.group.add(this.hexRig.root)
+      }
+    }
+    if (this.hexRig) {
+      this.hexRig.root.visible = hexed
+      this.vis.visible = !hexed
+      if (hexed) {
+        this.hexRig.pose({ t: this.animT, run: this._run, attack: null, draw: null, roll: 0, dead: false }, dt)
+        return
+      }
+    }
 
     this.rig.pose({
       t: this.animT,

@@ -3,6 +3,9 @@ import { Actor } from '../combat/actor.js'
 import { sectorHit } from '../combat/hit.js'
 import { dist2d, dampAngle, rand, clamp } from '../core/math.js'
 import { buildFigure, wrapFigure } from '../render/figure.js'
+
+/** 잡몹이 붙는 속도. 1보다 작으면 판이 느려진다. */
+export const TEMPO = 0.84
 import { models } from '../render/models.js'
 import { createCharacter } from '../render/character.js'
 import { buildSpearProp, buildBowProp } from '../player/gear.js'
@@ -221,7 +224,9 @@ class Kikones extends Actor {
     if (d > far) fwd = 1
     else if (d < near) fwd = -0.85
     const sx = Math.cos(want) * this.strafe, sz = -Math.sin(want) * this.strafe
-    const speed = this.cfg.speed
+    // 판 전체의 박자를 한 군데서 잡는다. 적이 빠르면 플레이어의 후딜이
+    // 그대로 처벌이 되어, 늦춘 칼이 '느린 칼' 이 아니라 '못 쓰는 칼' 이 된다.
+    const speed = this.cfg.speed * TEMPO
     const dx = (Math.sin(want) * fwd + sx * 0.55) * speed * dt
     const dz = (Math.cos(want) * fwd + sz * 0.55) * speed * dt
     this.pos.x += dx

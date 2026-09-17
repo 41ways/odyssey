@@ -123,8 +123,13 @@ class Game {
   /* ── 필드 ─────────────────────────────────────────────── */
 
   track(enemy) {
-    // 난이도는 맷집 한 군데에만 실린다. 여기가 모든 적이 지나는 길목이다.
-    const mul = this.sail?.hpMul ?? 1
+    // 맷집은 여기 한 군데에서만 정한다. 모든 적이 지나는 길목이다.
+    //   난이도 × 판이 깊어질수록 붙는 몫.
+    // 뒤로 갈수록 내 성장이 크게 붙으므로, 적이 그대로면 후반이 헐거워진다.
+    // 보스는 원래 체력이 커서 같은 비율로 올리면 너무 길어진다 — 덜 붙인다.
+    const deep = Math.max(0, this.run?.index ?? 0)
+    const curve = enemy.isBoss ? 1 + deep * 0.10 : 1 + deep * 0.17
+    const mul = (this.sail?.hpMul ?? 1) * curve
     if (mul !== 1) { enemy.maxHp = Math.round(enemy.maxHp * mul); enemy.hp = enemy.maxHp }
     enemy.onHurt = d => { this.totalDamage += d }
     if (!enemy.isDummy) {

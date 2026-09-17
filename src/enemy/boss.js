@@ -356,7 +356,7 @@ export class Boss extends Actor {
     if (this.cfg.flees && d < near) fwd = -1.6
     else if (d > far) fwd = 1
     else if (d < near) fwd = -0.6
-    const sp = this.cfg.speed ?? 2.6
+    const sp = (this.cfg.speed ?? 2.6) * 0.88
     const dx = Math.sin(want2) * fwd * sp * dt
     const dz = Math.cos(want2) * fwd * sp * dt
     this.pos.x += dx; this.pos.z += dz
