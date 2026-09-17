@@ -46,26 +46,32 @@ const CSS = `
   background:#c8b28a; opacity:0; }
 
 /* 아래에서 솟아올라 화면 아래 절반을 덮는다 */
-#relic .shade { position:absolute; left:50%; bottom:-7vh; transform:translate(-50%, 26%);
-  height:102vh; opacity:0; transition:transform 1.1s cubic-bezier(.16,.9,.3,1), opacity .9s ease; }
+#relic .shade { position:absolute; left:50%; bottom:-3vh; transform:translate(-50%, 26%);
+  height:94vh; opacity:0; transition:transform 1.1s cubic-bezier(.16,.9,.3,1), opacity .9s ease; }
 #relic.up .shade { transform:translate(-50%, 0); opacity:1; }
 #relic .shade img { height:100%; width:auto; max-width:none; display:block;
-  filter:contrast(1.06) brightness(.98) drop-shadow(0 0 60px rgba(140,110,200,.5)); }
-#relic .shade .glow { position:absolute; left:50%; top:42%; width:78vh; height:78vh;
+  filter:contrast(1.05) brightness(1.0)
+    drop-shadow(0 0 34px rgba(170,138,240,.55)) drop-shadow(0 0 90px rgba(120,86,200,.45)); }
+/* 후광 두 겹 — 안쪽은 좁고 세게, 바깥은 넓고 옅게.
+   실루엣 경계가 빛에 묻혀서 잘린 자리가 눈에 안 띈다 */
+#relic .shade .glow { position:absolute; left:50%; top:46%; width:82vh; height:82vh;
   transform:translate(-50%,-50%); pointer-events:none; z-index:-1;
-  background:radial-gradient(circle, rgba(140,110,200,.28), rgba(90,60,150,.10) 44%, transparent 68%); }
+  background:radial-gradient(circle, rgba(165,132,235,.42), rgba(110,74,180,.18) 38%, transparent 66%); }
+#relic .shade .glow2 { position:absolute; left:50%; top:52%; width:150vh; height:110vh;
+  transform:translate(-50%,-50%); pointer-events:none; z-index:-2;
+  background:radial-gradient(ellipse, rgba(120,88,190,.22), rgba(70,44,120,.08) 42%, transparent 70%); }
 
 /* 머리 위에 이름과 말 */
-#relic .said { position:absolute; left:50%; top:5.5vh; transform:translateX(-50%);
+#relic .said { position:absolute; left:50%; top:3.5vh; transform:translateX(-50%);
   width:min(700px, 90vw); text-align:center; opacity:0; transition:opacity .7s ease .45s; }
 #relic.up .said { opacity:1; }
 #relic .band { height:14px; background-image:${meanderURI('#9b7bd0', 0.9)};
   background-repeat:repeat-x; background-position:center; opacity:.4; }
-#relic .said h2 { font-family:var(--serif); font-size:30px; font-weight:700;
-  letter-spacing:.24em; text-indent:.24em; color:#ded2ef; margin:16px 0 4px;
-  text-shadow:0 0 40px rgba(140,110,200,.55), 0 4px 22px #000; }
-#relic .said .t { font-size:11px; letter-spacing:.28em; color:#8a7bb0; margin-bottom:14px; }
-#relic .said p { font-size:14px; line-height:1.95; color:#b0a3c8;
+#relic .said h2 { font-family:var(--serif); font-size:52px; font-weight:700;
+  letter-spacing:.26em; text-indent:.26em; color:#e8dcf8; margin:18px 0 8px;
+  text-shadow:0 0 70px rgba(150,118,215,.7), 0 0 28px rgba(150,118,215,.5), 0 6px 26px #000; }
+#relic .said .t { font-size:12.5px; letter-spacing:.34em; color:#9a89c4; margin-bottom:18px; }
+#relic .said p { font-size:15px; line-height:2.0; color:#b8abd2;
   text-shadow:0 2px 14px #000; }
 #relic .said p em { color:#efe6ff; font-style:normal; }
 
@@ -142,6 +148,7 @@ export class RelicScreen {
         }).join('')}</div>
 
         <div class="shade">
+          <div class="glow2"></div>
           <div class="glow"></div>
           <img src="${PORTRAIT}" alt=""
             onerror="this.src='data:image/svg+xml;charset=utf-8,${shadeSVG}'">
