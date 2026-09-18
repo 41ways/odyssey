@@ -45,6 +45,38 @@ URL 인자: `?god=0` 무적 끔, `?stage=N` 그 판부터, `?boss=1` 보스방 �
 
 ---
 
+## 1.5 4차 갱신 (2026-09-18 오후) — 신화 속에 들어와 있게
+
+"RPG 하는 기분, 그리스 신화 안에 들어와 있는 몰입" 을 목표로 한 회차.
+
+| 무엇 | 어디 | 요점 |
+|---|---|---|
+| 여정 층 | `stage/voyage.js`, `ui/fate.js`, `ui/voyagehud.js` | 배 12·동료 600 이 호메로스의 자리에서 줄어든다. 포세이돈 분노(바다 판 적 맷집)·아테나 호의(은총 한 장 더). 판 사이 갈림길 넷 — 이름 / 몰리 / 한 해 / 헬리오스의 소 |
+| 동료 전투원 | `player/companion.js` | 에우릴로코스·폴리테스, 이타카에선 텔레마코스·에우마이오스. 적은 동료를 안 노리고 동료는 보스를 안 친다 (파훼는 플레이어 몫) |
+| 옷차림 | `player/gear.js`, `player/player.js` | 알몸·가죽 바지 → 키톤·샌들로 시작, 전리품은 청동 흉갑·팔가리개·견갑·코린토스 투구·망토. 허리 자락(프테루게스)은 골반 위치를 따라간다 |
+| 망토 | `player/cloth.js` | 바람 가속이 중력의 10배라 늘 수평이었다 → 서면 15°, 달리면 60° |
+| 저승 | `render/world.js` setMaze | 보라 상자 → 층진 바위(crag), 검은 포플러, 아스포델, 바닥 안개 셰이더 |
+| 폴리페모스 동작 | `render/retarget.js` | 오디세우스의 공격·조깅·죽음을 바인드 포즈 기준 월드 델타로 옮김 |
+| 안티파테스 뼈 | `render/autoskin.js` | 정적 오우거에 영웅 뼈대를 관절 표(`models.js` OGRE)대로 입힘. 영웅 클립 그대로 재생. 라이스트리고네스 잡졸도 같은 몸 |
+| 세이렌 크기 | `models.js` | 키 15.7 기둥 → 4.2 ([#2](https://github.com/41ways/odyssey/issues/2)) |
+| 스킬라 | `bossparts.js` skyllaKraken | 안 보이던 것 ([#1](https://github.com/41ways/odyssey/issues/1)), 머리마다 제 촉수로 친다 |
+| 카리브디스 | `render/vortex.js` | 로그 나선 셰이더 물, 판 전체 수면 |
+| 활시위 컷신 | `stage/cuts.js` CUT_BOW | 안티노오스 앞, 거지 차림을 벗기 전 (`cutBefore`) |
+| 엔딩 | `ui/hud.js` credits | 여정의 기록 — 어디서 몇이 돌아오지 못했고, 무엇을 골랐는가 |
+
+**아직 대역인 것:** 갈림길 그림 넷(`public/img/fate-*.webp`)이 없어서 막간 그림을
+대신 쓴다 (`FATES[].fallback`). 파일만 넣으면 바뀐다. 프롬프트는 voyage.js 의 장면 설명.
+
+**Mixamo:** 안티파테스 OBJ(170cm·정점 붙임)로 세 번 올렸는데 서버 리깅이
+`Unknown error while generating motion` 으로 떨어졌다. 그래서 autoskin 으로 갔다.
+`tools/glb-to-obj.mjs`, `tools/web/fbx2glb.html` 은 다른 모델에 쓸 수 있게 남겨 둔다.
+
+**그림 옮기는 길:** 생성기 탭에서 연속 다운로드가 막히면, 그림을 화면에 띄워
+스크린샷을 찍고 `http://localhost:5180/tools/web/upload.html` 의 파일 입력으로
+올린다 → `shots/` 에 떨어진다 (`tools/prep-bow.mjs` 참고).
+
+---
+
 ## 2. 이번 회차에 끝낸 것
 
 ### 레벨·경험치 (`src/player/level.js`) — 새로
