@@ -574,6 +574,19 @@ class Game {
   }
 
   /**
+   * 이 판에 나오는 모델을 받는다.
+   *
+   * 막이 내려와 있는 동안 부르므로 기다림이 화면에 안 드러난다.
+   * 오래 걸리면 (첫 방문·느린 망) 한 줄 알린다 — 아무 말 없이 멈춰 있으면
+   * 게임이 죽은 줄 안다.
+   */
+  async loadStageModels(id) {
+    if (!id) return
+    const t = setTimeout(() => this.hud?.toast?.('불러오는 중…', 6), 700)
+    try { await models.loadStage(id) } finally { clearTimeout(t) }
+  }
+
+  /**
    * 지금 전체 화면이 떠 있는가.
    * 고르는 창 위에 멈춤 메뉴를 겹치면 둘 다 못 쓰게 된다 — Esc 를 양보한다.
    */
@@ -1117,7 +1130,8 @@ class Game {
   }
 }
 
-await Promise.all([models.preload(), preloadCharacter()])
+// 시작할 때는 어느 판에나 나오는 것만 받는다. 보스는 그 판에 들어갈 때.
+await Promise.all([models.preload(models.baseKeys()), preloadCharacter()])
 const game = new Game(document.getElementById('app'), document.getElementById('ui'))
 window.__game = game
 

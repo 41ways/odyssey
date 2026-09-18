@@ -99,7 +99,8 @@ export const ANTIPHATES = {
    * 원래 조각이 없었으니 잃는 게 없다. 파훼는 부름꾼이고 그건 몸이
    * 아니라 규칙이다.
    */
-  look: { model: 'giant', height: 4.6, bulk: 1.25, tint: '#9aa2ac', gear: [] },
+  // 키 큰 사람이 아니라 거인이어야 한다. 받아 온 몸으로 간다.
+  look: { model: 'antiphates', height: 5.2, bulk: 1.15, tint: '#b9a48c', gear: [] },
   phases: [
     {
       below: 1,
@@ -238,7 +239,10 @@ export const SIREN = {
   id: 'siren', name: '세이렌', title: '노래하는 것',
   hp: 680, radius: 0.7, mass: 26, speed: 3.2, keepRange: [5, 9], gap: [0.7, 1.3],
   barHeight: 2.6, groggyMult: 1.7,
-  look: { height: 1.8, bulk: 0.92, tint: '#7fd0d8', gear: ['legs', 'body'] },
+  // 새의 몸(호메로스 원전)이 아니라 인어로 간다 — 바다에서 노래해 배를
+  // 끌어들이는 쪽이 이 판의 그림과 맞는다. 받아 온 몸이라 사람 뼈대가 아니고,
+  // 그래서 클립 대신 코드가 흔든다 (sway).
+  look: { model: 'siren', height: 2.4, bulk: 1.0, tint: null, gear: [], sway: 1 },
   phases: [
     {
       below: 1,
@@ -340,7 +344,10 @@ export const SKYLLA = {
    * 촉수는 받아 온 애니메이션 모델이고 (Quaternius, CC0) 머리 끝에는
    * 돌 뱀 머리를 얹는다 (bossparts.js 의 skyllaWall).
    */
-  look: { height: 3.6, bulk: 1.3, tint: '#6a8c7a', gear: [], hideBody: true, sink: 0.6 },
+  // 촉수 여섯이 한 벌로 온다 (Kraken Animation, Yanez Designs, CC-BY).
+  // 코드로 마디를 겹쳐 흔들던 것과 실루엣이 다르다 — 처음부터 촉수로 만들어졌다.
+  look: { model: 'skylla', height: 5.0, bulk: 1.0, tint: '#7f9a86', gear: [],
+    hideBody: true, sink: 0.9 },
   phases: [
     {
       below: 1,

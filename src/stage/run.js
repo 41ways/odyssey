@@ -111,6 +111,9 @@ export class Run {
     const g = this.game
     await g.curtain(async () => {
       g.clearField()
+      // 이 판에 나오는 모델을 여기서 받는다. 막이 내려와 있는 동안이라
+      // 기다리는 시간이 화면에 안 드러난다.
+      await g.loadStageModels(this.stage?.id)
       await g.render3d.applyStage(part)
       g.arenaRadius = g.render3d.arenaRadius
       // 판 모양은 한 군데서 만들고 쓰는 쪽마다 물려 준다 —

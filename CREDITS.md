@@ -83,3 +83,9 @@ CC0 라 표기 의무는 없지만 적어 둔다. 어디서 왔는지 모르는 
 - **스킬라의 촉수** — *Kraken (Animation)* by **Yanez Designs** (Sketchfab, CC-BY 4.0)
   https://sketchfab.com/3d-models/kraken-animation-3f2e84dffa9742f8a894143a4dfa7d73
   물판과 촉수 둘을 덜어 내고 512 WebP + draco 로 줄여 씀 (`tools/prep-skylla.mjs`).
+- **세이렌** — *Mermaid* by **Danny Dugas** (Sketchfab, CC-BY 4.0)
+  https://sketchfab.com/3d-models/mermaid-6145894382fa4c4588c9d4bc1997e07c
+  헤엄치는 자세로 누워 있어 세워 쓴다. 1024 WebP + draco (642KB).
+- **안티파테스** — *Fire-Branded Ogre* by **ribtibs** (Sketchfab, CC-BY 4.0)
+  https://sketchfab.com/3d-models/fire-branded-ogre-39cbab6fbaf14ccc87444e06695a1a35
+  5.8k 삼각형. 1024 WebP + draco (86KB).

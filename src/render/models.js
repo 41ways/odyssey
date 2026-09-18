@@ -10,6 +10,10 @@ import { clone as cloneRigged } from 'three/examples/jsm/utils/SkeletonUtils.js'
  * 그래서 모델이 하나도 없어도 게임은 항상 돌아간다 — 모델은 교체 가능한 껍데기일 뿐이다.
  *
  * 크기는 선언한 height 에 맞춰 자동으로 맞춘다. "모델이 100배 크게 나온다" 류의 사고를 원천봉쇄한다.
+ *
+ * **판마다 따로 받는다.** 전에는 시작할 때 전부 내려받아서, 좋은 모델 하나가
+ * 첫 화면이 뜨는 시간을 통째로 잡아먹었다. 이제 판에 들어갈 때 그 판에 나오는
+ * 것만 받는다 (STAGE_MODELS) — 스킬라의 촉수는 메시나에 닿기 전에는 없어도 된다.
  */
 export const MANIFEST = {
   odysseus: { url: '/models/odysseus.glb', height: 1.82 },
@@ -33,6 +37,11 @@ export const MANIFEST = {
   cyclopsBody: { url: '/models/cyclops.glb', height: 6.4 },
   // 스킬라. 머리 여덟 달린 뱀 — 스킬라 여섯 머리의 대역이다. 정적 메시.
   orochi: { url: '/models/orochi.glb', height: 5.5 },
+  // 받아 온 보스 몸. 판에 들어갈 때만 내려받는다 (STAGE_MODELS).
+  skylla: { url: '/models/skylla.glb', height: 5.0, center: false },
+  // 헤엄치는 자세로 누워 있다. 꼬리를 아래로 세운다.
+  siren: { url: '/models/siren.glb', height: 2.4, rotate: [-Math.PI / 2, 0, 0] },
+  antiphates: { url: '/models/antiphates.glb', height: 4.6 },
   // 절벽 바위. 스킬라 절벽과 동굴 판에 뿌린다.
   cliffRock: { url: '/models/cliff-rock.glb', height: 2.2 },
   /**
@@ -102,6 +111,23 @@ function matchClips(clips) {
   return out
 }
 
+/**
+ * 판마다 필요한 모델.
+ *
+ * 여기 없는 것은 시작할 때 다 받는다 (플레이어·잡몹처럼 어느 판에나 나오는 것).
+ * 보스와 그 판에만 나오는 소품만 여기로 미룬다.
+ */
+export const STAGE_MODELS = {
+  ismaros: ['cyclops', 'cyclopsBody', 'sheep'],
+  telepylos: ['antiphates', 'giant', 'cliffRock'],
+  aiaia: ['hooded', 'pig', 'wolf', 'tree'],
+  underworld: [],
+  sirens: ['siren', 'ship'],
+  messina: ['skylla', 'tentacle', 'serpentHead', 'snake', 'ship'],
+  ithaca: ['king', 'column', 'jar'],
+  death: [],
+}
+
 class Models {
   constructor() {
     this.loader = new GLTFLoader()
@@ -112,6 +138,23 @@ class Models {
     this.loader.setDRACOLoader(draco)
     this.cache = new Map()      // key -> gltf | null
     this.missing = new Set()
+  }
+
+  /**
+   * 한 판에 필요한 것만 받는다. 이미 받은 것은 건너뛴다.
+   * @returns 새로 받은 개수 (0 이면 로딩 화면을 띄울 필요가 없다)
+   */
+  async loadStage(id) {
+    const want = (STAGE_MODELS[id] ?? []).filter(k => !this.cache.has(k))
+    if (!want.length) return 0
+    await this.preload(want)
+    return want.length
+  }
+
+  /** 시작할 때 받을 것 — 어느 판에나 나오는 것만. */
+  baseKeys() {
+    const perStage = new Set(Object.values(STAGE_MODELS).flat())
+    return Object.keys(MANIFEST).filter(k => !perStage.has(k))
   }
 
   /** 있는 것만 조용히 불러온다. 없으면 null 로 기억하고 넘어간다. */
@@ -155,6 +198,10 @@ class Models {
     // 크기 맞추기 — 선언한 키에 자동으로 맞춘다.
     // Box3.setFromObject 는 스킨드 메시에서 뼈대까지 싸잡아 재는 일이 있어
     // (돼지 한 마리가 203 단위로 나왔다) 지오메트리의 바인드 포즈만 잰다.
+    // 눕혀 놓고 만든 모델이 있다 (헤엄치는 인어처럼). 재기 전에 먼저 세운다 —
+    // 재고 나서 돌리면 키를 엉뚱한 축으로 맞추게 된다.
+    if (cfg.rotate) model.rotation.set(cfg.rotate[0] ?? 0, cfg.rotate[1] ?? 0, cfg.rotate[2] ?? 0)
+
     const measure = () => {
       const box = new THREE.Box3()
       model.updateWorldMatrix(true, true)
