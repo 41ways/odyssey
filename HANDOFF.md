@@ -67,6 +67,13 @@ URL 인자: `?god=0` 무적 끔, `?stage=N` 그 판부터, `?boss=1` 보스방 �
 **아직 대역인 것:** 갈림길 그림 넷(`public/img/fate-*.webp`)이 없어서 막간 그림을
 대신 쓴다 (`FATES[].fallback`). 파일만 넣으면 바뀐다. 프롬프트는 voyage.js 의 장면 설명.
 
+**하다 멈춘 것 (2026-09-18):** 오디세우스의 코드 투구(`gear.js` buildHelmetProp)를
+Sketchfab 'Agamemnon's Helmet' (Quesho, **CC-BY** — 크레딧 표기 필요)으로 바꾸는 중.
+원본은 `art/helmet-src.glb` (30MB, 삼각형 52만 — 볏 털 Hair 메시가 대부분).
+다음: Hair·Vertebrae 를 덜고 Helmet 을 simplify 해 수천 삼각형으로 줄인 뒤
+`public/models/helmet.glb` 로, player.js MOUNT.helmet 에 건다. 게임 안 크레딧에도 넣는다.
+(유료인 'Agamemnon The Odyssey (Rigged)' 는 받지 않았다.)
+
 **Mixamo:** 안티파테스 OBJ(170cm·정점 붙임)로 세 번 올렸는데 서버 리깅이
 `Unknown error while generating motion` 으로 떨어졌다. 그래서 autoskin 으로 갔다.
 `tools/glb-to-obj.mjs`, `tools/web/fbx2glb.html` 은 다른 모델에 쓸 수 있게 남겨 둔다.
