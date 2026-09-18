@@ -52,6 +52,9 @@ const MANIFEST = {
   wolf: { url: '/models/wolf.glb', height: 1.05 },
   // 소품 — 뼈대가 없다. 무대에 세워 두기만 한다.
   ship: { url: '/models/ship.glb', height: 6.5 },
+  // 네모 돛 하나에 노를 젓는 낮은 배 (Quaternius Viking Boat, CC0).
+  // 돛대 셋짜리 갤리온보다 호메로스의 검은 배에 훨씬 가깝다
+  galley: { url: '/models/galley.glb', height: 4.2 },
   column: { url: '/models/column.glb', height: 3.4 },
   columnRound: { url: '/models/column-round.glb', height: 2.9 },
   tree: { url: '/models/tree.glb', height: 3.4 },

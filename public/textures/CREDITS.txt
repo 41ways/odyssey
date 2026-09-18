@@ -26,3 +26,5 @@ ship 과 ithaca 는 처음에 WoodFloor064 · Tiles074 로 받았다가 바꿨�
 둘 다 노멀이 사실상 평평해서(채널 표준편차 0.6 · 0.8) 깔아도 아무 일이
 일어나지 않았다 — 매끈한 재질은 노멀맵이 없는 것과 같다. 홈이 있는
 널판과 줄눈이 있는 포석으로 갈았다 (19.3 · 9.2).
+
+waternormals.webp — three.js examples (MIT) · https://threejs.org/examples/textures/waternormals.jpg
