@@ -273,9 +273,19 @@ class Models {
     const actions = {}
     if (mixer) for (const [k, clip] of Object.entries(clips)) actions[k] = mixer.clipAction(clip)
 
-    // 달리기 클립이 없는 모델(받아 온 동물 대부분)은 가만히 서서 미끄러진다.
-    // 클립을 만들 수는 없으니 몸통을 위아래로 흔들고 앞으로 기울여 흉내만 낸다.
-    const trot = { t: 0, baseY }
+    /**
+     * 받아 온 모델에 그 동작이 없으면 몸으로 흉내 낸다.
+     *
+     * 클립이 하나도 없는 모델(정지 조각)이 적지 않다. 그대로 두면 보스가
+     * 얼어붙은 채로 장판만 깔아서, 때리는 건지 서 있는 건지 알 수가 없다.
+     * 클립을 만들 수는 없으니 **몸통 하나를 움직인다** —
+     *   숨: 늘 조금 오르내린다. 이것만 있어도 '살아 있는 것' 이 된다
+     *   걸음: 위아래로 튀고 앞으로 기운다
+     *   치기: 선딜에 뒤로 젖혔다가 맞는 순간 앞으로 꽂는다
+     * 몸 전체가 한 덩어리로 움직이니 클립만큼은 아니지만, 멈춰 있는 것보다
+     * 훨씬 많은 것을 말한다.
+     */
+    const fake = { t: 0, breath: 0, baseY, lean: 0, drop: 0 }
     let current = null
     const play = (name, fade = 0.16) => {
       const next = actions[name] ?? actions.idle
@@ -298,14 +308,34 @@ class Models {
           else play('idle')
           mixer.update(dt)
         }
-        if (!actions.run) {
-          // 걸음 시늉 — 있는 클립이 달리기를 맡고 있으면 건드리지 않는다
-          trot.t += dt * (running ? 9 : 0)
-          const k = running ? 1 : 0
-          trot.k = (trot.k ?? 0) + ((k - (trot.k ?? 0)) * Math.min(1, dt * 8))
-          model.position.y = trot.baseY + Math.abs(Math.sin(trot.t)) * 0.09 * trot.k
-          model.rotation.x = -0.12 * trot.k + Math.sin(trot.t * 2) * 0.03 * trot.k
+        // 없는 동작만 몸으로 메운다. 클립이 맡고 있는 건 건드리지 않는다.
+        const needRun = !actions.run
+        const needAtk = !actions.attack
+        const needIdle = !actions.idle
+        if (!needRun && !needAtk && !needIdle) return
+
+        fake.t += dt * (running ? 9 : 0)
+        fake.breath += dt * 1.25
+        const k = running ? 1 : 0
+        fake.k = (fake.k ?? 0) + ((k - (fake.k ?? 0)) * Math.min(1, dt * 8))
+
+        // 치기 — 보스가 넘겨 주는 wind(선딜)·swing(휘두름) 을 그대로 쓴다
+        let lean = 0, drop = 0
+        if (needAtk && state.attack) {
+          const w = state.attack.wind ?? 0, sw = state.attack.swing ?? 0
+          lean = w * 0.30 - sw * 0.52      // 젖혔다가 꽂는다
+          drop = sw * 0.16                  // 내리치며 몸이 내려간다
         }
+        fake.lean += (lean - fake.lean) * Math.min(1, dt * 16)
+        fake.drop += (drop - fake.drop) * Math.min(1, dt * 16)
+
+        // 숨 — 클립이 없을 때만. 있으면 그쪽이 이미 숨을 쉰다.
+        const breathe = needIdle ? Math.sin(fake.breath) * 0.02 : 0
+
+        const bob = needRun ? Math.abs(Math.sin(fake.t)) * 0.09 * fake.k : 0
+        const runLean = needRun ? -0.12 * fake.k + Math.sin(fake.t * 2) * 0.03 * fake.k : 0
+        model.position.y = fake.baseY + bob + breathe - fake.drop
+        model.rotation.x = runLean + fake.lean
       },
     }
   }
