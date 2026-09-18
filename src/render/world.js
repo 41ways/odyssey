@@ -583,7 +583,9 @@ export class World {
    */
   #useRockModel() {
     if (this._rockSwapped) return
-    const made = models.create('cliffRock')
+    // 층진 바위(crag)가 먼저다. 잡석 파일(cliffRock)은 각진 상자 모양이라
+    // 어느 판에서든 흰 상자가 흩어진 것처럼 보였다
+    const made = models.create('crag') ?? models.create('cliffRock')
     if (!made) { this._rockSwapped = 'none'; return }
     let geo = null
     made.root.traverse(o => { if (o.isMesh && o.geometry && !geo) geo = o.geometry })

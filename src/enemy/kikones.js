@@ -548,7 +548,7 @@ export function laistrygon(world, fx) {
     hp: 78, radius: 0.62, mass: 4.2, speed: 3.4, keepRange: [8, 13], barHeight: 3.2, xp: 7,
     weapon: null, scale: 1.0, bulk: 1.3,
     look: {
-      model: 'giant',
+      model: 'laistrygon',       // 왕과 같은 몸 (models.js) — 없으면 아래 사람 몸으로
       weapon: null, scale: 1.0, bulk: 1.3,
       gltf: { height: 2.9, bulk: 1.0, tint: '#8f9aa4', gear: [] },
       palette: { skin: '#8f9aa4', cloth: '#5a6068', leather: '#3e444a', bronze: '#8c7a4c', accent: '#6a7078', dark: '#242a30' },

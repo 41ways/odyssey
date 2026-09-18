@@ -4,6 +4,7 @@ import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
 import { clone as cloneRigged } from 'three/examples/jsm/utils/SkeletonUtils.js'
 import { heroKit } from './character.js'
 import { retargetClips } from './retarget.js'
+import { autoSkin } from './autoskin.js'
 
 /**
  * 외부 모델(.glb) 파이프라인.
@@ -17,7 +18,31 @@ import { retargetClips } from './retarget.js'
  * 첫 화면이 뜨는 시간을 통째로 잡아먹었다. 이제 판에 들어갈 때 그 판에 나오는
  * 것만 받는다 (STAGE_MODELS) — 스킬라의 촉수는 메시나에 닿기 전에는 없어도 된다.
  */
-export const MANIFEST = {
+export /**
+ * 안티파테스(오우거)의 관절 자리. 원본 좌표 (키 2.8, 정면 +z).
+ * Mixamo 자동 리깅에 올리면서 정면에서 표지를 찍었던 자리를 재서 옮긴 값이다.
+ * 몸 가운데가 x = -0.125 다 (오른 어깨 가시 때문에 경계 상자가 한쪽으로 쏠렸다).
+ */
+const OGRE = (() => {
+  const cx = -0.125, z = 0.12
+  const m = {
+    pelvis: [cx, 0.75, z], spine_01: [cx, 1.0, z + 0.02], spine_02: [cx, 1.3, z + 0.05],
+    spine_03: [cx, 1.6, z + 0.02], neck_01: [cx, 1.95, z + 0.05], Head: [cx, 2.12, z + 0.12],
+  }
+  for (const [side, s] of [['l', 1], ['r', -1]]) {
+    m[`clavicle_${side}`] = [cx + 0.15 * s, 1.9, z]
+    m[`upperarm_${side}`] = [cx + 0.58 * s, 1.92, z]
+    m[`lowerarm_${side}`] = [cx + 0.74 * s, 1.62, z]
+    m[`hand_${side}`] = [cx + 0.9 * s, 0.95, z + 0.05]
+    m[`thigh_${side}`] = [cx + 0.25 * s, 0.72, z]
+    m[`calf_${side}`] = [cx + 0.27 * s, 0.4, z + 0.05]
+    m[`foot_${side}`] = [cx + 0.3 * s, 0.12, z]
+    m[`ball_${side}`] = [cx + 0.3 * s, 0.03, z + 0.25]
+  }
+  return m
+})()
+
+const MANIFEST = {
   odysseus: { url: '/models/odysseus.glb', height: 1.82 },
   kikonesWarrior: { url: '/models/kikones-warrior.glb', height: 1.78 },
   kikonesArcher: { url: '/models/kikones-archer.glb', height: 1.74 },
@@ -68,7 +93,15 @@ export const MANIFEST = {
      키 15.7 짜리 기둥이 갑판을 덮었다 (QA 에서 머리가 화면 밖이었다).
      돌리지 않는다. 꼬리로 선 채 키 4.2 — 사람의 두 배 남짓, 올려다보는 높이. */
   siren: { url: '/models/siren.glb', height: 4.2 },
-  antiphates: { url: '/models/antiphates.glb', height: 4.6 },
+  /* 뼈가 없는 정적 조각이라 오디세우스의 뼈대를 입힌다 (render/autoskin.js).
+     Mixamo 자동 리깅은 세 번 다 서버에서 떨어졌다. */
+  antiphates: { url: '/models/antiphates.glb', height: 4.6, impact: 0.45,
+    autoskin: { marks: OGRE, clips: ['Sword_Idle', 'Jog_Fwd_Loop', 'Sword_Attack', 'Death01', 'Hit_Chest'] } },
+  /* 라이스트리고네스 잡졸 — 왕과 같은 몸을 작게, 잿빛으로.
+     전에는 Quaternius 의 블록 거인이었는데, 사실적인 왕 옆에 서면 장난감이었다.
+     같은 종족은 같은 몸이어야 한다. */
+  laistrygon: { url: '/models/antiphates.glb', height: 2.9, impact: 0.45, tint: '#9aa3ad',
+    autoskin: { marks: OGRE, clips: ['Sword_Idle', 'Jog_Fwd_Loop', 'Sword_Attack', 'Death01', 'Hit_Chest'] } },
   // 절벽 바위. 스킬라 절벽과 동굴 판에 뿌린다.
   cliffRock: { url: '/models/cliff-rock.glb', height: 2.2 },
   // 층이 진 큰 바위 (Quaternius, CC0). 저승 벽을 쌓는다 — 잡석 파일은 각진
@@ -149,10 +182,10 @@ function matchClips(clips) {
  */
 export const STAGE_MODELS = {
   ismaros: ['cyclops', 'cyclopsBody', 'sheep'],
-  telepylos: ['antiphates', 'giant', 'cliffRock'],
+  telepylos: ['antiphates', 'laistrygon', 'cliffRock'],
   aiaia: ['hooded', 'pig', 'wolf', 'tree', 'bush', 'flowerbush', 'grass'],
   // 저승: 바위 벽(잡석 파일), 페르세포네의 검은 나무, 잿빛 아스포델
-  underworld: ['crag', 'tree', 'flowerbush'],
+  underworld: ['tree', 'flowerbush'],   // crag 는 공용 (잡석이 쓴다)
   sirens: ['siren', 'ship'],
   messina: ['skylla', 'tentacle', 'serpentHead', 'snake', 'ship'],
   ithaca: ['king', 'column', 'jar'],
@@ -222,7 +255,29 @@ class Models {
    * 이 모델이 쓸 클립 — 제 것에 빌려 온 것을 더한다. 한 번 구우면 캐시한다.
    * 오디세우스의 동작 묶음이 아직 없으면 제 것만 쓰고, 다음 번에 다시 시도한다.
    */
+  /**
+   * 뼈 없는 모델이면 한 번 뼈를 입혀 캐시한다 (autoskin). 오디세우스의 뼈대가
+   * 아직 없으면 원본 그대로 — 다음에 다시 시도한다.
+   */
+  #skinned(key, gltf) {
+    const spec = MANIFEST[key]?.autoskin
+    if (!spec) return gltf
+    if (gltf.userData.skinned) return gltf.userData.skinned
+    const kit = heroKit()
+    if (!kit) return gltf
+    try {
+      gltf.userData.skinned = autoSkin(gltf.scene, kit.scene, kit.clips, spec.marks, spec.clips)
+      console.info(`[models] ${key}: 뼈대를 입혔다 · 클립 ${gltf.userData.skinned.animations.length}`)
+    } catch (err) {
+      console.warn(`[models] ${key} 뼈 입히기 실패:`, err.message)
+      gltf.userData.skinned = gltf
+    }
+    return gltf.userData.skinned
+  }
+
   #animationsFor(key, gltf) {
+    const skinned = MANIFEST[key]?.autoskin ? this.#skinned(key, gltf) : null
+    if (skinned && skinned !== gltf) return skinned.animations
     const own = gltf.animations ?? []
     const borrow = MANIFEST[key]?.borrow
     if (!borrow) return own
@@ -247,7 +302,8 @@ class Models {
     const cfg = MANIFEST[key]
 
     const root = new THREE.Group()
-    const model = cloneRigged(gltf.scene)
+    const source = this.#skinned(key, gltf)
+    const model = cloneRigged(source.scene)
 
     // 크기 맞추기 — 선언한 키에 자동으로 맞춘다.
     // Box3.setFromObject 는 스킨드 메시에서 뼈대까지 싸잡아 재는 일이 있어
@@ -316,6 +372,12 @@ class Models {
       o.castShadow = true
       o.receiveShadow = true
       o.frustumCulled = false     // 스키닝된 메시는 바운딩이 어긋나 사라지는 일이 있다
+      // 색을 바꿔 쓰는 모델은 재질을 따로 둔다 — 같은 파일을 쓰는 왕까지 물들면 안 된다
+      if (cfg.tint) {
+        const tint = new THREE.Color(cfg.tint)
+        const one = m => { const c = m.clone(); c.color?.multiply(tint); return c }
+        o.material = Array.isArray(o.material) ? o.material.map(one) : one(o.material)
+      }
       for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
         if (m && !mats.includes(m)) mats.push(m)
       }
