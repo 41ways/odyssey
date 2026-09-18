@@ -80,3 +80,6 @@ CC0 라 표기 의무는 없지만 적어 둔다. 어디서 왔는지 모르는 
 ## ambientCG (CC0)
 
 판 바닥의 노멀맵·거칠기맵 여덟 벌. 목록은 `public/textures/CREDITS.txt`.
+- **스킬라의 촉수** — *Kraken (Animation)* by **Yanez Designs** (Sketchfab, CC-BY 4.0)
+  https://sketchfab.com/3d-models/kraken-animation-3f2e84dffa9742f8a894143a4dfa7d73
+  물판과 촉수 둘을 덜어 내고 512 WebP + draco 로 줄여 씀 (`tools/prep-skylla.mjs`).
