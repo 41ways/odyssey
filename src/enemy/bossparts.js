@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { models } from '../render/models.js'
+import { makeVortex } from '../render/vortex.js'
 
 /**
  * 보스의 몸.
@@ -329,33 +330,20 @@ function charybdisVortex(rig) {
     emissive: '#18455f', emissiveIntensity: 0.45,
   })
 
-  // 소용돌이 깔때기. 아래로 파인 원뿔 — 물이 빨려 드는 구멍이다.
-  const funnel = new THREE.Mesh(
-    new THREE.ConeGeometry(2.5, 3.2, 28, 5, true),
-    new THREE.MeshStandardMaterial({
-      color: '#12324a', roughness: 0.32, side: THREE.DoubleSide,
-      transparent: true, opacity: 0.88, emissive: '#0a2438', emissiveIntensity: 0.6,
-    }),
-  )
-  funnel.position.y = -1.5
-  root.add(funnel)
-
-  // 물살 고리. 층마다 다른 속도로 돌아야 '빨려 든다' 로 보인다.
-  const swirls = []
-  for (let i = 0; i < 5; i++) {
-    const r = 2.6 - i * 0.42
-    const s = new THREE.Mesh(
-      new THREE.TorusGeometry(r, 0.055 + i * 0.012, 6, 40),
-      new THREE.MeshBasicMaterial({
-        color: '#7fc0ff', transparent: true, opacity: 0.34 - i * 0.045,
-        blending: THREE.AdditiveBlending, depthWrite: false,
-      }),
-    )
-    s.rotation.x = Math.PI / 2
-    s.position.y = 0.16 - i * 0.28
-    root.add(s)
-    swirls.push({ m: s, spin: (1 + i * 0.55) * (i % 2 ? -1 : 1) })
-  }
+  /**
+   * 소용돌이.
+   *
+   * 고리를 다섯 겹 쌓아 서로 반대로 돌렸었다. 고리가 도는 건 보이는데
+   * 물이 빨려 드는 건 안 보였다 — 빨려 드는 물은 층이 아니라 **안쪽이
+   * 더 빨리 도는 한 장의 면**이다. 그래서 면 하나에 각도를 반지름으로
+   * 나눠 흘리는 셰이더로 갈았다. `render/vortex.js`.
+   */
+  const vortex = makeVortex({
+    // 판을 덮은 수면에 뚫린 구멍(stage/maelstrom.js)에 정확히 들어앉는 크기
+    radius: 3.9, depth: 2.6, throat: 0.5,
+    base: 0.8, edgeFade: 0.96, throatFade: 0.14, order: 7,
+  })
+  root.add(vortex.group)
 
   /**
    * 팔 여섯. 소용돌이 가장자리에서 올라와 안쪽으로 굽는다.
@@ -426,21 +414,22 @@ function charybdisVortex(rig) {
   lidPivot.add(lid)
   lidPivot.rotation.x = -2.5
   eye.add(lidPivot)
-  eye.position.y = 0.35
+  // 목구멍 안에 잠겨 있다. 올려다보는 눈이라야 '빨려 드는 구멍' 이 된다.
+  eye.position.y = -0.55
   root.add(eye)
 
   const mount = rig.attachToBody(root, { position: [0, 0, 0], scale: 1 })
   return {
-    group: root, mount, swirls, arms, iris, lidPivot, funnel,
+    group: root, mount, vortex, arms, iris, lidPivot,
     open: 0,
     update(dt, s) {
       const fast = s.phase >= 1 ? 1.7 : 1
-      for (const w of this.swirls) w.m.rotation.z += dt * w.spin * fast
-      this.funnel.rotation.y += dt * 1.1 * fast
 
       // 팔은 길고 낭창거린다. 빨아들일 때 안쪽으로 오므린다.
       const want = s.sucking ? 1 : 0.12
       this.open += (want - this.open) * Math.min(1, dt * 5)
+      // 소용돌이도 같은 값으로 연다 — 빨아들일 때 깊어지고 빨라진다
+      this.vortex.update(dt * fast, this.open)
       for (const a of this.arms) {
         if (a.made) {
           // 빨아들이는 동안만 Attack. 그때가 이 보스의 위험 구간이고,
