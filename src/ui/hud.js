@@ -211,6 +211,13 @@ const CSS = `
   border-radius:2px; padding:4px 10px; background:rgba(28,20,14,.6); }
 #hud .credits .again { margin-top:32px; font-family:var(--serif); font-size:12px;
   letter-spacing:.3em; color:#7d7264; }
+/* 여정의 기록 — 누가 어디서 돌아오지 못했고, 무엇을 골랐는가 */
+#hud .credits .voyage { margin-top:22px; text-align:left; font-size:13px; line-height:1.9; color:#bda87f;
+  border-top:1px solid #4a3a28; border-bottom:1px solid #4a3a28; padding:12px 4px; }
+#hud .credits .voyage h3 { font-family:var(--serif); font-size:14px; color:#e8d6ae; margin:0 0 6px; font-weight:700; }
+#hud .credits .voyage .row { display:flex; justify-content:space-between; gap:16px; }
+#hud .credits .voyage .row b { color:#e0584a; font-weight:700; }
+#hud .credits .voyage .pick { color:#e8d6ae; }
 #hud .credits .band { height:14px; width:min(560px,80vw); margin:0 auto 26px;
   background-image:${MEANDER}; background-repeat:repeat-x; background-position:center; opacity:.45; }
 #hud .dead { position:absolute; inset:0; z-index:40; display:grid; place-items:center;
@@ -259,6 +266,7 @@ export class Hud {
         <div class="band"></div>
         <h1></h1><p class="sub2"></p>
         <div class="score"><small>입힌 피해</small><em class="num"></em></div>
+        <div class="voyage"></div>
         <div class="list"></div>
         <div class="again">다시 시작 — R</div>
       </div></div>
@@ -339,8 +347,20 @@ export class Hud {
     }
   }
 
-  credits(damage, taken, run) {
+  credits(damage, taken, run, voyage = null, fates = []) {
     const el = this.creditsEl
+    const vEl = el.querySelector('.voyage')
+    if (voyage) {
+      const lost = voyage.log.map(l => `<div class="row"><span>${l.where}</span><b>${l.lost}명</b></div>`).join('')
+      const picks = fates.map(f => {
+        const id = voyage.flags[`fate:${f.id}`]
+        const c = f.choices.find(x => x.id === id)
+        return c ? `<div class="row"><span>${f.title}</span><span class="pick">${c.label}</span></div>` : ''
+      }).join('')
+      vEl.innerHTML = `<h3>열두 척, 육백 명이 트로이를 떠났다. ${voyage.crew > 0 ? `${voyage.crew}명이 남았다.` : '<em>한 사람</em>이 돌아왔다.'}</h3>
+        ${lost}${picks ? `<h3 style="margin-top:12px">고른 것</h3>${picks}` : ''}`
+      vEl.style.display = ''
+    } else vEl.style.display = 'none'
     el.querySelector('h1').textContent = '죽음'
     el.querySelector('.sub2').textContent = '창은 가오리 뼈로 만든 것이었다. 아들은 아버지를 몰랐다.'
     el.querySelector('.num').textContent = Math.round(damage).toLocaleString('ko-KR')

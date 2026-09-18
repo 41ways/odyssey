@@ -38,7 +38,7 @@ import { rollBlessings } from './player/blessings.js'
 import { models } from './render/models.js'
 import { preloadCharacter } from './render/character.js'
 import { rand } from './core/math.js'
-import { Voyage, LOSSES } from './stage/voyage.js'
+import { Voyage, LOSSES, FATES } from './stage/voyage.js'
 import { FateScreen } from './ui/fate.js'
 import { VoyageHud } from './ui/voyagehud.js'
 import { Companion, companionsFor } from './player/companion.js'
@@ -887,7 +887,7 @@ class Game {
   }
 
   showCredits(damage) {
-    this.hud.credits(damage, this.taken, this.run)
+    this.hud.credits(damage, this.taken, this.run, this.voyage, FATES)
   }
 
   /* ── 진행 ─────────────────────────────────────────────── */

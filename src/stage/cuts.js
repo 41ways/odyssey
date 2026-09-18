@@ -70,7 +70,11 @@ export const CUT_TROY = {
   where: '트로이 — 열 해째',
   shots: [
     // 불타는 도시를 넓게 → 성벽으로 당겨 → 불길만
-    { art: '/img/lude-opening.webp', hold: 1900, focus: [50, 50, 1.0],
+    // 『오디세이아』는 무사 여신을 부르며 시작한다. 이 한 줄이 있어야
+    // 이것이 싸움 이야기가 아니라 '한 사람의 귀향을 노래하는 것' 이 된다.
+    { art: '/img/lude-opening.webp', hold: 3000, focus: [50, 50, 1.0],
+      text: '<em>노래하소서, 무사 여신이여.</em><br>트로이의 성채를 무너뜨린 뒤 멀리 떠돌았던, 그 지략 많은 사람을.' },
+    { art: '/img/lude-opening.webp', hold: 1900, focus: [50, 46, 1.25],
       text: '십 년이 걸렸다.' },
     { art: '/img/lude-opening.webp', hold: 1800, focus: [52, 38, 1.9],
       text: '<em>트로이가 불탔다.</em>' },
