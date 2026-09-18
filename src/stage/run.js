@@ -167,7 +167,7 @@ export class Run {
     // 만나는 장면. 체력바는 이 뒤에 붙여야 이름이 두 번 나오지 않는다
     await g.cinema({
       title: b.cfg.name, sub: b.cfg.title ?? '', at: b.pos, zoom: 0.5, hold: 2.6,
-      face: `/img/boss/${b.cfg.id}.webp`,
+      face: `/img/boss/${b.cfg.id}.webp?v=2`,   // v2: 세이렌 초상을 인어로
     })
     g.hud.setBoss(b)
 
