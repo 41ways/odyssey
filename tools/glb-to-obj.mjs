@@ -60,15 +60,37 @@ const walk = (node, parent) => {
 const I = [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]
 for (const scene of root.listScenes()) for (const n of scene.listChildren()) walk(n, I)
 
-// 키를 재서 정규화할 필요는 없다 — Mixamo 가 알아서 맞춘다. 다만 발을 0 에 둔다.
+// 발을 0 에 두고, 키를 센티미터로 맞춘다 (기본 170).
+// Mixamo 는 OBJ 단위를 cm 로 읽는다. 키 2.83 그대로 올리면 2.8cm 짜리 인형이 되어
+// 서버 리깅이 'Unknown error while generating motion' 으로 떨어졌다.
 const minY = Math.min(...v.map(p => p[1]))
+const H0 = Math.max(...v.map(p => p[1])) - minY
+const K = Number(process.env.HEIGHT_CM ?? 170) / H0
+for (const p of v) { p[0] *= K; p[1] = (p[1] - minY) * K; p[2] *= K }
 const f3 = n => n.toFixed(5)
+/* 같은 자리의 정점을 하나로 붙인다.
+   glTF 는 UV 가 끊기는 자리마다 정점을 쪼개 둔다. 그걸 그대로 OBJ 로 옮기면
+   몸이 서로 안 붙은 조각 수백 개가 되고, Mixamo 자동 리깅이
+   'Unknown error while generating motion' 으로 떨어졌다. OBJ 는 위치와 UV 를
+   따로 인덱싱할 수 있으니 위치만 합치고 UV 는 모서리마다 그대로 둔다. */
+const key = p => p.map(x => Math.round(x * 1000)).join(',')
+const weld = new Map(), vw = [], remap = []
+for (const [i, p] of v.entries()) {
+  const k = key(p)
+  if (!weld.has(k)) { weld.set(k, vw.length + 1); vw.push(p) }
+  remap[i + 1] = weld.get(k)
+}
 let obj = `mtllib ${name}.mtl\nusemtl skin\n`
-for (const p of v) obj += `v ${f3(p[0])} ${f3(p[1] - minY)} ${f3(p[2])}\n`
+for (const p of vw) obj += `v ${f3(p[0])} ${f3(p[1])} ${f3(p[2])}\n`
 for (const t of vt) obj += `vt ${f3(t[0])} ${f3(t[1])}\n`
-for (const n of vn) obj += `vn ${f3(n[0])} ${f3(n[1])} ${f3(n[2])}\n`
-const hasT = vt.length === v.length, hasN = vn.length === v.length
-for (const f of faces) obj += 'f ' + f.map(i => `${i}/${hasT ? i : ''}/${hasN ? i : ''}`).join(' ') + '\n'
+const hasT = vt.length === v.length
+// 법선은 빼고 Mixamo 가 다시 계산하게 둔다 (붙인 정점에 쪼개진 법선을 달면 어긋난다)
+for (const f of faces) {
+  const a = remap[f[0]], b = remap[f[1]], c = remap[f[2]]
+  if (a === b || b === c || a === c) continue       // 붙이다 찌그러진 면은 버린다
+  obj += 'f ' + f.map((i, k) => `${[a, b, c][k]}${hasT ? '/' + i : ''}`).join(' ') + '\n'
+}
+console.log(`  붙이기: 정점 ${v.length} → ${vw.length}`)
 fs.writeFileSync(path.join(outDir, `${name}.obj`), obj)
 
 let mtl = 'newmtl skin\nKd 1 1 1\n'
@@ -78,5 +100,5 @@ if (texture) {
 }
 fs.writeFileSync(path.join(outDir, `${name}.mtl`), mtl)
 execSync(`cd "${outDir}" && rm -f ${name}.zip && zip -q ${name}.zip ${name}.obj ${name}.mtl ${texture ? name + '.png' : ''}`)
-const h = Math.max(...v.map(p => p[1])) - minY
+const h = Math.max(...v.map(p => p[1]))
 console.log(`✔ ${name}.zip  정점 ${v.length} · 면 ${faces.length} · 키 ${h.toFixed(2)} · 텍스처 ${texture ? '있음' : '없음'}`)

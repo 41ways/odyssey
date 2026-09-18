@@ -904,7 +904,7 @@ function buildBossBody(look) {
     if (made) {
       // bossparts 가 붙일 자리(attachTo)를 안 준다 → 코드 조각을 안 붙인다.
       // 진짜 몸이 있는데 그 위에 코드 눈·촉수를 얹으면 둘이 싸운다.
-      return { rig: { root: made.root, mats: made.mats, pose: made.pose }, mats: made.mats, own: true }
+      return { rig: { root: made.root, mats: made.mats, pose: made.pose, mixer: made.mixer, actions: made.actions }, mats: made.mats, own: true }
     }
     console.info(`[boss] 몸 없음: ${look.model} — 공용 몸으로 간다`)
   }

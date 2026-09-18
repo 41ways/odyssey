@@ -104,6 +104,9 @@ export async function preloadCharacter() {
 
 export const hasCharacter = (set = 'hero') => !!cache[set]
 
+/** 오디세우스의 뼈대와 동작 묶음. 다른 몸이 동작을 빌려 갈 때 쓴다 (retarget.js). */
+export const heroKit = () => (cache.hero ? { scene: cache.hero.body.scene, clips: cache.hero.clips } : null)
+
 /** 장비 메시를 몸의 뼈대에 다시 묶는다. 뼈 이름이 같아야 한다 (66개 일치 확인됨). */
 function rebind(scene, boneByName) {
   const meshes = []

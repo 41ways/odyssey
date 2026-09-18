@@ -2,6 +2,8 @@ import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
 import { clone as cloneRigged } from 'three/examples/jsm/utils/SkeletonUtils.js'
+import { heroKit } from './character.js'
+import { retargetClips } from './retarget.js'
 
 /**
  * 외부 모델(.glb) 파이프라인.
@@ -39,7 +41,23 @@ export const MANIFEST = {
   serpentHead: { url: '/models/serpent-head.glb', height: 1.0 },
   // ── 스케치팹에서 받은 보스 몸 (CREDITS.md 참고) ──
   // 폴리페모스. 리깅 + Idle 애니 포함. 공용 사람 몸 대신 이걸 쓴다.
-  cyclopsBody: { url: '/models/cyclops.glb', height: 6.4 },
+  cyclopsBody: { url: '/models/cyclops.glb', height: 6.4, impact: 0.45,
+    /* Idle 하나뿐이라 서 있기만 했다 ("움직임이 없던데"). 뼈는 제대로 있으니
+       오디세우스의 동작을 빌려 온다 (retarget.js). 몽둥이 대신 맨손이지만
+       내려치는 궤적은 같다. 손가락·사슬·IK 뼈는 짝을 안 지어 쉬는 자세로 둔다. */
+    borrow: {
+      clips: ['Sword_Attack', 'Jog_Fwd_Loop', 'Death01', 'Hit_Chest'],
+      hips: ['pelvis', 'Pelvis_108'],
+      feet: ['foot_l', 'Foot.L_80'],
+      map: {
+        pelvis: 'Pelvis_108', spine_01: 'Spine_77', spine_03: 'Torso_76',
+        neck_01: 'Neck_8', Head: 'Head_7',
+        clavicle_l: 'Shoulder.L_33', upperarm_l: 'Upperarm.L_32', lowerarm_l: 'Forearm.L_22', hand_l: 'Hand.L_20',
+        clavicle_r: 'Shoulder.R_58', upperarm_r: 'Upperarm.R_57', lowerarm_r: 'Forearm.R_56', hand_r: 'Hand.R_45',
+        thigh_l: 'Thigh.L_82', calf_l: 'Shin.L_81', foot_l: 'Foot.L_80',
+        thigh_r: 'Thigh.R_97', calf_r: 'Shin.R_87', foot_r: 'Foot.R_86',
+      },
+    } },
   // 스킬라. 머리 여덟 달린 뱀 — 스킬라 여섯 머리의 대역이다. 정적 메시.
   orochi: { url: '/models/orochi.glb', height: 5.5 },
   // 받아 온 보스 몸. 판에 들어갈 때만 내려받는다 (STAGE_MODELS).
@@ -196,6 +214,29 @@ class Models {
    * 모델 한 벌을 만들어 준다. 없으면 null.
    * @returns {{ root: THREE.Group, mats: THREE.Material[], pose(state, dt): void } | null}
    */
+  /**
+   * 이 모델이 쓸 클립 — 제 것에 빌려 온 것을 더한다. 한 번 구우면 캐시한다.
+   * 오디세우스의 동작 묶음이 아직 없으면 제 것만 쓰고, 다음 번에 다시 시도한다.
+   */
+  #animationsFor(key, gltf) {
+    const own = gltf.animations ?? []
+    const borrow = MANIFEST[key]?.borrow
+    if (!borrow) return own
+    if (gltf.userData.borrowed) return gltf.userData.borrowed
+    const kit = heroKit()
+    if (!kit) return own
+    try {
+      const want = kit.clips.filter(c => borrow.clips.includes(c.name))
+      const made = retargetClips(gltf.scene, kit.scene, want, borrow.map, { hips: borrow.hips, feet: borrow.feet })
+      gltf.userData.borrowed = [...own, ...made]
+      console.info(`[models] ${key}: 빌려 온 동작 ${made.map(c => c.name).join(', ')}`)
+    } catch (err) {
+      console.warn(`[models] ${key} 동작 빌리기 실패:`, err.message)
+      gltf.userData.borrowed = own
+    }
+    return gltf.userData.borrowed
+  }
+
   create(key) {
     const gltf = this.cache.get(key)
     if (!gltf) return null
@@ -277,8 +318,9 @@ class Models {
     })
     root.add(model)
 
-    const clips = matchClips(gltf.animations ?? [])
-    const mixer = gltf.animations?.length ? new THREE.AnimationMixer(model) : null
+    const anims = this.#animationsFor(key, gltf)
+    const clips = matchClips(anims)
+    const mixer = anims.length ? new THREE.AnimationMixer(model) : null
     const actions = {}
     if (mixer) for (const [k, clip] of Object.entries(clips)) actions[k] = mixer.clipAction(clip)
 
