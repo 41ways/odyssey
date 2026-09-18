@@ -1,0 +1,10 @@
+# 오디세이 — Cloudflare Workers 정적 자산으로만 올린다.
+# 서버 쪽 로직이 없다. 빌드 결과(dist/)를 그대로 내보내는 것이 전부다.
+# 허브(41ways.github.io)에는 넣지 않는다 — QA 용으로만 띄운 주소다.
+name = "odyssey"
+compatibility_date = "2026-08-01"
+workers_dev = true
+
+[assets]
+directory = "./dist"
+not_found_handling = "single-page-application"

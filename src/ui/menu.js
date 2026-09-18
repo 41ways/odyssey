@@ -3,7 +3,10 @@ import { installTheme, meanderURI } from './theme.js'
 /**
  * 멈춤 메뉴와 소리 단추.
  *
- * 키보드에만 걸어 두면 있는 줄 모른다 — 음소거는 눈에 보이는 단추로 따로 낸다.
+ * 소리는 이 메뉴 안에서만 끄고 켠다. 화면 한구석에 단추를 띄워 두면
+ * 싸우는 중에 눈이 자꾸 그리로 가고, 손이 미끄러져 눌리기도 한다.
+ * 멈춘 다음에 만지는 것이면 멈춘 자리에 두는 게 맞다.
+ *
  * Esc 는 '지금 하던 걸 멈추고 나가는' 키다. 다른 전체 화면이 떠 있을 때는
  * 그쪽이 먼저 Esc 를 쓰므로 여기서는 열지 않는다 (main.js 가 막는다).
  *
@@ -12,27 +15,6 @@ import { installTheme, meanderURI } from './theme.js'
  * 같이 풀려 버리면 컷신 중에 몸이 움직인다.
  */
 const CSS = `
-/* ── 소리 단추 ─────────────────────────────────────────── */
-#mute { position:absolute; right:20px; top:18px; z-index:72; pointer-events:auto;
-  width:34px; height:34px; display:grid; place-items:center; cursor:pointer;
-  border:1px solid #4a3c22; border-radius:3px;
-  background:linear-gradient(180deg, rgba(42,33,18,.82), rgba(18,13,7,.88));
-  box-shadow:inset 0 1px 0 rgba(255,225,165,.18), 0 4px 14px rgba(0,0,0,.6);
-  transition:border-color .14s, box-shadow .14s, transform .14s; }
-#mute:hover { border-color:var(--gold); transform:translateY(-1px);
-  box-shadow:inset 0 1px 0 rgba(255,225,165,.3), 0 6px 18px rgba(0,0,0,.7),
-             0 0 18px rgba(232,200,132,.22); }
-#mute svg { width:17px; height:17px; display:block; }
-#mute .on, #mute .off { stroke:var(--gold); fill:none; stroke-width:1.6;
-  stroke-linecap:round; stroke-linejoin:round; }
-#mute .body { fill:var(--gold); stroke:none; }
-#mute.quiet .body { fill:#7a6b4c; }
-#mute.quiet .on, #mute.quiet .off { stroke:#7a6b4c; }
-#mute .wave { transition:opacity .16s; }
-#mute .slash { opacity:0; transition:opacity .16s; }
-#mute.quiet .wave { opacity:0; }
-#mute.quiet .slash { opacity:1; }
-
 /* ── 멈춤 메뉴 ─────────────────────────────────────────── */
 #pause { position:absolute; inset:0; z-index:74; display:none; place-items:center;
   pointer-events:none; font-family:var(--body);
@@ -65,19 +47,6 @@ const CSS = `
 #pause .keys b { color:var(--gold-dim); font-weight:700; }
 `
 
-/** 소리 켜짐/꺼짐 한 벌. 물결과 빗금만 바뀐다. */
-const SPEAKER = `<svg viewBox="0 0 24 24" aria-hidden="true">
-  <path class="body" d="M4 9.5h3.4L12 5.6v12.8L7.4 14.5H4z"/>
-  <g class="wave">
-    <path class="on" d="M15.2 9.4a3.6 3.6 0 0 1 0 5.2"/>
-    <path class="on" d="M17.6 7.2a7 7 0 0 1 0 9.6"/>
-  </g>
-  <g class="slash">
-    <path class="off" d="M15.4 9.6l5 4.8"/>
-    <path class="off" d="M20.4 9.6l-5 4.8"/>
-  </g>
-</svg>`
-
 export class PauseMenu {
   /** @param game 멈춤·소리·재시작을 실제로 하는 주체 */
   constructor(root, game) {
@@ -87,32 +56,16 @@ export class PauseMenu {
     document.head.appendChild(st)
     this.game = game
 
-    // 소리 단추 — 늘 보인다
-    this.mute = document.createElement('div')
-    this.mute.id = 'mute'
-    this.mute.title = '소리 켜고 끄기 (M)'
-    this.mute.innerHTML = SPEAKER
-    this.mute.addEventListener('click', () => this.toggleMute())
-    root.appendChild(this.mute)
-
     this.el = document.createElement('div')
     this.el.id = 'pause'
     root.appendChild(this.el)
-    this.syncMute()
   }
 
   get open() { return this.el.classList.contains('on') }
 
-  /** 단추 모양을 지금 상태에 맞춘다. */
-  syncMute() {
-    this.mute.classList.toggle('quiet', !!this.game.music?.muted)
-  }
-
   toggleMute() {
     const m = this.game.music?.toggleMute()
-    this.syncMute()
     if (this.open) this.render()
-    else this.game.hud?.banner?.(m ? '음소거' : '소리 켜짐', m ? 'M 으로 다시 켠다' : '', 1.4)
     return m
   }
 
@@ -146,7 +99,7 @@ export class PauseMenu {
         <div class="where">${where}</div>
         <ul>
           <li data-do="resume"><span class="k">Esc</span><span class="t">이어하기</span></li>
-          <li data-do="mute"><span class="k">M</span><span class="t">소리</span>
+          <li data-do="mute"><span class="k">♪</span><span class="t">소리</span>
             <span class="v">${muted ? '꺼짐' : '켜짐'}</span></li>
           <li data-do="restart"><span class="k">R</span><span class="t">처음부터</span></li>
         </ul>

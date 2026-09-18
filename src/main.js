@@ -108,12 +108,11 @@ class Game {
         this.menu.show()
         return
       }
-      if (this.menu.open && e.code !== 'KeyM' && e.code !== 'KeyR') return
+      if (this.menu.open && e.code !== 'KeyR') return
       if (e.code === 'KeyR') this.restart()
       if (e.code === 'BracketRight') this.run.next()   // 시험용: 다음 판으로
       if (e.code === 'KeyL') this.cycleLook()          // 시험용: 톤 시안 돌려보기
       if (e.code === 'KeyG') this.setGod(!this.god)    // ★시험용 무적 — 배포 전에 지운다
-      if (e.code === 'KeyM') this.menu.toggleMute()
     })
 
     // 스테이지 고르기 — Tab 또는 주소의 ?stage=N
@@ -139,7 +138,8 @@ class Game {
          2) setGod() 메서드와 KeyG 키 바인딩
          3) combat/actor.js 의 `if (this.god)` 블록
        켜져 있으면 화면 왼쪽 위에 빨간 표시가 뜬다. 그게 안전장치다. */
-    this.setGod(q.get('god') !== '0')       // 지금은 기본 켜짐
+    // QA 로 남에게 넘기는 빌드라 기본은 꺼짐. 시험할 때만 ?god=1 이나 G.
+    this.setGod(q.get('god') === '1')
 
     this.paused = true
     this.sail = SAILS[1]                   // 고르기 전까지는 '이야기대로'
