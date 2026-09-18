@@ -963,11 +963,13 @@ class Game {
     if (on) {
       this._beggarWorn = KIT.filter(k => p.gear.has(k.id)).map(k => k.id)
       p.gear.reset()
+      p.gear.rags?.(true)
       if (say) this.hud.toast(say, 4)
       return
     }
     const worn = this._beggarWorn ?? []
     this._beggarWorn = null
+    p.gear.rags?.(false)
     if (!worn.length) return
     this.paused = true
     this.hud.banner('“내가 오디세우스다”', '누더기가 벗겨진다', 3.2)

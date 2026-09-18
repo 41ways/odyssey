@@ -267,6 +267,8 @@ export function createCharacter({ height = 1.82, facing = 0, tint = null, gear: 
 
     /** 본 목록. 붙일 자리를 찾을 때 콘솔에서 본다. */
     boneNames() { return [...boneByName.keys()] },
+    /** 이름으로 뼈 하나 */
+    bone(name) { return boneByName.get(name) ?? null },
 
     equip(id) { const ms = gearMeshes[id] ?? []; for (const m of ms) m.visible = true; return ms },
     unequipAll() { for (const list of Object.values(gearMeshes)) for (const m of list) m.visible = false },

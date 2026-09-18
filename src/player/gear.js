@@ -7,13 +7,19 @@ import { clamp } from '../core/math.js'
  *
  * 키코네스족을 잡고 그 자리에서 벗겨 입는다 — 이스마로스 약탈 그 자체다.
  * 몇 마리째에 무엇이 붙는지가 곧 이 스테이지의 진행도다. 숫자는 여기 하나만 고치면 된다.
+ *
+ * 전에는 샅바 하나만 걸친 알몸으로 시작해서 **가죽 바지**부터 얻었다.
+ * 트로이를 함락하고 돌아가는 이타카의 왕이 알몸일 이유가 없고, 가죽 바지는
+ * 청동기 그리스에 없던 옷이다. 이제 아마포 키톤에 샌들 차림으로 시작하고
+ * (player.js 의 BASE), 약탈하는 것은 **청동 무장**이다 — 호메로스의 전사가
+ * 전투 뒤에 쓰러진 적에게서 벗겨 가던 바로 그것.
  */
 export const KIT = [
-  { id: 'pants',     kills: 3,  name: '가죽 바지',   line: '키코네스 전사에게서 벗겨 입었다' },
-  { id: 'tunic',     kills: 5,  name: '아마포 상의', line: '피가 덜 마른 채로 걸쳤다' },
-  { id: 'pauldrons', kills: 10, name: '청동 견갑',   line: '어깨를 덮으니 어깨가 무겁다' },
-  { id: 'helmet',    kills: 15, name: '투구',        line: '볏이 꺾인 채로도 쓸 만하다' },
-  { id: 'cape',      kills: 20, name: '붉은 망토',   line: '이제 왕처럼 보인다' },
+  { id: 'cuirass',   kills: 3,  name: '청동 흉갑',     line: '키코네스 전사의 가슴에서 벗겨 냈다' },
+  { id: 'bracers',   kills: 5,  name: '청동 팔가리개', line: '피가 덜 마른 채로 찼다' },
+  { id: 'pauldrons', kills: 10, name: '청동 견갑',     line: '어깨를 덮으니 어깨가 무겁다' },
+  { id: 'helmet',    kills: 15, name: '코린토스 투구', line: '볏이 꺾인 채로도 쓸 만하다' },
+  { id: 'cape',      kills: 20, name: '붉은 망토',     line: '이제 왕처럼 보인다' },
 ]
 
 /** 다음 장비까지 남은 처치 수와 진행도. */
@@ -121,8 +127,8 @@ export function buildGear(fig) {
   clasp.position.set(0.16, 0.46, 0.04)
 
   const parts = {
-    pants: [pants, ...pantLegs],
-    tunic: [tunic, skirt],
+    cuirass: [tunic, skirt],
+    bracers: [pants, ...pantLegs],
     pauldrons,
     helmet: [helmet],
     cape: [cape],
@@ -363,4 +369,58 @@ export function buildSpearProp() {
   const butt = add(new THREE.Mesh(new THREE.ConeGeometry(0.034, 0.12, 6), M.bronze))
   butt.position.y = 0.46
   return { group: g, mats: M.mats }
+}
+
+/**
+ * 키톤 자락과 가죽 술(프테루게스).
+ *
+ * 받아 온 몸은 속옷이 텍스처에 그려져 있고 옷 조각은 허리에서 끝난다.
+ * 그래서 키톤을 입혀도 허리 아래로 검은 속옷이 드러났다. 그리스 전사의
+ * 허리 아래는 무릎 위까지 오는 **아마포 자락**이고, 흉갑을 입으면 그 위로
+ * **가죽 띠를 늘어뜨린 술**이 덮인다 — 조각상과 도기 그림에서 늘 보이는 윤곽이다.
+ *
+ * 자락은 회전체(라스)로 뽑는다 — 위는 허리에 붙고 아래로 벌어진다.
+ * 술은 띠 열네 개. 하나의 원통으로 만들면 치마가 두 겹일 뿐 술로 안 읽힌다.
+ */
+export function buildSkirtProp() {
+  const M = propMaterials()
+  const linen = new THREE.MeshStandardMaterial({ color: '#d9ccae', roughness: 0.95, side: THREE.DoubleSide })
+  const rags = new THREE.Color('#6f6555'), plain = new THREE.Color('#d9ccae')
+  const hide = new THREE.MeshStandardMaterial({ color: '#5a3a22', roughness: 0.8 })
+  M.mats.push(linen, hide)
+
+  const g = new THREE.Group()
+  const profile = [
+    [0.155, 0.06], [0.165, 0.0], [0.19, -0.1], [0.215, -0.2], [0.235, -0.29], [0.24, -0.31],
+  ].map(([x, y]) => new THREE.Vector2(x, y))
+  const skirt = new THREE.Mesh(new THREE.LatheGeometry(profile, 24), linen)
+  skirt.castShadow = skirt.receiveShadow = true
+  skirt.scale.set(1, 1, 0.82)            // 앞뒤로 납작하게 — 몸통은 둥근 기둥이 아니다
+  g.add(skirt)
+
+  // 가죽 술 — 흉갑을 얻을 때 같이 켜진다
+  const strips = new THREE.Group()
+  strips.visible = false
+  const N = 14
+  for (let i = 0; i < N; i++) {
+    const a = (i / N) * Math.PI * 2
+    const s = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.2, 0.012), hide)
+    s.position.set(Math.sin(a) * 0.205, -0.1, Math.cos(a) * 0.205 * 0.82)
+    s.rotation.y = a
+    s.rotation.x = 0.18                    // 바깥으로 살짝 벌어진다
+    s.castShadow = true
+    strips.add(s)
+  }
+  const belt = new THREE.Mesh(new THREE.TorusGeometry(0.168, 0.018, 6, 24), M.bronze)
+  belt.rotation.x = Math.PI / 2
+  belt.scale.set(1, 0.82, 1)
+  belt.position.y = 0.035
+  strips.add(belt)
+  g.add(strips)
+
+  return {
+    group: g, mats: M.mats,
+    armour(on) { strips.visible = on },
+    rags(on) { linen.color.copy(on ? rags : plain) },
+  }
 }

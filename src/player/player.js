@@ -6,7 +6,7 @@ import { dist2d } from '../core/math.js'
 import { clamp, damp, dampAngle, angleDelta } from '../core/math.js'
 import { newStats } from './stats.js'
 import { buildFigure, wrapFigure } from '../render/figure.js'
-import { buildGear, buildWeapons, KIT, buildSwordProp, buildBowProp, buildHelmetProp, buildCapeProp } from './gear.js'
+import { buildGear, buildWeapons, KIT, buildSwordProp, buildBowProp, buildHelmetProp, buildCapeProp, buildSkirtProp } from './gear.js'
 import { createCharacter } from '../render/character.js'
 import { models } from '../render/models.js'
 
@@ -137,9 +137,29 @@ export const SLASH = {
  * 전리품 단계 → 실제 장비 조각.
  * GLTF 파츠가 없는 투구·망토는 본에 매다는 프롭으로 채운다.
  */
+/**
+ * 받아 온 옷 조각(Quaternius 판타지 의상)을 그리스식으로 칠해 쓴다.
+ *
+ * 원래 색 그대로면 검은 가죽 바지에 부츠, 긴소매 셔츠 — 중세 레인저였다.
+ * 조각 모양은 그대로 두고 재질만 바꾼다:
+ *   body  → 아마포 키톤 (흉갑을 얻으면 같은 조각이 청동으로 바뀐다)
+ *   feet  → 가죽 샌들
+ *   arms  → 청동 팔가리개
+ *   legs  → 쓰지 않는다. 호메로스의 전사는 맨다리에 정강이받이다
+ * 무늬 텍스처는 뗀다 — 판타지 옷의 바느질·단추가 남으면 다시 중세가 된다.
+ */
+const GREEK = {
+  linen:   { color: '#d9ccae', metal: 0, rough: 0.95 },
+  rags:    { color: '#6f6555', metal: 0, rough: 1.0 },    // 이타카의 거지 누더기
+  leather: { color: '#6b4a2c', metal: 0, rough: 0.85 },
+  bronze:  { color: '#b98a44', metal: 0.85, rough: 0.34 },
+}
+/** 늘 입고 있는 것 — 트로이에서 돌아가는 왕의 평상 차림 */
+const BASE = { body: 'linen', feet: 'leather' }
+/** 전리품이 켜는 조각 */
 const GEAR_PARTS = {
-  pants: ['legs', 'feet'],
-  tunic: ['body', 'arms'],
+  cuirass: [],          // body 를 청동으로 바꾼다 (paint)
+  bracers: ['arms'],
   pauldrons: ['pauldron'],
   helmet: [],
   cape: [],
@@ -156,6 +176,10 @@ const MOUNT = {
   helmet: { bone: 'Head', rotation: [0, 0, 0], position: [0.075, 0.07, 0.02], scale: 0.55 },
   // 망토는 본이 아니라 몸통에 단다 — 전투 자세의 상체 비틀림까지 따라가면 옆으로 뻗는다.
   cape: { body: true, position: [0, 1.42, -0.08], scale: 0.95 },
+  // 키톤 자락 — 망토처럼 몸통에 단다. 엉덩이 뼈에 달았더니 전투 자세에서
+  // 골반이 비틀리는 만큼 치마가 비스듬히 떴다. 뼈는 고관절 높이(0.77)라서
+  // 허리선(0.99)까지 올려야 속옷이 덮인다 — 실측으로 맞춘 값.
+  skirt: { body: true, position: [0, 0.93, 0.02], scale: 1 },
 }
 
 /** 실제 모델로 만든 오디세우스. 모델이 없으면 null. */
@@ -167,11 +191,22 @@ function buildFromModel() {
   const bow = buildBowProp()
   const helmet = buildHelmetProp()
   const cape = buildCapeProp()
+  const skirt = buildSkirtProp()
 
   rig.attachTo(MOUNT.sword.bone, sword.group, MOUNT.sword)
   rig.attachTo(MOUNT.bow.bone, bow.group, MOUNT.bow)
   rig.attachTo(MOUNT.helmet.bone, helmet.group, MOUNT.helmet)
   rig.attachToBody(cape.group, MOUNT.cape)
+  const skirtMount = rig.attachToBody(skirt.group, MOUNT.skirt)
+  const pelvis = rig.bone?.('pelvis')
+  const _v = new THREE.Vector3()
+  /** 자락의 자리를 골반에 맞춘다. 방향은 몸통 그대로 — 골반이 비틀려도 치마는 안 기운다 */
+  skirt.follow = () => {
+    if (!pelvis) return
+    pelvis.getWorldPosition(_v)
+    rig.root.worldToLocal(_v)
+    skirtMount.position.set(_v.x, _v.y + 0.165, _v.z)
+  }
   helmet.group.visible = false
   cape.group.visible = false
 
@@ -187,23 +222,60 @@ function buildFromModel() {
   const props = { helmet: helmet.group, cape: cape.group }
   const worn = new Set()
 
+  // 조각마다 재질을 따로 둔다 — 같은 파일을 쓰는 적(키코네스)의 옷까지 칠하면 안 된다
+  const paint = (part, look) => {
+    const L = GREEK[look]
+    const meshes = rig.equip(part)
+    for (const m of meshes) {
+      const mats = (Array.isArray(m.material) ? m.material : [m.material]).map(x => {
+        const c = x.userData?.greek ? x : x.clone()
+        c.userData.greek = true
+        c.map = null
+        c.color.set(L.color)
+        c.metalness = L.metal
+        c.roughness = L.rough
+        c.needsUpdate = true
+        return c
+      })
+      m.material = Array.isArray(m.material) ? mats : mats[0]
+    }
+    return meshes
+  }
+  const bronzePart = part => paint(part, 'bronze')
+  const dressBase = (rags = false) => {
+    paint('body', worn.has('cuirass') ? 'bronze' : rags ? 'rags' : 'linen')
+    paint('feet', rags ? 'rags' : 'leather')
+    skirt.rags(rags)
+    skirt.armour(worn.has('cuirass'))
+  }
+  dressBase()
+
   return {
     rig,
     weapons: { sword: sword.group, bowHand: bow.group, bowBack: null },
     cape,
     capeSim: cape,
+    skirt,
     gear: {
       equip(id) {
         worn.add(id)
         const shown = []
-        for (const part of GEAR_PARTS[id] ?? []) shown.push(...rig.equip(part))
+        if (id === 'cuirass') { shown.push(...bronzePart('body')); skirt.armour(true) }
+        for (const part of GEAR_PARTS[id] ?? []) shown.push(...bronzePart(part))
         if (props[id]) { props[id].visible = true; props[id].traverse(o => { if (o.isMesh) shown.push(o) }) }
         return shown           // 방금 붙은 것들. 연출이 여기에 빛을 준다
       },
-      reset() { worn.clear(); rig.unequipAll(); for (const p of Object.values(props)) p.visible = false },
+      /** 무장을 벗는다. 키톤과 샌들은 남는다 — 알몸으로 돌아가지 않는다. */
+      reset() {
+        worn.clear(); rig.unequipAll()
+        for (const p of Object.values(props)) p.visible = false
+        dressBase()
+      },
+      /** 이타카의 거지 누더기. 무장을 벗긴 뒤에 입힌다. */
+      rags(on) { dressBase(on) },
       has(id) { return worn.has(id) },
     },
-    mats: [...rig.mats, ...sword.mats, ...bow.mats, ...helmet.mats, ...cape.mats],
+    mats: [...rig.mats, ...sword.mats, ...bow.mats, ...helmet.mats, ...cape.mats, ...skirt.mats],
   }
 }
 
@@ -261,6 +333,7 @@ export class Player extends Actor {
     this.gear = built.gear
     this.weapons = built.weapons
     this.capeSim = built.capeSim ?? null
+    this.skirt = built.skirt ?? null
     this._lastFacing = 0
     this._rollHits = new Set()
     this._rollFrom = { x: 0, z: 0 }
@@ -621,6 +694,7 @@ export class Player extends Actor {
     // 망토 — 마디마다 윗마디를 뒤쫓는다
     const turn = angleDelta(this._lastFacing, this.facing) / Math.max(dt, 1e-4)
     this._lastFacing = this.facing
+    this.skirt?.follow()
     if (this.capeSim) {
       this.capeSim.update(dt, { run: this._run, turn: clamp(turn, -12, 12), rolling })
     } else if (this.gear.cape) {
