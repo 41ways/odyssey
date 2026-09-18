@@ -71,6 +71,9 @@ export const MANIFEST = {
   antiphates: { url: '/models/antiphates.glb', height: 4.6 },
   // 절벽 바위. 스킬라 절벽과 동굴 판에 뿌린다.
   cliffRock: { url: '/models/cliff-rock.glb', height: 2.2 },
+  // 층이 진 큰 바위 (Quaternius, CC0). 저승 벽을 쌓는다 — 잡석 파일은 각진
+  // 상자 모양이라 벽 크기로 키우면 상자 무더기로 읽혔다
+  crag: { url: '/models/crag.glb', height: 2.0 },
   /**
    * 촉수 — 뼈대 21 마디에 Attack · Attack2 · Idle · Poke 네 클립.
    * Quaternius (CC0), poly.pizza 경유. 이것 하나가 스킬라의 여섯 머리와
@@ -148,7 +151,8 @@ export const STAGE_MODELS = {
   ismaros: ['cyclops', 'cyclopsBody', 'sheep'],
   telepylos: ['antiphates', 'giant', 'cliffRock'],
   aiaia: ['hooded', 'pig', 'wolf', 'tree', 'bush', 'flowerbush', 'grass'],
-  underworld: [],
+  // 저승: 바위 벽(잡석 파일), 페르세포네의 검은 나무, 잿빛 아스포델
+  underworld: ['crag', 'tree', 'flowerbush'],
   sirens: ['siren', 'ship'],
   messina: ['skylla', 'tentacle', 'serpentHead', 'snake', 'ship'],
   ithaca: ['king', 'column', 'jar'],

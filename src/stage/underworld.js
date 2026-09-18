@@ -47,6 +47,8 @@ export class Underworld {
   enter() {
     const g = this.g
     g.render3d.setMaze(this.maze.walls)
+    // 길 칸 가장자리에 잿빛 아스포델. 입구 두 칸은 비운다 — 서 있는 자리다
+    g.render3d.setAsphodel(this.maze.lane.filter((_, i) => i > START_IN && i % 2 === 0))
     g.mazeWalls = this.maze.walls        // actor 가 여기를 본다
 
     const p = this.maze.lane[Math.min(START_IN, this.maze.lane.length - 1)]

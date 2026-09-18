@@ -230,34 +230,171 @@ export class World {
    * 판마다 개수가 달라지므로 InstancedMesh 를 필요한 만큼만 다시 만든다.
    */
   setMaze(walls) {
+    this._mist = null
     if (this.mazeMesh) {
       this.scene.remove(this.mazeMesh)
-      this.mazeMesh.geometry.dispose()
-      this.mazeMesh.material.dispose()
+      this.mazeMesh.traverse(o => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose() } })
       this.mazeMesh = null
     }
     this.mazeWalls = walls ?? null
     if (!walls?.length) return
 
-    const geo = new THREE.BoxGeometry(1, 1, 1)
-    const mat = new THREE.MeshStandardMaterial({
-      color: '#3d3550', roughness: 0.94, metalness: 0,
-    })
-    const m = new THREE.InstancedMesh(geo, mat, walls.length)
-    m.castShadow = m.receiveShadow = true
-    const mx = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler()
+    /**
+     * 벽을 바위 무더기로 세운다.
+     *
+     * 전에는 칸마다 BoxGeometry 하나에 보라색 단색이었다. 위에서 내려다보면
+     * 무늬 없는 판자가 늘어선 세트장이었고, 저승이 아니라 창고였다.
+     * 충돌은 그대로 상자(maze.js 의 hw·hd)로 두고, 보이는 것만 그 발자국을
+     * 덮는 층진 바위 다섯 덩이로 쌓는다 (crag, 인스턴스라 드로우콜 하나).
+     * 처음엔 잡석 파일을 썼는데 그건 각진 상자 모양이라 벽 크기로 키우니
+     * 상자 무더기가 됐다. 모델이 없으면 예전 상자로 돌아간다.
+     */
+    const group = new THREE.Group()
+    const basalt = new THREE.MeshStandardMaterial({ color: '#3a3444', roughness: 0.95, metalness: 0 })
+    // 층진 큰 바위(crag) 한 덩이의 지오메트리를 뽑는다. 없으면 상자로 간다.
+    let rockGeo = null
+    const crag = models.create('crag')
+    crag?.root.traverse(o => { if (o.isMesh && !rockGeo) rockGeo = o.geometry })
+    if (rockGeo) {
+      let geo = rockGeo.clone()
+      geo.computeBoundingBox()
+      const bb0 = geo.boundingBox
+      geo.translate(-(bb0.min.x + bb0.max.x) / 2, -bb0.min.y, -(bb0.min.z + bb0.max.z) / 2)
+      const span = Math.max(bb0.max.x - bb0.min.x, bb0.max.z - bb0.min.z) || 1
+      geo.scale(2 / span, 2 / span, 2 / span)     // 가로가 2 가 되게 — 아래 배수는 반폭 기준
+      geo.computeVertexNormals()
+      geo.computeBoundingBox()
+      const gh = geo.boundingBox.max.y - geo.boundingBox.min.y || 1
+      const per = 5
+      const m = new THREE.InstancedMesh(geo, basalt, walls.length * per)
+      m.castShadow = m.receiveShadow = true
+      const mx = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler()
+      let k = 0
+      // 씨앗 고정 난수 — 같은 미로는 늘 같은 바위
+      let seed = 1337
+      const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647)
+      for (const w of walls) {
+        const c = Math.cos(w.turn ?? 0), sn = Math.sin(w.turn ?? 0)
+        for (let i = 0; i < per; i++) {
+          // 넷은 네 귀퉁이, 하나는 가운데 위에 얹어 윤곽을 들쭉날쭉하게
+          const top = i === per - 1
+          const lx = top ? (rnd() - 0.5) * w.hw * 0.5 : (i % 2 ? 0.5 : -0.5) * w.hw
+          const lz = top ? (rnd() - 0.5) * w.hd * 0.5 : (i < 2 ? 0.5 : -0.5) * w.hd
+          const x = w.x + lx * c + lz * sn, z = w.z - lx * sn + lz * c
+          const sx = w.hw * (0.62 + rnd() * 0.3), sz = w.hd * (0.62 + rnd() * 0.3)
+          const sy = (w.h * (top ? 1.0 : 0.62 + rnd() * 0.3)) / gh
+          e.set((rnd() - 0.5) * 0.25, rnd() * Math.PI * 2, (rnd() - 0.5) * 0.25)
+          q.setFromEuler(e)
+          mx.compose(new THREE.Vector3(x, top ? w.h * 0.2 : 0, z), q, new THREE.Vector3(sx, sy, sz))
+          m.setMatrixAt(k++, mx)
+        }
+      }
+      m.count = k
+      m.instanceMatrix.needsUpdate = true
+      group.add(m)
+    } else {
+      const m = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), basalt, walls.length)
+      m.castShadow = m.receiveShadow = true
+      const mx = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler()
+      walls.forEach((w, i) => {
+        e.set(0, w.turn ?? 0, 0); q.setFromEuler(e)
+        mx.compose(new THREE.Vector3(w.x, w.h * 0.5, w.z), q, new THREE.Vector3(w.hw * 2, w.h, w.hd * 2))
+        m.setMatrixAt(i, mx)
+      })
+      m.instanceMatrix.needsUpdate = true
+      group.add(m)
+    }
+
+    /**
+     * 페르세포네의 숲과 아스포델.
+     *
+     * 호메로스가 그린 저승의 문턱은 '높은 포플러와 열매를 떨구는 버드나무의
+     * 숲' 이고, 망자들이 거니는 곳은 '아스포델의 들판' 이다. 바위만 있으면
+     * 그냥 동굴이다. 잎이 없는 검은 나무를 벽 사이사이에, 잿빛 꽃을 길가에 둔다.
+     * 나무는 벽 위(길이 아닌 자리)에만 세운다 — 길 위에 서면 걸리적거린다.
+     */
+    let seed2 = 4242
+    const rnd2 = () => ((seed2 = (seed2 * 16807) % 2147483647) / 2147483647)
     walls.forEach((w, i) => {
-      // 살짝 비스듬히 세운다. 각을 딱 맞추면 세트장처럼 보인다.
-      e.set(0, w.turn ?? 0, 0); q.setFromEuler(e)
-      mx.compose(
-        new THREE.Vector3(w.x, w.h * 0.5, w.z), q,
-        new THREE.Vector3(w.hw * 2, w.h, w.hd * 2),
-      )
-      m.setMatrixAt(i, mx)
+      if (i % 3 !== 0) return
+      const t = models.create('tree')
+      if (!t) return
+      t.root.position.set(w.x + (rnd2() - 0.5) * w.hw, 0, w.z + (rnd2() - 0.5) * w.hd)
+      t.root.rotation.y = rnd2() * Math.PI * 2
+      t.root.scale.multiplyScalar(0.9 + rnd2() * 0.5)
+      for (const mat of t.mats) {
+        const c = mat.clone(); c.color?.set?.('#15131a'); c.map = null
+        t.root.traverse(o => { if (o.isMesh && o.material === mat) o.material = c })
+      }
+      group.add(t.root)
     })
-    m.instanceMatrix.needsUpdate = true
-    this.scene.add(m)
-    this.mazeMesh = m
+    group.add(this.#underMist())
+    this.mazeMesh = group
+    this.scene.add(group)
+  }
+
+  /**
+   * 바닥에 깔려 흐르는 안개.
+   *
+   * 호메로스의 저승은 '안개와 구름에 덮여 해가 한 번도 비치지 않는 곳' 이다.
+   * 바닥 가까이 넓은 판 몇 장에 잡음을 흘려 둔다 — 벽 발치가 흐려지고
+   * 길이 안개 속으로 이어진다. 가산 합성이 아니라 보통 합성이라 밝아지지 않고
+   * 탁해진다. 판마다 흐르는 방향과 속도가 달라야 한 장으로 안 보인다.
+   */
+  #underMist() {
+    const g = new THREE.Group()
+    const mat = new THREE.ShaderMaterial({
+      transparent: true, depthWrite: false,
+      uniforms: { uTime: { value: 0 }, uColor: { value: new THREE.Color('#8f86a8') } },
+      vertexShader: `varying vec2 vUv; varying vec3 vW;
+        void main(){ vUv = uv; vec4 w = modelMatrix * vec4(position,1.0); vW = w.xyz;
+          gl_Position = projectionMatrix * viewMatrix * w; }`,
+      fragmentShader: `varying vec2 vUv; varying vec3 vW; uniform float uTime; uniform vec3 uColor;
+        float h(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
+        float n(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.-2.*f);
+          return mix(mix(h(i),h(i+vec2(1,0)),f.x), mix(h(i+vec2(0,1)),h(i+vec2(1,1)),f.x), f.y); }
+        void main(){
+          vec2 p = vW.xz * 0.16;
+          float a = n(p + vec2(uTime*0.05, uTime*0.02)) * 0.6 + n(p*2.3 - vec2(uTime*0.07, 0.)) * 0.4;
+          float edge = smoothstep(0.0, 0.25, vUv.x) * smoothstep(1.0, 0.75, vUv.x)
+                     * smoothstep(0.0, 0.25, vUv.y) * smoothstep(1.0, 0.75, vUv.y);
+          gl_FragColor = vec4(uColor, smoothstep(0.35, 0.9, a) * 0.42 * edge);
+        }`,
+    })
+    for (const [y, s] of [[0.25, 1], [0.7, 1.15]]) {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(40 * s, 40 * s), mat)
+      m.rotation.x = -Math.PI / 2
+      m.position.y = y
+      m.renderOrder = 5
+      g.add(m)
+    }
+    g.userData.tick = dt => { mat.uniforms.uTime.value += dt }
+    this._mist = g
+    return g
+  }
+
+  /**
+   * 길가의 아스포델. 미로가 선 뒤 Underworld 가 길 칸을 넘겨 준다.
+   * 잿빛으로 칠한다 — 저승의 꽃은 색이 빠져 있다.
+   */
+  setAsphodel(spots) {
+    if (!this.mazeMesh || !spots?.length) return
+    let seed = 99
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647)
+    for (const s of spots) {
+      const n = 2 + ((rnd() * 3) | 0)
+      for (let i = 0; i < n; i++) {
+        const f = models.create('flowerbush')
+        if (!f) return
+        // 길 한가운데는 비운다 — 가장자리로 밀어 둔다
+        const a = rnd() * Math.PI * 2, r = 1.0 + rnd() * 0.8
+        f.root.position.set(s.x + Math.cos(a) * r, 0, s.z + Math.sin(a) * r)
+        f.root.rotation.y = rnd() * Math.PI * 2
+        f.root.scale.multiplyScalar(0.6 + rnd() * 0.4)
+        for (const mat of f.mats) mat.color?.set?.('#9a95a4')
+        this.mazeMesh.add(f.root)
+      }
+    }
   }
 
   /**

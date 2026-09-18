@@ -1121,6 +1121,7 @@ class Game {
     this.#aimCursor()
     // 연출 중에는 카메라가 다른 것을 본다
     this.render3d.updateSnow(real, this.player.pos)
+    this.render3d._mist?.userData.tick?.(real)
     this.render3d.updateCamera(this.camFocus ?? this.player.pos,
       this.camFocus ? null : (this.input.pointerInside ? this.input.aim : null),
       this._real ?? 1 / 60)
