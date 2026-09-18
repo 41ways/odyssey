@@ -160,7 +160,7 @@ export class Underworld {
       // 구덩이 앞에 서면 무엇을 눌러야 하는지 한 번 알려 준다
       if (this.canCall && !this._told) {
         this._told = true
-        g.hud.banner('구덩이', '눌러서 피를 붓는다', 2.4)
+        g.hud.banner('구덩이', '마우스 왼쪽 클릭 — 피를 붓는다', 3.2)
       }
       return
     }
