@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { models } from '../render/models.js'
-import { attachBossParts } from './bossparts.js'
+import { attachBossParts, attachModelParts } from './bossparts.js'
 import { Actor } from '../combat/actor.js'
 import { sectorHit, circleHit, ringHit } from '../combat/hit.js'
 import { dist2d, dampAngle, rand, clamp } from '../core/math.js'
@@ -32,6 +32,18 @@ const base = (cfg, shape, onFire) => ({
   onStart(b, run) {
     run.origin = { x: b.pos.x, z: b.pos.z }
     run.lockFacing = b.facing
+    run.strikeAt = null
+    // 머리가 따로 있는 보스는 그 머리 밑동에서 친다 (Boss.headOrigin)
+    if (cfg.head != null) {
+      // 5 는 촉수가 실제로 닿는 거리다 — 밑동이 갑판 아래라 길이 일부가
+      // 세로로 먹혀서, 6 으로 두면 끝이 원 가장자리에 떨어졌다
+      const h = b.headOrigin?.(cfg.head, cfg.at ?? 'base', cfg.reach ?? 5)
+      if (h) {
+        run.origin = { x: h.x, z: h.z }
+        run.lockFacing = h.facing
+        run.strikeAt = { x: h.tx, z: h.tz }
+      }
+    }
     run.aim = { x: b.world.player.pos.x, z: b.world.player.pos.z }
     if (cfg.say) b.world.onBossSay?.(cfg.say)
     const t = shape(b, run)
@@ -74,7 +86,7 @@ export const slam = cfg => base(cfg,
   })
 
 /** 원형 내려찍기. 발밑이 위험하다. */
-export const stomp = cfg => base(cfg,
+export const stomp = cfg => base({ at: 'point', ...cfg },
   (b, run) => ({ x: run.origin.x, z: run.origin.z, facing: 0, range: cfg.radius, halfAngle: Math.PI }),
   (b, run) => {
     b.fx.ring(run.origin.x, run.origin.z, { color: '#ff7a4a', radius: cfg.radius * 1.4, life: 0.45 })
@@ -83,8 +95,10 @@ export const stomp = cfg => base(cfg,
     }
   })
 
-/** 도넛. 붙어 있으면 안 맞는다 — 물러서는 습관을 깨는 패턴. */
-export const ring = cfg => base(cfg,
+/** 도넛. 붙어 있으면 안 맞는다 — 물러서는 습관을 깨는 패턴.
+ *  머리가 치는 도넛은 머리 밑동이 아니라 **내리친 자리**에서 퍼진다 —
+ *  뒤쪽 머리의 밑동은 뱃전 밖이라 거기서 퍼지면 갑판에 반만 걸친다. */
+export const ring = cfg => base({ at: 'point', ...cfg },
   (b, run) => ({ x: run.origin.x, z: run.origin.z, facing: 0, range: cfg.outer, inner: cfg.inner, halfAngle: Math.PI }),
   (b, run) => {
     b.fx.ring(run.origin.x, run.origin.z, { color: '#ffb02e', radius: cfg.outer * 1.3, life: 0.5 })
@@ -337,11 +351,16 @@ export class Boss extends Actor {
 
     // 이름이 곧 파훼법인 보스들은 그게 몸에 보여야 한다 —
     // 외눈·여섯 머리·아가리. 공용 뼈대에 코드로 매단다 (enemy/bossparts.js)
-    this.parts = attachBossParts(cfg.id, this.rig, cfg.look)
+    this.parts = built.own
+      ? attachModelParts(cfg.id, this.rig.root)
+      : attachBossParts(cfg.id, this.rig, cfg.look)
 
     // 갑판 아래로 몸을 내린다. 뱃전에 매달린 것은 몸이 다 보이면 안 된다 —
     // 물 밖으로 나온 만큼만 보여야 '올라온 것' 으로 읽힌다.
     if (cfg.look?.sink) this.rig.root.position.y -= cfg.look.sink
+    // 매 프레임 쓰러짐 높이를 덮어쓰므로 기준 높이를 따로 쥔다.
+    // 안 그러면 위의 sink 가 첫 프레임에 0 으로 지워진다.
+    this._baseY = this.rig.root.position.y
 
     // 사람 몸을 아예 감춘다.
     //
@@ -349,7 +368,11 @@ export class Boss extends Actor {
     // 형상이 아니다. 그런데 뼈대는 그대로 쓴다: 애니메이션·본·공격 프레임이
     // 전부 거기 걸려 있어서, 버리면 촉수를 움직일 축이 없어진다.
     // 그래서 **뼈는 두고 살만 숨긴다.** 촉수는 그 뼈에 매달려 같이 움직인다.
-    if (cfg.look?.hideBody) {
+    //
+    // 공용 사람 몸일 때만이다. 제 모델을 받아 온 보스(스킬라의 크라켄)에
+    // 이걸 걸면 숨길 '사람 몸' 이 곧 그 모델이라 보스가 통째로 사라진다 —
+    // 실제로 QA 빌드에서 스킬라가 안 보였다.
+    if (cfg.look?.hideBody && !built.own) {
       this.rig.root.traverse(o => {
         if (o.isMesh || o.isSkinnedMesh) o.visible = false
       })
@@ -429,6 +452,9 @@ export class Boss extends Actor {
     this.severed ??= new Set()
     if (this.severed.has(def.id)) return false
     this.severed.add(def.id)
+    // 몸이 어느 촉수를 지울지는 패턴 이름이 아니라 머리 번호로 안다
+    this.severedHeads ??= new Set()
+    if (def.head != null) this.severedHeads.add(def.head)
     const left = Math.max(0, (this.cfg.heads ?? 6) - this.severed.size)
     this.action.stop()
     this.fx?.number(this.pos.clone().setY(this.cfg.barHeight ?? 3),
@@ -747,6 +773,9 @@ export class Boss extends Actor {
         attack = { wind: (1 - hit) * out, swing: Math.sin(hit * Math.PI / 2) * out }
       }
     }
+    // 머리마다 따로 치는 몸(크라켄)은 제가 친다. 여기서 attack 을 넘기면
+    // 모델 전체가 앞으로 숙여져서, 촉수 하나가 아니라 몸통이 통째로 친다.
+    if (this.parts?.ownsStrike) attack = null
     this.rig.pose({
       t: this.animT, run: this._run, attack, draw: null, roll: 0,
       attackId: run.def?.id, attackDuration: run.active ? run.total : 1,
@@ -765,7 +794,7 @@ export class Boss extends Actor {
     const want = this.downed ? 1 : 0
     this._downLean = (this._downLean ?? 0) + (want - (this._downLean ?? 0)) * Math.min(1, dt * 4)
     this.rig.root.rotation.x = this._downLean * 0.62
-    this.rig.root.position.y = -this._downLean * (this.cfg.look?.height ?? 2) * 0.22
+    this.rig.root.position.y = (this._baseY ?? 0) - this._downLean * (this.cfg.look?.height ?? 2) * 0.22
     this.#railed(dt)
     this.#seatHead()
 
@@ -782,6 +811,9 @@ export class Boss extends Actor {
       // 끊긴 팔을 지우고 때리는 팔만 Attack 을 돌린다 (bossparts.js).
       // 파훼의 보상이 눈에 보이는 자리가 여기다.
       severed: this.severed?.size ?? 0,
+      severedHeads: this.severedHeads,
+      // 지금 무는 머리가 어디까지 왔고 어디로 떨어지는가 (크라켄 촉수용)
+      strike: this.#strikeState(),
       striking: this.action.active && this.action.phase !== 'recovery'
         ? (this.action.def?.head ?? 0) : 0,
       // 플레이어가 어느 쪽인가. 스킬라의 여섯 머리가 각자 이쪽으로 고개를
@@ -813,6 +845,44 @@ export class Boss extends Actor {
   }
 
   /** 머리뼈. 한 번 찾아 두고 계속 쓴다. */
+  /**
+   * 머리 하나가 무는 자리.
+   *
+   * 스킬라의 패턴은 전부 보스 한가운데서 났다. 그런데 머리는 좌우로 10
+   * 넘게 벌어져 있다 — 맨 왼쪽 머리가 쳐들었다 내리치는데 붉은 원은
+   * 가운데에 떴다. 예고와 몸이 따로 놀면 예고를 읽는 의미가 없다.
+   * 그래서 머리가 있는 보스는 **그 머리 밑동에서** 친다.
+   *
+   * @param kind 'point' 면 밑동에서 플레이어 쪽으로 reach 만큼 나간 한 점
+   *             (내리찍기), 'base' 면 밑동 자체 (휘두르기·찌르기·도넛)
+   */
+  headOrigin(n, kind = 'base', reach = 6) {
+    const base = this.parts?.headBase?.(n)
+    if (!base) return null
+    const p = this.world.player.pos
+    const dx = p.x - base.x, dz = p.z - base.z
+    const d = Math.hypot(dx, dz) || 1
+    const r = Math.min(d, reach)
+    const tx = base.x + (dx / d) * r, tz = base.z + (dz / d) * r
+    const facing = Math.atan2(dx, dz)
+    return kind === 'point'
+      ? { x: tx, z: tz, facing, tx, tz }
+      : { x: base.x, z: base.z, facing, tx, tz }
+  }
+
+  /** 지금 무는 머리의 진행. 몸이 그 촉수만 쳐들었다 내리치게 한다. */
+  #strikeState() {
+    const run = this.action
+    const h = run.active ? run.def?.head : null
+    if (h == null || !run.strikeAt) return null
+    const c = run.def
+    let phase = 'startup', p = 0
+    if (run.t < c.startup) p = run.t / c.startup
+    else if (run.t < c.startup + c.active) { phase = 'active'; p = (run.t - c.startup) / c.active }
+    else { phase = 'recovery'; p = (run.t - c.startup - c.active) / Math.max(1e-3, c.recovery) }
+    return { head: h, phase, p: clamp(p, 0, 1), x: run.strikeAt.x, z: run.strikeAt.z }
+  }
+
   #headBone() {
     this._head ??= (() => {
       let found = null
@@ -832,7 +902,7 @@ function buildBossBody(look) {
     if (made) {
       // bossparts 가 붙일 자리(attachTo)를 안 준다 → 코드 조각을 안 붙인다.
       // 진짜 몸이 있는데 그 위에 코드 눈·촉수를 얹으면 둘이 싸운다.
-      return { rig: { root: made.root, mats: made.mats, pose: made.pose }, mats: made.mats }
+      return { rig: { root: made.root, mats: made.mats, pose: made.pose }, mats: made.mats, own: true }
     }
     console.info(`[boss] 몸 없음: ${look.model} — 공용 몸으로 간다`)
   }

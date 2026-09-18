@@ -531,3 +531,137 @@ export function attachBossParts(id, rig, look = {}) {
     return null
   }
 }
+
+/* ── 받아 온 몸에 붙이는 조종 ─────────────────────────────
+   위의 조각들은 공용 사람 뼈대에 매단다. 제 모델을 받아 온 보스는
+   매달 자리가 없는 대신 **제 뼈**가 있다. 그 뼈를 직접 움직인다. */
+
+/**
+ * 스킬라 — 크라켄 촉수 여섯.
+ *
+ * 받아 온 크라켄(Kraken Animation, Yanez Designs, CC-BY)은 뼈 사슬이 여덟인데
+ * 살이 붙은 건 1~6 여섯뿐이다 (7·8 은 메시가 없는 빈 사슬). 클립은 한 벌을
+ * 도는 흔들기 하나뿐이라, 그대로 두면 여섯이 한 박자로 흔들릴 뿐 어느 촉수가
+ * 무는지가 몸에 없다.
+ *
+ * 그래서 —
+ *   · 머리 번호마다 촉수 하나를 정해 두고, 그 번호의 패턴이 돌 때 **그 촉수만**
+ *     쳐들었다가(예고) 붉은 원 위로 내리친다(판정). 거둬들이는 동안은 갑판에
+ *     걸쳐 있다 — 그게 끊는 때다 (boss.js #sever).
+ *   · 끊긴 번호의 촉수는 오그라들어 사라진다.
+ *
+ * 뼈의 로컬 축은 모델마다 제각각이라 믿지 않는다. 매 프레임 밑동과 끝의
+ * **월드 위치**를 재서, 끝이 가야 할 방향으로 밑동을 돌린다.
+ */
+/**
+ * 머리 1..6 → 촉수 사슬 번호.
+ * 앞의 넷(1·2 앞줄, 5·6 옆줄)에 자주 쓰는 패턴을, 뒤의 둘(3·4)에 크게
+ * 한 번 치는 패턴(smash·lash)을 준다 — 뒤쪽 밑동은 뱃전 밖이라 멀리서
+ * 뻗어 와야 하고, 그만큼 예고가 긴 패턴이어야 맞다.
+ * 처음엔 살 없는 7·8 을 머리로 쓰고 살 있는 3·4 를 접었다가 넷만 보였다.
+ */
+const KRAKEN_HEADS = [5, 1, 6, 2, 3, 4]
+const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _r = new THREE.Vector3(), _t = new THREE.Vector3()
+const _up = new THREE.Vector3(0, 1, 0)
+const _qa = new THREE.Quaternion(), _qb = new THREE.Quaternion(), _qp = new THREE.Quaternion()
+const _qi = new THREE.Quaternion()
+
+function skyllaKraken(root) {
+  const chains = new Map()
+  root.traverse(o => {
+    const m = o.isBone && /^TentacleBones00(\d)/.exec(o.name)
+    if (!m) return
+    let tip = o
+    for (;;) { const c = tip.children.find(x => x.isBone); if (!c) break; tip = c }
+    chains.set(Number(m[1]), o)
+    o.userData.tip = tip
+  })
+  if (KRAKEN_HEADS.some(n => !chains.has(n))) return null
+
+  const heads = KRAKEN_HEADS.map((n, i) => ({
+    n: i + 1, bone: chains.get(n), tip: chains.get(n).userData.tip,
+    wind: 0, slam: 0, alive: 1,
+    clipQ: new THREE.Quaternion(), written: null,
+  }))
+
+  return {
+    ownsStrike: true,
+    group: null,
+
+    /** 머리 n 의 밑동 (월드 x,z). 패턴의 원점이 여기다. */
+    headBase(n) {
+      const h = heads[n - 1]
+      if (!h) return null
+      h.bone.getWorldPosition(_r)
+      return { x: _r.x, z: _r.z }
+    },
+
+    update(dt, s) {
+      root.updateMatrixWorld(true)
+
+      const st = s.strike
+      for (const h of heads) {
+        // 클립이 이 뼈를 안 움직이면 지난 프레임에 내가 쓴 값이 그대로 남는다.
+        // 그걸 클립 값으로 착각하면 회전이 쌓인다 — 내가 쓴 값이면 되돌린다.
+        if (h.written && h.bone.quaternion.equals(h.written)) h.bone.quaternion.copy(h.clipQ)
+        h.clipQ.copy(h.bone.quaternion)
+
+        // 끊긴 촉수는 오그라든다
+        const want = s.severedHeads?.has(h.n) ? 0 : 1
+        h.alive += (want - h.alive) * Math.min(1, dt * 3)
+        h.bone.scale.setScalar(Math.max(0.0001, h.alive))
+
+        // 무는 촉수의 목표 — 예고 동안 쳐들고, 판정에 내리치고, 거두는 동안 걸쳐 있다
+        let wantWind = 0, wantSlam = 0, snap = 8
+        if (st && st.head === h.n) {
+          if (st.phase === 'startup') { wantWind = Math.pow(st.p, 0.6) }
+          else if (st.phase === 'active') { wantSlam = 1; snap = 34 }
+          else { wantSlam = st.p < 0.65 ? 1 : 1 - (st.p - 0.65) / 0.35 }
+        }
+        h.wind += (wantWind - h.wind) * Math.min(1, dt * (wantWind > h.wind ? 7 : 14))
+        h.slam += (wantSlam - h.slam) * Math.min(1, dt * snap)
+        if (h.wind < 0.002 && h.slam < 0.002) { h.written = null; continue }
+
+        // 지금 촉수가 뻗은 방향 (클립 자세 그대로)
+        h.bone.getWorldPosition(_r)
+        h.tip.getWorldPosition(_t)
+        _v.subVectors(_t, _r).normalize()
+
+        // 떨어질 자리 쪽 수평 방향
+        const tx = st?.head === h.n ? st.x : _t.x, tz = st?.head === h.n ? st.z : _t.z
+        _w.set(tx - _r.x, 0, tz - _r.z)
+        const flat = _w.length() || 1
+        _w.divideScalar(flat)
+
+        // 쳐든 자세: 떨어질 자리 반대로 젖히고 높이 든다
+        _qa.setFromUnitVectors(_v, _t.copy(_up).multiplyScalar(1.1).addScaledVector(_w, -0.75).normalize())
+        // 내리친 자세: 끝이 떨어질 자리의 갑판에 닿는다
+        _qb.setFromUnitVectors(_v, _t.set(tx - _r.x, 0.25 - _r.y, tz - _r.z).normalize())
+
+        const q = _qi.identity().slerp(_qa, h.wind).slerp(_qb, h.slam)
+
+        // 월드 회전을 뼈의 로컬로 옮긴다: 부모⁻¹ · q · 부모 · 클립
+        h.bone.parent.getWorldQuaternion(_qp)
+        h.bone.quaternion.copy(_qp).invert().multiply(q).multiply(_qp).multiply(h.clipQ)
+        h.written ??= new THREE.Quaternion()
+        h.written.copy(h.bone.quaternion)
+      }
+    },
+  }
+}
+
+const MODEL_PARTS = {
+  skylla: skyllaKraken,
+}
+
+/** 받아 온 몸에 조종을 붙인다. 뼈가 기대와 다르면 조용히 없이 간다. */
+export function attachModelParts(id, root) {
+  const make = MODEL_PARTS[id]
+  if (!make) return null
+  try {
+    return make(root)
+  } catch (e) {
+    console.warn(`[bossparts] ${id} 조종 붙이기 실패:`, e.message)
+    return null
+  }
+}
