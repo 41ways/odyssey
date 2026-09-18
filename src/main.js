@@ -41,6 +41,7 @@ import { rand } from './core/math.js'
 import { Voyage, LOSSES } from './stage/voyage.js'
 import { FateScreen } from './ui/fate.js'
 import { VoyageHud } from './ui/voyagehud.js'
+import { Companion, companionsFor } from './player/companion.js'
 
 const MINIONS = { warrior: kikonesWarrior, archer: kikonesArcher, shield: kikonesShield,
   pig: circePig, wolf: circeWolf, lion: circeLion, giant: laistrygon }
@@ -85,6 +86,7 @@ class Game {
     this.equipFx = null
 
     this.enemies = []
+    this.allies = []          // 곁에서 싸우는 동료 (player/companion.js)
     this.corpses = []
     this.totalDamage = 0
     this.kills = 0
@@ -797,6 +799,26 @@ class Game {
   }
 
   /**
+   * 곁에 설 동료를 세운다. 판(구간)이 바뀔 때마다 run.js 가 부른다.
+   * 누가 서는지는 이야기가 정한다 (companionsFor) — 저승엔 혼자, 트리나키아
+   * 뒤로는 아무도 없고, 이타카에서는 아들이 선다.
+   */
+  setAllies(stage, part = {}) {
+    for (const a of this.allies) this.render3d.scene.remove(a.group)
+    this.allies.length = 0
+    // 헤엄치는 판(카리브디스)에는 세우지 않는다 — 물 위에 사람이 서 있게 된다
+    if (part.maelstrom) return
+    const p = this.player
+    for (const spec of companionsFor(stage, this.voyage)) {
+      const a = new Companion(this, this.fx, spec)
+      a.pos.set(p.pos.x + spec.slot * 1.4, 0, p.pos.z + 1.6)
+      a.facing = p.facing
+      this.allies.push(a)
+      this.render3d.scene.add(a.group)
+    }
+  }
+
+  /**
    * 판 사이의 갈림길 (stage/voyage.js 의 FATES).
    * 고른 것을 그 자리에서 적용하고, 신의 눈금이 어떻게 움직였는지 돌려준다.
    */
@@ -1114,9 +1136,10 @@ class Game {
     if (!p.dead) this._deathHandled = false
 
     for (const e of this.enemies) { e.think(dt); e.step(dt, this.arenaRadius) }
+    for (const a of this.allies) { a.think(dt); a.step(dt, this.arenaRadius) }
 
     const all = [p, ...this.enemies]
-    separate(all, dt)
+    separate([...all, ...this.allies], dt)
     this.projectiles.update(dt, all, this.arenaRadius, this.render3d.camera)
     this.particles.update(dt)
 
@@ -1187,6 +1210,7 @@ class Game {
     const cam = this.render3d.camera
     this.player.sync(cam)
     for (const e of this.enemies) e.sync(cam)
+    for (const a of this.allies) a.sync(cam)
     for (const c of this.corpses) { c.sync(cam); c.group.position.y = -Math.min(c.deathT / 0.45, 1) * 1.6 }
     this.#aimCursor()
     // 연출 중에는 카메라가 다른 것을 본다
