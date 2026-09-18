@@ -86,9 +86,6 @@ class Game {
     this.level = new Level()      // 경험치 → 성장 선택 (player/level.js)
     this.hazards = []             // 바닥에 남는 불 (leaveFire)
 
-    this.reticle = makeReticle()
-    this.render3d.scene.add(this.reticle)
-
     this.player = new Player(this, this.input, this.fx, this.projectiles)
     this.render3d.scene.add(this.player.group)
     this.render3d.camTarget.copy(this.player.pos)
@@ -611,9 +608,8 @@ class Game {
   /**
    * 커서가 지금 무엇을 겨누는지 보여 준다.
    *
-   * 바닥 조준점만 있으면 "여기를 누를 수 있다" 를 말할 방법이 없다. 저승의
-   * 구덩이가 생기고 나서 그게 문제가 됐다 — 눌러야 하는데 눌러도 되는지가
-   * 화면에 없었다. 커서를 상태에 묶는다.
+   * 바닥에 조준점을 따로 그리면 커서와 같은 자리에 겹쳐 둘 다 지저분해진다.
+   * 겨누는 곳은 커서 하나로 말하고, 무엇을 겨누는지는 커서 모양으로 말한다.
    *
    * 클래스만 갈아 끼우므로 비용이 없다 — 바뀔 때만 손댄다.
    */
@@ -1106,8 +1102,6 @@ class Game {
     this.player.sync(cam)
     for (const e of this.enemies) e.sync(cam)
     for (const c of this.corpses) { c.sync(cam); c.group.position.y = -Math.min(c.deathT / 0.45, 1) * 1.6 }
-    this.reticle.position.set(this.input.aim.x, 0.05, this.input.aim.z)
-    this.reticle.visible = this.input.pointerInside
     this.#aimCursor()
     // 연출 중에는 카메라가 다른 것을 본다
     this.render3d.updateSnow(real, this.player.pos)
@@ -1121,18 +1115,6 @@ class Game {
       stage: this.run.view, index: this.run.index, count: STAGES.length,
     })
   }
-}
-
-/** 바닥 조준점. 커서를 숨겼으니 이게 커서다. */
-function makeReticle() {
-  const g = new THREE.Group()
-  const mat = c => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.88, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending })
-  g.add(new THREE.Mesh(new THREE.RingGeometry(0.2, 0.3, 24), mat('#ffd9a0')))
-  g.add(new THREE.Mesh(new THREE.CircleGeometry(0.06, 12), mat('#fff4dd')))
-  g.rotation.x = -Math.PI / 2
-  g.position.y = 0.05
-  g.renderOrder = 20
-  return g
 }
 
 await Promise.all([models.preload(), preloadCharacter()])
