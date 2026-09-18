@@ -14,6 +14,7 @@ import { TitleScreen } from './ui/title.js'
 import { DifficultyScreen, SAILS } from './ui/difficulty.js'
 import { EquipCard } from './ui/equipcard.js'
 import { StagePicker } from './ui/stagepicker.js'
+import { PauseMenu } from './ui/menu.js'
 import { STAGES, OPENING, interludeFor } from './stage/stages.js'
 import { LOOKS, LOOK_KEYS } from './render/looks.js'
 import { LevelUp } from './ui/levelup.js'
@@ -94,15 +95,25 @@ class Game {
 
     this.run = new Run(this)
 
+    // 멈춤 메뉴와 소리 단추. Esc 로 열고 닫는다.
+    this.menu = new PauseMenu(uiRoot, this)
+
     addEventListener('keydown', e => {
+      if (e.code === 'Escape') {
+        // Esc 는 '지금 하던 걸 멈추고 나가는' 키다. 다른 전체 화면이 떠 있으면
+        // 그쪽이 먼저 쓴다 — 골라야 하는 창 위에 메뉴를 겹치면 둘 다 못 쓴다.
+        if (this.menu.open) { this.menu.close(); return }
+        if (this.#screenOpen()) return
+        e.preventDefault()
+        this.menu.show()
+        return
+      }
+      if (this.menu.open && e.code !== 'KeyM' && e.code !== 'KeyR') return
       if (e.code === 'KeyR') this.restart()
       if (e.code === 'BracketRight') this.run.next()   // 시험용: 다음 판으로
       if (e.code === 'KeyL') this.cycleLook()          // 시험용: 톤 시안 돌려보기
       if (e.code === 'KeyG') this.setGod(!this.god)    // ★시험용 무적 — 배포 전에 지운다
-      if (e.code === 'KeyM') {
-        const m = this.music.toggleMute()
-        this.hud.banner(m ? '음소거' : '소리 켜짐', m ? 'M 으로 다시 켠다' : '', 1.4)
-      }
+      if (e.code === 'KeyM') this.menu.toggleMute()
     })
 
     // 스테이지 고르기 — Tab 또는 주소의 ?stage=N
@@ -563,6 +574,15 @@ class Game {
     await new Promise(r => setTimeout(r, 700))
     CAMERA_RIG.follow = follow0
     this.#thaw()
+  }
+
+  /**
+   * 지금 전체 화면이 떠 있는가.
+   * 고르는 창 위에 멈춤 메뉴를 겹치면 둘 다 못 쓰게 된다 — Esc 를 양보한다.
+   */
+  #screenOpen() {
+    return !!document.querySelector(
+      '#levelup.on, #bless.on, #relic.on, #lude.on, #diff.on, #picker.on, #reach.on, #reel.on, #title')
   }
 
   /** ★시험용 무적. 배포 전에 이 메서드째로 지운다. */
