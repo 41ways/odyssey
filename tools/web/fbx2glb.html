@@ -1,0 +1,69 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>fbx → glb</title>
+<pre id="log">…</pre>
+<script type="module">
+/**
+ * Mixamo 에서 받은 FBX 여러 개를 GLB 하나로 합친다. 개발 서버에서만 쓴다.
+ *
+ * 블렌더가 없어서 브라우저에서 한다. three 의 FBXLoader 로 읽고
+ * GLTFExporter 로 내보낸 뒤, 개발 서버의 /__shot 통로로 파일을 떨군다.
+ *
+ *   /tools/web/fbx2glb.html?dir=art/mixamo/antiphates&skin=idle&clips=idle,walk,attack,death&tex=antiphates.png&out=antiphates-rig.glb
+ *
+ * skin 은 '스킨 포함' 으로 받은 파일, 나머지는 '스킨 없이' 받은 동작.
+ * 클립 이름은 파일 이름 그대로 붙는다 (models.js 가 느슨하게 맞춘다).
+ */
+import * as THREE from 'three'
+import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js'
+import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js'
+
+const q = new URLSearchParams(location.search)
+const dir = '/' + q.get('dir')
+const log = m => { document.getElementById('log').textContent += '\n' + m }
+const loader = new FBXLoader()
+
+try {
+  const skinName = q.get('skin')
+  const base = await loader.loadAsync(`${dir}/${skinName}.fbx`)
+  log(`몸: ${skinName} — 뼈 ${(() => { let n = 0; base.traverse(o => { if (o.isBone) n++ }); return n })()}`)
+
+  const clips = []
+  for (const name of (q.get('clips') ?? '').split(',').filter(Boolean)) {
+    const f = name === skinName ? base : await loader.loadAsync(`${dir}/${name}.fbx`)
+    const clip = f.animations[0]
+    if (!clip) { log(`  ${name}: 클립 없음`); continue }
+    clip.name = name
+    // 루트 이동은 제자리로 — 게임이 위치를 움직인다. Hips 의 x·z 만 지운다
+    for (const t of clip.tracks) {
+      if (/Hips\.position$/.test(t.name)) {
+        const v = t.values, x0 = v[0], z0 = v[2]
+        for (let i = 0; i < v.length; i += 3) { v[i] = x0; v[i + 2] = z0 }
+      }
+    }
+    clips.push(clip)
+    log(`  ${name}: ${clip.duration.toFixed(2)}s · 트랙 ${clip.tracks.length}`)
+  }
+
+  // 재질: 원래 텍스처를 입힌 표준 재질 하나로
+  const tex = q.get('tex') ? await new THREE.TextureLoader().loadAsync(`${dir}/${q.get('tex')}`) : null
+  // flipY 는 기본값(true)으로 둔다. FBX 의 UV 가 GL 방향이라 그게 맞고,
+  // GLTFExporter 가 내보낼 때 그림을 뒤집어 glTF 방향으로 맞춰 준다.
+  if (tex) tex.colorSpace = THREE.SRGBColorSpace
+  base.traverse(o => {
+    if (!o.isMesh) return
+    const old = Array.isArray(o.material) ? o.material[0] : o.material
+    const map = tex ?? old?.map ?? null
+    o.material = new THREE.MeshStandardMaterial({ map, roughness: 0.85, metalness: 0.05 })
+  })
+
+  const glb = await new GLTFExporter().parseAsync(base, { binary: true, animations: clips, onlyVisible: true })
+  const b64 = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(new Blob([glb])) })
+  const res = await fetch('/__shot', { method: 'POST', body: JSON.stringify({ name: q.get('out'), data: b64 }) }).then(r => r.json())
+  log(`✔ shots/${res.file}  ${Math.round(glb.byteLength / 1024)} KB`)
+  window.__done = res.file
+} catch (e) {
+  log('실패: ' + (e.stack ?? e))
+  window.__done = 'error'
+}
+</script>

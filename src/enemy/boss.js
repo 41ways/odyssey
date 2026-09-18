@@ -779,6 +779,8 @@ export class Boss extends Actor {
     this.rig.pose({
       t: this.animT, run: this._run, attack, draw: null, roll: 0,
       attackId: run.def?.id, attackDuration: run.active ? run.total : 1,
+      // 받아 온 몸의 치는 클립을 이 박자에 묶는다 (models.js)
+      attackT: run.active ? { t: run.t, startup: run.def.startup, active: run.def.active, recovery: run.def.recovery } : null,
       dead: this.dead,
       down: !!this.downed,
       downHold: this.cfg.downHold ?? 0.3,

@@ -301,11 +301,43 @@ class Models {
       pose(state, dt) {
         const running = state.run > 0.12
         if (mixer) {
-          if (state.roll > 0) play('roll')
-          else if (state.attack) play('attack', 0.08)
-          else if (state.draw != null) play('aim')
-          else if (running) play('run')
-          else play('idle')
+          const die = actions.die
+          if ((state.dead || state.down) && die) {
+            // 쓰러짐. 한 번만 틀고 멈춘다. 무너진 채(down)면 클립 중간에서 세운다 —
+            // 다 누우면 머리가 바닥에 붙어 약점을 못 맞힌다 (character.js 와 같은 규칙).
+            if (current !== die) {
+              die.setLoop(THREE.LoopOnce, 1)
+              die.clampWhenFinished = true
+              play('die', 0.22)
+            }
+            if (state.down && !state.dead) {
+              const stopAt = die.getClip().duration * (state.downHold ?? 0.3)
+              if (die.time >= stopAt) { die.time = stopAt; die.paused = true }
+            }
+          } else {
+            if (die?.paused) die.paused = false
+            if (state.roll > 0) play('roll')
+            else if (state.attack) {
+              play('attack', 0.08)
+              /* 치는 클립을 보스의 박자에 묶는다.
+                 그냥 틀면 클립이 제 속도로 돌아서, 주먹이 내려오는 순간과
+                 붉은 판정이 뜨는 순간이 어긋난다 — 예고를 보고 피하는 게임에서
+                 그건 거짓말이다. 예고(startup) 동안 클립의 impact 지점까지,
+                 판정 이후 나머지를 편다. */
+              const a = actions.attack, at = state.attackT
+              if (a && at) {
+                const dur = a.getClip().duration, imp = cfg.impact ?? 0.42
+                const k = at.t < at.startup
+                  ? (at.t / Math.max(1e-3, at.startup)) * imp
+                  : imp + Math.min(1, (at.t - at.startup) / Math.max(1e-3, at.active + at.recovery)) * (1 - imp)
+                a.time = dur * Math.min(0.999, k)
+                a.paused = true
+              }
+            }
+            else if (state.draw != null) play('aim')
+            else if (running) play('run')
+            else play('idle')
+          }
           mixer.update(dt)
         }
         // 없는 동작만 몸으로 메운다. 클립이 맡고 있는 건 건드리지 않는다.
