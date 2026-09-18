@@ -1,4 +1,4 @@
-import { CUT_CAVE, CUT_WHIRL, CUT_ITHACA, CUT_TELEPYLOS } from './cuts.js'
+import { CUT_CAVE, CUT_WHIRL, CUT_ITHACA, CUT_TELEPYLOS, CUT_BOW } from './cuts.js'
 
 /**
  * 여덟 개의 판.
@@ -280,6 +280,8 @@ export const STAGES = [
       clear: '한 사람만 남았다.',
     },
     boss: { ...HALL, camDistance: 20, name: '이타카의 홀', id: 'antinoos',
+      // 싸움은 활로 시작된다. 거지 차림을 벗기 전에 튼다
+      cutBefore: CUT_BOW,
       intro: '술잔을 내려놓고 칼을 뽑는다.' },
     clear: '홀이 비었다.',
   },

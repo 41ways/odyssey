@@ -148,6 +148,8 @@ export class Run {
       cfg = { ...stage.fork, ...(pick.stage ?? {}), id: pick.boss, intro: pick.line }
     }
 
+    // 벗기 전에 보여 줄 장면 (이타카의 활 겨루기)
+    if (cfg.cutBefore) await g.playCut(cfg.cutBefore)
     // 거지 차림이었다면 여기서 벗는다
     if (stage.beggar) await g.setBeggar(false)
 

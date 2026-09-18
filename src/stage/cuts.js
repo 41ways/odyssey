@@ -214,7 +214,41 @@ export const CUT_ITHACA = {
   ],
 }
 
+/**
+ * 활시위를 건다 — 구혼자와의 싸움이 시작되는 순간.
+ *
+ * 이야기에서 이 싸움은 칼이 아니라 **활로** 시작된다. 아무도 못 당긴
+ * 오디세우스의 활을 거지가 무릎에 대고 한 번에 걸고, 열두 도끼 자루의
+ * 구멍을 한 발로 꿰고, 그 다음에야 누더기를 벗는다. 이게 빠지면 거지가
+ * 갑자기 칼을 뽑는 싸움이 된다.
+ *
+ * 네 장 모두 이 컷신 전용이다. 순서가 (못 당긴다 → 건다 → 꿴다 → 벗는다)
+ * 이고, 둘째 장이 제일 중요하다 — 스무 해 늙은 손이 아무렇지 않게 거는 것,
+ * 그게 '돌아왔다' 의 증거다. 그래서 둘째 장만 두 번 당겨 오래 본다.
+ *
+ * 거지 차림을 벗기 **전에** 튼다 (run.js 의 cutBefore). 벗고 나서 틀면
+ * 누더기를 두 번 벗는다.
+ */
+export const CUT_BOW = {
+  mood: 'stone',
+  where: '이타카의 홀 — 활 겨루기',
+  shots: [
+    { art: '/img/cut-bow-1.webp', hold: 2000, focus: [50, 50, 1.0],
+      text: '페넬로페가 말했다.<br><em>이 활을 거는 사람에게 가겠다.</em>' },
+    { art: '/img/cut-bow-1.webp', hold: 1800, focus: [80, 38, 1.9],
+      text: '아무도 걸지 못했다.' },
+    { art: '/img/cut-bow-2.webp', hold: 1800, focus: [50, 50, 1.05],
+      text: '거지가 활을 달라고 했다. 모두가 웃었다.' },
+    { art: '/img/cut-bow-2.webp', hold: 2100, focus: [66, 40, 1.8],
+      text: '<em>한 번에 걸었다.</em><br>현이 제비 소리를 냈다.' },
+    { art: '/img/cut-bow-3.webp', hold: 2000, focus: [50, 48, 1.15],
+      text: '화살 하나가 <em>열두 자루</em>를 꿰었다.' },
+    { art: '/img/cut-bow-4.webp', hold: 2600, focus: [52, 42, 1.25],
+      text: '누더기를 벗었다.<br><em>놀이는 끝났다.</em>' },
+  ],
+}
+
 /** 컷신마다 쓰는 그림. 미리 받아 두려고 한 군데 모아 둔다. */
-export const ALL_CUTS = [CUT_TROY, CUT_TELEPYLOS, CUT_CAVE, CUT_UNDER, CUT_WHIRL, CUT_ITHACA]
+export const ALL_CUTS = [CUT_TROY, CUT_TELEPYLOS, CUT_CAVE, CUT_UNDER, CUT_WHIRL, CUT_ITHACA, CUT_BOW]
 
 export const cutArt = cut => (cut?.shots ?? []).map(s => s.art).filter(Boolean)

@@ -1,0 +1,16 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>upload</title>
+<!-- 개발 서버 전용. 브라우저에만 있는 그림(생성기의 blob 등)을 shots/ 로 떨군다. -->
+<input type="file" id="f" multiple>
+<pre id="o"></pre>
+<script>
+document.getElementById('f').onchange = async e => {
+  for (const file of e.target.files) {
+    const data = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(file) })
+    const name = (window.__name || 'up') + '-' + Date.now() + '.' + (file.type.split('/')[1] || 'png')
+    const res = await fetch('/__shot', { method: 'POST', body: JSON.stringify({ name, data }) }).then(r => r.json())
+    document.getElementById('o').textContent += res.file + '\n'
+  }
+}
+</script>
