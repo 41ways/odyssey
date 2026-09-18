@@ -333,7 +333,16 @@ export class World {
     const a = { ...(stage.arena ?? {}) }
     if (look.groundTint) a.groundTint = look.groundTint
     if (look.wallColor) a.wallColor = look.wallColor
-    if (look.rockColor) a.rockColor = look.rockColor
+    /* 바위는 톤을 덮지 않고 섞는다.
+       대리석 톤의 바위 색(#cfc4b0)을 그대로 덮으면 동굴의 검은 흙, 눈 내린
+       항구의 젖은 땅 위에 흰 덩어리가 110 개 깔린다 — 어느 판을 찍어도
+       '흰 주사위' 가 제일 먼저 보였다. 판이 정한 돌 색을 바탕에 두고 톤은
+       30% 만 얹는다. 톤이 판 전체 색을 맞추는 역할은 그대로 한다. */
+    if (look.rockColor) {
+      a.rockColor = a.rockColor
+        ? '#' + new THREE.Color(a.rockColor).lerp(new THREE.Color(look.rockColor), 0.3).getHexString()
+        : look.rockColor
+    }
 
     this.scene.background = new THREE.Color(e.bg ?? '#0a0a10')
     this.scene.fog = new THREE.FogExp2(e.fogColor ?? e.bg ?? '#0d0b12', e.fog ?? 0.018)

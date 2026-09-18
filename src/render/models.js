@@ -29,6 +29,11 @@ export const MANIFEST = {
   columnRound: { url: '/models/column-round.glb', height: 2.9 },
   tree: { url: '/models/tree.glb', height: 3.4 },
   jar: { url: '/models/jar.glb', height: 0.75 },
+  // 숲 바닥 — 나무는 판 가장자리에만 있어 싸우는 동안 화면에 안 들어온다.
+  // 발밑에 덤불·풀이 있어야 '숲 속' 이 된다 (Quaternius, CC0)
+  bush: { url: '/models/bush.glb', height: 1.25 },
+  flowerbush: { url: '/models/flowerbush.glb', height: 0.9 },
+  grass: { url: '/models/grass.glb', height: 0.38 },
   pedestal: { url: '/models/pedestal.glb', height: 0.85 },
   // 돌 뱀 머리 — 스킬라의 여섯 머리에 돌려 쓴다 (tools/prep-gen.mjs 로 깎았다)
   serpentHead: { url: '/models/serpent-head.glb', height: 1.0 },
@@ -39,8 +44,12 @@ export const MANIFEST = {
   orochi: { url: '/models/orochi.glb', height: 5.5 },
   // 받아 온 보스 몸. 판에 들어갈 때만 내려받는다 (STAGE_MODELS).
   skylla: { url: '/models/skylla.glb', height: 5.0, center: false },
-  // 헤엄치는 자세로 누워 있다. 꼬리를 아래로 세운다.
-  siren: { url: '/models/siren.glb', height: 2.4, rotate: [-Math.PI / 2, 0, 0] },
+  /* 인어. 파일 안의 메시가 이미 스스로 세워져 있다 (Object_2 에 -90° 가 들어 있다).
+     예전에 여기서 한 번 더 -90° 로 눕혔는데, 그러면 두께(1.33)로 키를 맞춰
+     배율이 1.8 이 되고 — 아래 흔들기가 rotation.x 를 덮어써 도로 서는 순간
+     키 15.7 짜리 기둥이 갑판을 덮었다 (QA 에서 머리가 화면 밖이었다).
+     돌리지 않는다. 꼬리로 선 채 키 4.2 — 사람의 두 배 남짓, 올려다보는 높이. */
+  siren: { url: '/models/siren.glb', height: 4.2 },
   antiphates: { url: '/models/antiphates.glb', height: 4.6 },
   // 절벽 바위. 스킬라 절벽과 동굴 판에 뿌린다.
   cliffRock: { url: '/models/cliff-rock.glb', height: 2.2 },
@@ -120,7 +129,7 @@ function matchClips(clips) {
 export const STAGE_MODELS = {
   ismaros: ['cyclops', 'cyclopsBody', 'sheep'],
   telepylos: ['antiphates', 'giant', 'cliffRock'],
-  aiaia: ['hooded', 'pig', 'wolf', 'tree'],
+  aiaia: ['hooded', 'pig', 'wolf', 'tree', 'bush', 'flowerbush', 'grass'],
   underworld: [],
   sirens: ['siren', 'ship'],
   messina: ['skylla', 'tentacle', 'serpentHead', 'snake', 'ship'],
@@ -285,7 +294,9 @@ class Models {
      * 몸 전체가 한 덩어리로 움직이니 클립만큼은 아니지만, 멈춰 있는 것보다
      * 훨씬 많은 것을 말한다.
      */
-    const fake = { t: 0, breath: 0, baseY, lean: 0, drop: 0 }
+    // 흔들기는 모델이 원래 가진 기울기 **위에** 얹는다. 덮어쓰면 manifest 의
+    // rotate 가 첫 프레임에 지워진다 (세이렌이 그렇게 거인이 됐다).
+    const fake = { t: 0, breath: 0, baseY, baseRX: model.rotation.x, lean: 0, drop: 0 }
     let current = null
     const play = (name, fade = 0.16) => {
       const next = actions[name] ?? actions.idle
@@ -367,7 +378,7 @@ class Models {
         const bob = needRun ? Math.abs(Math.sin(fake.t)) * 0.09 * fake.k : 0
         const runLean = needRun ? -0.12 * fake.k + Math.sin(fake.t * 2) * 0.03 * fake.k : 0
         model.position.y = fake.baseY + bob + breathe - fake.drop
-        model.rotation.x = runLean + fake.lean
+        model.rotation.x = fake.baseRX + runLean + fake.lean
       },
     }
   }

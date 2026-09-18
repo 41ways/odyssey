@@ -47,7 +47,13 @@ const FOREST = {
     shape: 'grove',      // 숲은 나무가 정하는 모양이다. 동굴만큼 각지지는 않게
     // 키르케의 숲. 집 둘레에는 약을 담던 항아리가 굴러다닌다
     props: [{ key: 'tree', count: 22, ring: [1.02, 1.16], scale: [0.85, 1.3] },
-            { key: 'jar', count: 5, ring: [1.03, 1.11], scale: [0.9, 1.2], tint: '#6f5a3a' }] },
+            { key: 'jar', count: 5, ring: [1.03, 1.11], scale: [0.9, 1.2], tint: '#6f5a3a' },
+            // 나무는 가장자리라 싸우는 화면에는 흙바닥만 남았다. 발밑을 채운다.
+            // 가운데(0.2 안쪽)는 비운다 — 보스가 서는 자리고, 장판이 가려진다.
+            // 키는 허리 아래로만 둔다. 쿼터뷰에서 그보다 크면 발을 가린다.
+            { key: 'bush', count: 14, ring: [0.35, 0.98], scale: [0.7, 1.1] },
+            { key: 'flowerbush', count: 12, ring: [0.25, 0.95], scale: [0.8, 1.2] },
+            { key: 'grass', count: 40, ring: [0.2, 1.0], scale: [0.8, 1.5] }] },
   env: { bg: '#0a1208', fog: 0.022, fogColor: '#101a10', exposure: 1.08, camDistance: 21,
     key: '#e8d08a', keyIntensity: 2.1, rim: '#a06fd0', rimIntensity: 1.3,
     hemiSky: '#54704a', hemiGround: '#141a10', hemiIntensity: 0.55 },

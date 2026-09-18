@@ -237,12 +237,14 @@ export const KIRKE = {
    그게 이 여자가 노래로 배를 가라앉히는 방식이다. */
 export const SIREN = {
   id: 'siren', name: '세이렌', title: '노래하는 것',
-  hp: 680, radius: 0.7, mass: 26, speed: 3.2, keepRange: [5, 9], gap: [0.7, 1.3],
-  barHeight: 2.6, groggyMult: 1.7,
+  // 몸이 키 4.2 가 되면서 몸통 반지름과 이름표 높이를 같이 올렸다.
+  // 0.7 이면 칼이 꼬리 가장자리를 스쳐도 헛친다.
+  hp: 680, radius: 1.0, mass: 26, speed: 3.2, keepRange: [5, 9], gap: [0.7, 1.3],
+  barHeight: 4.4, groggyMult: 1.7,
   // 새의 몸(호메로스 원전)이 아니라 인어로 간다 — 바다에서 노래해 배를
   // 끌어들이는 쪽이 이 판의 그림과 맞는다. 받아 온 몸이라 사람 뼈대가 아니고,
   // 그래서 클립 대신 코드가 흔든다 (sway).
-  look: { model: 'siren', height: 2.4, bulk: 1.0, tint: null, gear: [], sway: 1 },
+  look: { model: 'siren', height: 4.2, bulk: 1.0, tint: null, gear: [], sway: 1 },
   phases: [
     {
       below: 1,

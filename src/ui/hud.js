@@ -156,6 +156,9 @@ const CSS = `
   box-shadow:inset 0 0 0 1px rgba(232,200,132,.22), 0 4px 20px rgba(0,0,0,.7);
   text-shadow:0 1px 2px rgba(0,0,0,.95); }
 #hud .toast.on { opacity:1; }
+/* 배너(판 이름)가 17%~35% 를 차지한다. 그 사이에 대사가 오면 두 줄이 겹쳐
+   둘 다 못 읽는다 — 배너가 떠 있는 동안은 대사를 그 아래로 내린다. */
+#hud .toast.low { top:41%; }
 /* 판 진행 한 줄 — 여기에 판 이름이 들어간다. 12px · .22em 이라
    '이 스 마 로 스' 로 흩어져 있었다. 키우고 붙이고 판을 깐다. */
 #hud .wave { position:absolute; left:50%; top:16px; transform:translateX(-50%);
@@ -303,9 +306,14 @@ export class Hud {
 
   /** 웨이브가 바뀔 때 한 줄. */
   toast(text, hold = 2.2) {
+    // 배너가 방금 같은 말을 하고 있으면 한 번만 한다 (보스 intro 가 둘 다로 온다)
+    const bannerOn = this.bannerEl.classList.contains('on')
+    const said = this.bannerEl.querySelector('p')?.textContent?.replace(/[.\s]+$/, '')
+    if (bannerOn && said && said === String(text).replace(/[.\s]+$/, '')) return
     // 글자만 감싸는 판을 두려고 span 안에 넣는다 (CSS 의 #hud .toast span)
     this.toastEl.innerHTML = `<span></span>`
     this.toastEl.firstChild.textContent = text
+    this.toastEl.classList.toggle('low', bannerOn)
     this.toastEl.classList.add('on')
     clearTimeout(this._toastT)
     this._toastT = setTimeout(() => this.toastEl.classList.remove('on'), hold * 1000)
