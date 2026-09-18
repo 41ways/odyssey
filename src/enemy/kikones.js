@@ -8,7 +8,7 @@ import { buildFigure, wrapFigure } from '../render/figure.js'
 export const TEMPO = 0.84
 import { models } from '../render/models.js'
 import { createCharacter } from '../render/character.js'
-import { buildSpearProp, buildBowProp } from '../player/gear.js'
+import { buildSpearProp, buildBowProp, dressRig } from '../player/gear.js'
 
 /**
  * 키코네스족 — 이스마로스의 첫 적.
@@ -237,9 +237,17 @@ function buildKikones({ palette, weapon, scale, bulk, model, gltf }) {
   }
   // 플레이어와 같은 몸·같은 애니메이션을 쓴다. 색과 차림만 다르다.
   if (gltf) {
-    const rig = createCharacter({ height: gltf.height, tint: gltf.tint, gear: gltf.gear, bulk: gltf.bulk ?? 1 })
+    // 차림(dress)이 있으면 몸에 색을 입히지 않는다 — 옷으로 가른다.
+    // 전엔 몸 전체를 붉게 물들여서 사람이 아니라 붉은 형상으로 보였다.
+    const rig = createCharacter({ height: gltf.height, tint: gltf.dress ? null : gltf.tint, gear: gltf.dress ? [] : gltf.gear, bulk: gltf.bulk ?? 1 })
     if (rig) {
       const mats = [...rig.mats]
+      let follow = null
+      if (gltf.dress) {
+        const d = dressRig(rig, gltf.dress)
+        mats.push(...d.mats)
+        follow = d.follow
+      }
       if (weapon === 'spear') {
         const sp = buildSpearProp()
         rig.attachTo(ENEMY_MOUNT.spear.bone, sp.group, ENEMY_MOUNT.spear)
@@ -249,7 +257,7 @@ function buildKikones({ palette, weapon, scale, bulk, model, gltf }) {
         rig.attachTo(ENEMY_MOUNT.bow.bone, bw.group, ENEMY_MOUNT.bow)
         mats.push(...bw.mats)
       }
-      return { rig, mats }
+      return { rig, mats, follow }
     }
   }
 
@@ -300,6 +308,7 @@ class Kikones extends Actor {
     this.cfg = cfg
     const built = buildKikones(cfg.look)
     this.rig = built.rig
+    this.dressFollow = built.follow ?? null
     this.group.add(built.rig.root)
     this.bodyMats = built.mats
     this.animT = Math.random() * 4
@@ -335,6 +344,7 @@ class Kikones extends Actor {
       }
     }
     const run = this.action
+    this.dressFollow?.()
     this.rig.pose({
       t: this.animT, run: this._run, attack, draw: null, roll: 0,
       attackId: run.def?.id,
@@ -399,7 +409,9 @@ export function kikonesWarrior(world, fx) {
     hp: 58, radius: 0.46, mass: 1.6, speed: 4.2, keepRange: [2.4, 3.1], barHeight: 2.05, xp: 4,
     look: {
       weapon: 'spear', scale: 0.98, bulk: 1.0, model: 'kikonesWarrior',
-      gltf: { height: 1.78, bulk: 1.04, tint: '#c2705e', gear: ['legs', 'feet', 'body', 'arms'] },
+      // 트라키아의 키코네스 — 붉은 모직 키톤, 맨다리, 가죽 샌들
+      gltf: { height: 1.78, bulk: 1.04, tint: '#c2705e', gear: ['legs', 'feet', 'body', 'arms'],
+        dress: { body: '#8e3a2c', feet: '#5a3d26', skirt: '#8e3a2c' } },
       palette: { skin: '#9c7048', cloth: '#7d3a2e', leather: '#4a3526', bronze: '#9c7434', accent: '#5a2a22', dark: '#241a14' },
     },
     pickAction(e, d) {
@@ -416,7 +428,9 @@ export function kikonesArcher(world, fx) {
     hp: 40, radius: 0.42, mass: 1.2, speed: 4.6, keepRange: [7.5, 10.5], barHeight: 1.95, xp: 5,
     look: {
       weapon: 'bow', scale: 0.95, bulk: 0.92, model: 'kikonesArcher',
-      gltf: { height: 1.72, bulk: 0.94, tint: '#7f86c8', gear: ['legs', 'feet', 'body'] },
+      // 활잡이 — 쪽빛 키톤. 칼잡이와 멀리서도 갈리게
+      gltf: { height: 1.72, bulk: 0.94, tint: '#7f86c8', gear: ['legs', 'feet', 'body'],
+        dress: { body: '#3f4a6b', feet: '#4a3a2a', skirt: '#3f4a6b' } },
       palette: { skin: '#9c7048', cloth: '#4a3a6b', leather: '#3a2f22', bronze: '#9c7434', accent: '#2f2648', dark: '#1e1a24' },
     },
     pickAction(e, d) {
@@ -569,7 +583,10 @@ export function kikonesShield(world, fx) {
     weapon: 'spear', scale: 1.02, bulk: 1.2,
     look: {
       weapon: 'spear', scale: 1.02, bulk: 1.2,
-      gltf: { height: 1.84, bulk: 1.18, tint: '#9aa0a8', gear: ['legs', 'feet', 'body', 'arms', 'pauldron'] },
+      // 방패병 — 청동 흉갑·팔가리개·견갑에 가죽 술. 질긴 놈이 무거워 보여야 한다
+      gltf: { height: 1.84, bulk: 1.18, tint: '#9aa0a8', gear: ['legs', 'feet', 'body', 'arms', 'pauldron'],
+        dress: { body: '#9a7440', arms: '#9a7440', pauldron: '#9a7440', feet: '#4a3a2a', skirt: '#b9a98a',
+          strips: true, metal: ['body', 'arms', 'pauldron'] } },
       palette: { skin: '#a08466', cloth: '#4a5058', leather: '#3a3e44', bronze: '#9c8a5c', accent: '#5a6068', dark: '#22262a' },
     },
     pickAction(e2, d) {

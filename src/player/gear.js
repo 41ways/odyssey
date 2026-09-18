@@ -382,10 +382,10 @@ export function buildSpearProp() {
  * 자락은 회전체(라스)로 뽑는다 — 위는 허리에 붙고 아래로 벌어진다.
  * 술은 띠 열네 개. 하나의 원통으로 만들면 치마가 두 겹일 뿐 술로 안 읽힌다.
  */
-export function buildSkirtProp() {
+export function buildSkirtProp({ color = '#d9ccae' } = {}) {
   const M = propMaterials()
-  const linen = new THREE.MeshStandardMaterial({ color: '#d9ccae', roughness: 0.95, side: THREE.DoubleSide })
-  const rags = new THREE.Color('#6f6555'), plain = new THREE.Color('#d9ccae')
+  const linen = new THREE.MeshStandardMaterial({ color, roughness: 0.95, side: THREE.DoubleSide })
+  const rags = new THREE.Color('#6f6555'), plain = new THREE.Color(color)
   const hide = new THREE.MeshStandardMaterial({ color: '#5a3a22', roughness: 0.8 })
   M.mats.push(linen, hide)
 
@@ -423,4 +423,51 @@ export function buildSkirtProp() {
     armour(on) { strips.visible = on },
     rags(on) { linen.color.copy(on ? rags : plain) },
   }
+}
+
+/**
+ * 받아 온 사람 몸에 그리스 차림을 입힌다 — 적·동료가 같이 쓴다.
+ *
+ * 받아 온 옷 조각(Quaternius 판타지 의상)은 원래 색이면 바지·부츠·긴소매라
+ * 중세가 된다. 조각 모양은 두고 재질만 칠하고(무늬 텍스처는 뗀다), 바지는
+ * 안 입히고, 허리에 자락을 두른다. 자락은 매 프레임 골반 위치를 따라가야
+ * 하므로 follow() 를 돌려준다 — 부르는 쪽이 sync 에서 부른다.
+ *
+ * @param dress { body, feet, arms, pauldron, skirt, metal: [부위…] }
+ *              값은 색. 없는 부위는 입히지 않는다.
+ */
+export function dressRig(rig, dress) {
+  const mats = []
+  const metal = new Set(dress.metal ?? [])
+  for (const part of ['body', 'feet', 'arms', 'pauldron']) {
+    if (!dress[part]) continue
+    for (const m of rig.equip(part)) {
+      const list = (Array.isArray(m.material) ? m.material : [m.material]).map(x => {
+        const c = x.clone()
+        c.map = null
+        c.color.set(dress[part])
+        c.metalness = metal.has(part) ? 0.8 : 0
+        c.roughness = metal.has(part) ? 0.38 : 0.93
+        mats.push(c)
+        return c
+      })
+      m.material = Array.isArray(m.material) ? list : list[0]
+    }
+  }
+  let follow = () => {}
+  if (dress.skirt && rig.attachToBody && rig.bone) {
+    const sk = buildSkirtProp({ color: dress.skirt })
+    if (dress.strips) sk.armour(true)
+    mats.push(...sk.mats)
+    const mount = rig.attachToBody(sk.group, { position: [0, 0.93, 0.02] })
+    const pelvis = rig.bone('pelvis')
+    const v = new THREE.Vector3()
+    follow = () => {
+      if (!pelvis) return
+      pelvis.getWorldPosition(v)
+      rig.root.worldToLocal(v)
+      mount.position.set(v.x, v.y + 0.165, v.z)
+    }
+  }
+  return { mats, follow }
 }

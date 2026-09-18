@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import { Actor } from '../combat/actor.js'
 import { dist2d, dampAngle, rand, clamp } from '../core/math.js'
 import { createCharacter } from '../render/character.js'
-import { buildSpearProp, buildSwordProp } from './gear.js'
+import { buildSpearProp, buildSwordProp, dressRig } from './gear.js'
 
 /**
  * 동료 — 같이 싸우는 사람들.
@@ -46,20 +46,15 @@ export class Companion extends Actor {
     this.swing = null
     this.target = null
 
-    const rig = createCharacter({ height, tint, gear: ['body', 'feet'] })
+    const rig = createCharacter({ height, tint, gear: [] })
     this.rig = rig
     if (rig) {
-      // 오디세우스와 같은 결의 그리스 차림. 무늬를 떼고 재질만 칠한다
-      const paint = (part, color, metal = 0, rough = 0.92) => {
-        for (const m of rig.equip(part)) {
-          const mats = (Array.isArray(m.material) ? m.material : [m.material]).map(x => {
-            const c = x.clone(); c.map = null; c.color.set(color); c.metalness = metal; c.roughness = rough; return c
-          })
-          m.material = Array.isArray(m.material) ? mats : mats[0]
-        }
-      }
-      paint('body', weapon === 'spear' ? LOOK.bronze : LOOK.linen, weapon === 'spear' ? 0.8 : 0, weapon === 'spear' ? 0.4 : 0.92)
-      paint('feet', LOOK.leather)
+      // 오디세우스와 같은 결의 그리스 차림 (gear.js 의 dressRig).
+      // 창잡이는 청동 흉갑에 가죽 술, 칼잡이는 아마포 키톤
+      const d = dressRig(rig, weapon === 'spear'
+        ? { body: LOOK.bronze, feet: LOOK.leather, skirt: LOOK.linen, strips: true, metal: ['body'] }
+        : { body: LOOK.linen, feet: LOOK.leather, skirt: LOOK.linen })
+      this.dressFollow = d.follow
       const prop = weapon === 'spear' ? buildSpearProp() : buildSwordProp()
       rig.attachTo('hand_r', prop.group, weapon === 'spear'
         ? { rotation: [-0.2, 0, 0], position: [0, -0.02, 0.02] }
@@ -181,6 +176,7 @@ export class Companion extends Actor {
       const k = this.swing.t
       attack = k < 0.32 ? { wind: k / 0.32, swing: 0 } : { wind: 0, swing: clamp(1 - (k - 0.32) / 0.63, 0, 1) }
     }
+    this.dressFollow?.()
     this.rig.pose({
       t: this.animT, run: this._run, attack, draw: null, roll: 0,
       attackId: attack ? 'ally' : null, attackDuration: 0.95, dead: false, flinch: 0,
