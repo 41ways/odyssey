@@ -38,6 +38,9 @@ import { rollBlessings } from './player/blessings.js'
 import { models } from './render/models.js'
 import { preloadCharacter } from './render/character.js'
 import { rand } from './core/math.js'
+import { Voyage, LOSSES } from './stage/voyage.js'
+import { FateScreen } from './ui/fate.js'
+import { VoyageHud } from './ui/voyagehud.js'
 
 const MINIONS = { warrior: kikonesWarrior, archer: kikonesArcher, shield: kikonesShield,
   pig: circePig, wolf: circeWolf, lion: circeLion, giant: laistrygon }
@@ -73,6 +76,10 @@ class Game {
     // 음소거를 음악과 같이 보도록 music 을 물려 준다.
     this.sfx = new Sfx(this.music)
     this.notice = new Notice(uiRoot)     // 얻은 것이 얻은 것처럼 보이게 (ui/notice.js)
+    // 여정 — 배·동료·신들의 시선, 그리고 판 사이의 갈림길 (stage/voyage.js)
+    this.voyage = new Voyage()
+    this.fateScreen = new FateScreen(uiRoot)
+    this.voyageHud = new VoyageHud(uiRoot, this.voyage)
     this.blessed = new Set()
     this.uiRoot = uiRoot
     this.equipFx = null
@@ -169,7 +176,9 @@ class Game {
     // 고른 카드가 체감되지 않으면 고르는 재미도 없다. 그래서 같이 올린다.
     const deep = Math.max(0, this.run?.index ?? 0)
     const curve = enemy.isBoss ? 1 + deep * 0.14 : 1 + deep * 0.24
-    const mul = (this.sail?.hpMul ?? 1) * curve
+    // 포세이돈이 노한 만큼 바다 위의 적이 질기다 (이름을 외쳤다면)
+    const sea = this.run?.stage?.sea ? this.voyage.seaWrath() : 1
+    const mul = (this.sail?.hpMul ?? 1) * curve * sea
     if (mul !== 1) { enemy.maxHp = Math.round(enemy.maxHp * mul); enemy.hp = enemy.maxHp }
     // 경험치도 같은 방향으로. 안 붙이면 필요량만 오르고 수입은 그대로라
     // 뒷판이 경험치 가뭄이 된다.
@@ -593,7 +602,7 @@ class Game {
    */
   #screenOpen() {
     return !!document.querySelector(
-      '#levelup.on, #bless.on, #relic.on, #lude.on, #diff.on, #picker.on, #reach.on, #reel.on, #title')
+      '#levelup.on, #bless.on, #relic.on, #lude.on, #diff.on, #picker.on, #reach.on, #reel.on, #fate.on, #title')
   }
 
   /** ★시험용 무적. 배포 전에 이 메서드째로 지운다. */
@@ -685,7 +694,8 @@ class Game {
     const pick = await this.blessScreen.show({
       said: `<em>${stage.name}</em>을 지났구나.<br>`
         + '나는 네 편이다. 처음부터 그랬고, 끝까지 그럴 것이다 — <em>하나를 받아라.</em>',
-      choices: rollBlessings(this.blessed),
+      // 아테나의 호의가 셋 이상이면 한 장을 더 보여 준다 — 편애가 손에 잡혀야 한다
+      choices: rollBlessings(this.blessed, this.voyage.gods.athena >= 3 ? 4 : 3),
     })
     this.blessed.add(pick.id)
     pick.apply(p.stats)
@@ -786,6 +796,59 @@ class Game {
     if (art) this.interlude?.preload(Array.isArray(art) ? art : [art])
   }
 
+  /**
+   * 판 사이의 갈림길 (stage/voyage.js 의 FATES).
+   * 고른 것을 그 자리에서 적용하고, 신의 눈금이 어떻게 움직였는지 돌려준다.
+   */
+  chooseFate(fate) { return this.#modal(() => this.#chooseFateInner(fate)) }
+
+  async #chooseFateInner(fate) {
+    this.#freeze()
+    this.music.play('sail')
+    // 갈림길은 막간 액자 위로 올라온다. 다 덮은 뒤에 액자를 닫는다 —
+    // 그대로 두면 뒤이어 뜨는 성장 카드(영광)가 액자 밑에 깔린다
+    const shown = this.fateScreen.show(fate, c => this.#applyFate(c))
+    setTimeout(() => this.interlude?.close?.(), 1500)
+    const pick = await shown
+    this.voyage.flags[`fate:${fate.id}`] = pick.id     // 무엇을 골랐는지 — 엔딩이 읽는다
+    this.#thaw()
+    // 결과가 성장 카드면 여기서 고른다 — 이름을 남긴 값
+    if (pick.glory) await this.offerUpgrade('영광', '이름을 남긴 자가 가져가는 것')
+    return pick
+  }
+
+  #applyFate(c) {
+    const v = this.voyage, p = this.player
+    const gods = {}
+    for (const [id, d] of Object.entries(c.gods ?? {})) {
+      const a = v.gods[id]
+      v.god(id, d)
+      gods[id] = [a, v.gods[id]]
+    }
+    Object.assign(v.flags, c.flags ?? {})
+    if (c.bonusHp) { p.stats.bonusHp = (p.stats.bonusHp ?? 0) + c.bonusHp; p.applyStats() }
+    if (c.damage) { p.stats.meleeDamage *= 1 + c.damage; p.stats.rangedDamage *= 1 + c.damage; p.applyStats() }
+    if (c.heal) p.hp = p.maxHp
+    p.hp = Math.min(p.hp, p.maxHp)
+    if (c.xp) this.gainXp(c.xp)
+    if (c.crewAll) v.leave(0, 0, '트리나키아')
+    return { gods }
+  }
+
+  /**
+   * 이야기가 정한 상실. 판의 매듭에서 run.js 가 부른다.
+   * 조용히 숫자만 줄면 아무것도 잃지 않은 것처럼 지나간다 — 한 번 세운다.
+   */
+  async crewLoss(key) {
+    const L = LOSSES[key]
+    if (!L || this.voyage.crew <= 0) return
+    const lost = L.leave ? this.voyage.leave(L.leave[0], L.leave[1], L.where) : this.voyage.lose(L.lose, L.where)
+    if (!lost) return
+    this.notice.milestone('돌아오지 못한 자', `${lost}명`, L.line.replace(/<[^>]+>/g, ''), '#c0453a')
+    this.sfx?.thud?.()
+    await new Promise(r => setTimeout(r, 1600))
+  }
+
     /** 해협의 갈림길. 줄에 세운다 (#modal). */
   chooseFork(stage) { return this.#modal(() => this.#chooseForkInner(stage)) }
 
@@ -808,6 +871,7 @@ class Game {
   /* ── 진행 ─────────────────────────────────────────────── */
 
   restart() {
+    this.voyage.reset()
     this.clearField()
     this.kills = 0
     this.totalDamage = 0
@@ -1014,6 +1078,12 @@ class Game {
   /** 키르케의 변신 마법 — 죽지는 않지만 느려진다. */
   onHex() {
     const p = this.player
+    if (this.voyage.flags.moly) {
+      // 헤르메스의 몰리 — 마녀의 술잔이 통하지 않는다
+      this.hud.toast('몰리가 마법을 삼켰다 — 짐승이 되지 않는다', 2.2)
+      this.fx.meanderRing(p.pos.x, p.pos.z, { color: '#e8f0ff', radius: 2.0, life: 0.8, spin: 1.2 })
+      return
+    }
     p.hexed = 5
     this.hud.toast('돼지로 변한다 — 몸이 무겁다', 2.2)
   }

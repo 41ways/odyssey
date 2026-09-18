@@ -4,6 +4,7 @@ import { Maelstrom } from './maelstrom.js'
 import { CUT_TROY, CUT_CAVE, CUT_UNDER, CUT_WHIRL, CUT_ITHACA } from './cuts.js'
 import { WaveRunner } from './waves.js'
 import { makeBoss } from '../enemy/bosses.js'
+import { fateAfter } from './voyage.js'
 
 /**
  * 한 판(run) 의 진행.
@@ -49,6 +50,7 @@ export class Run {
     // 맨 처음은 왜 바다에 있는지부터 말하고 시작한다
     // 트로이는 액자에 걸 것이 아니다. 지금 불타고 있다 (stage/cuts.js).
     if (from === 0 && !o.noIntro) await this.game.playCut(CUT_TROY)
+    this.game.voyageHud?.show(true)
     await this.next()
   }
 
@@ -197,8 +199,11 @@ export class Run {
         this.waves = null
         this.busy = true
         g.hud.banner(this.stage.name, this.stage.wave.clear, 2.6)
-        // 한 박자 쉬고 보스방으로
-        setTimeout(async () => { await this.#enterBoss(); this.busy = false }, 2200)
+        // 한 박자 쉬고 보스방으로. 그 사이에 이 판이 앗아간 사람을 센다
+        setTimeout(async () => {
+          await g.crewLoss?.(`${this.stage.id}:wave`)
+          await this.#enterBoss(); this.busy = false
+        }, 2200)
       }
       return
     }
@@ -240,6 +245,7 @@ export class Run {
     this.cleared = true
     const g = this.game
     const fell = this.boss
+    this._fellId = fell?.cfg?.id
     g.render3d.setBossFocus(null)
     if (this.maelstrom) {
       this.maelstrom.dispose(); this.maelstrom = null
@@ -267,12 +273,20 @@ export class Run {
     const g = this.game
     if (this.finished) return
     this.busy = true
+    // 이 판이 앗아간 동료 — 보스를 눕힌 뒤에 센다 (이긴 기쁨 다음에 오는 것)
+    if (afterBoss) {
+      const key = this.stage.fork ? `${this.stage.id}:${this._fellId}` : `${this.stage.id}:boss`
+      await g.crewLoss?.(key)
+    }
     if (afterBoss) await g.grantBlessing(this.stage)
     if (afterBoss) await g.offerUpgrade(`${this.stage.name} 통과`, '가져갈 것을 하나 고른다')
     const lude = interludeFor(this.index)
     // 막간은 켜 둔 채로 넘긴다 — 다음 판의 막이 내려오면 그때 닫힌다
     g.music.play('sail')
     if (lude) await g.playInterlude(lude, { keepOpen: true })
+    // 뱃길 위의 갈림길 — 이야기 속 선택 (stage/voyage.js)
+    const fate = fateAfter(this.stage.id)
+    if (fate) await g.chooseFate(fate)       // 액자는 켠 채로 — 그 위에 올라온다
     this.busy = false
     await this.next()
   }

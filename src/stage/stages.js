@@ -222,6 +222,7 @@ export const STAGES = [
 
   {
     id: 'sirens', name: '세이렌의 바다', title: '노래하는 것',
+    sea: true,           // 포세이돈의 영역 — 그가 노했으면 적이 질기다 (voyage.js)
     wave: {
       ...DECK(14, 20),
       intro: '돛대에 몸을 묶었다. 그래도 귀는 열려 있다.',
@@ -239,6 +240,7 @@ export const STAGES = [
 
   {
     id: 'messina', name: '메시나 해협', title: '스킬라와 카리브디스',
+    sea: true,
     wave: {
       ...STORM,
       intro: '해협이 좁아진다. 양쪽 다 무사하지 않다.',
