@@ -36,7 +36,13 @@ export class Underworld {
    */
   constructor(g, seed = 7) {
     this.g = g
-    this.maze = buildMaze({ extent: (g.render3d.arena?.R ?? 14) - 0.6, seed })
+    /* 저승은 길어야 한다.
+       여기는 싸우는 판이 아니라 **걸어 들어갔다 쫓겨 나오는 곳**이다. 그
+       길이 짧으면 '망자의 나라' 가 아니라 '중간에 끼워 넣은 방' 이 된다.
+       판을 넓히면서 칸 수도 같이 늘린다 (maze.js 가 판 크기에서 뽑는다).
+       굽이는 더 많게 — 곧게 뻗은 복도는 걸어가는 시간일 뿐이고, 꺾이는
+       자리가 있어야 '길을 찾는다' 가 된다. */
+    this.maze = buildMaze({ extent: (g.render3d.arena?.R ?? 14) - 0.6, seed, meander: 0.68, lane: 5.0 })
     this.phase = 'in'         // 'in' → 'called' → 'out' → 'done'
     this.shades = []
     this.t = 0

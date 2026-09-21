@@ -31,16 +31,16 @@ function rng(seed) {
  * 옆으로 새지 않게 막는다. 그래야 반드시 끝에 닿는다 — 생성에 실패해서
  * 판이 안 열리는 일이 있으면 안 된다.
  */
-function carve(cols, rows, rand) {
+function carve(cols, rows, rand, meander = 0.55) {
   const mid = Math.floor(cols / 2)
   const path = [{ c: mid, r: rows - 1 }]
   let c = mid, r = rows - 1
   while (r > 0) {
     // 옆으로 샐지 북으로 갈지. 북으로 갈 기회는 항상 남겨 둔다.
-    const canSide = rand() < 0.55
+    const canSide = rand() < meander
     if (canSide) {
       const dir = rand() < 0.5 ? -1 : 1
-      const steps = 1 + Math.floor(rand() * 2)
+      const steps = 1 + Math.floor(rand() * 3)
       for (let i = 0; i < steps; i++) {
         const nc = c + dir
         if (nc < 0 || nc >= cols) break
@@ -64,9 +64,18 @@ function carve(cols, rows, rand) {
  * @param fill    길이 아닌 칸에 벽을 세울 확률. 1 이면 빽빽한 미로,
  *                낮추면 폐허 사이를 지나가는 느낌이 된다
  */
-export function buildMaze({ extent = 14, cols = 7, rows = 7, seed = 7, fill = 0.62 } = {}) {
+export function buildMaze({ extent = 14, cols = 0, rows = 0, seed = 7, fill = 0.62, meander = 0.55, lane = 5.2 } = {}) {
   const rand = rng(seed)
-  const path = carve(cols, rows, rand)
+  /* 칸 수를 판 크기에서 뽑는다.
+     전에는 7×7 로 박혀 있었다. 저승 판을 반지름 16 에서 34 로 넓히자 칸
+     하나가 9.5 걸음이 됐다 — 그건 복도가 아니라 **마당**이다. 벽 사이를
+     지나간다는 느낌이 사라지고, 멀리 있는 벽 몇 개를 비껴 걷는 게 된다.
+     칸 폭을 5.2 걸음으로 고정하고 칸 수를 판에 맞춰 늘린다. 판이 넓어질수록
+     길이 길어지는 게 아니라 **굽이가 많아진다** — 길이는 어차피 판 크기가 준다. */
+  const n = Math.max(7, Math.min(15, Math.round((extent * 2) / lane)))
+  cols = cols || (n % 2 ? n : n + 1)      // 홀수라야 가운데 칸에서 출발한다
+  rows = rows || cols
+  const path = carve(cols, rows, rand, meander)
   const onPath = new Set(path.map(p => `${p.c},${p.r}`))
 
   const cw = (extent * 2) / cols          // 칸 하나의 폭

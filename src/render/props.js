@@ -143,7 +143,115 @@ export function buildIsle({ h = 52, r = 46, color = '#5a5f62', seed = 0 } = {}) 
   return g
 }
 
+
+/* ── 동굴 ──────────────────────────────────────────────────
+
+   "동굴은 전혀 동굴같지가 않다" 는 말이 맞았다. 폴리페모스의 방은 어두운
+   둥근 마당에 바위 몇 개가 굴러다니는 곳이었다. 어둡게 한다고 동굴이 되지
+   않는다 — **머리 위에 무언가 있어야** 안에 있는 것이 된다.
+
+   쿼터뷰에서는 천장을 통째로 덮을 수 없다 (카메라가 위에 있어서 다 가린다).
+   대신 셋으로 짠다:
+     · 위에서 내려오는 종유석 — 먼 쪽 것이 화면 윗변에 걸려 틀을 닫는다
+     · 바닥에서 솟은 석순 — 발밑에 굴곡을 준다
+     · 입구를 막은 바위 — 이야기가 말하는 그 바위다 (나갈 길이 없다)
+*/
+
+const STONE = (c = '#3d372f') => new THREE.MeshStandardMaterial({ color: c, roughness: 0.96, flatShading: true })
+
+/** 뿔 하나를 울퉁불퉁하게 흔든다. 매끈한 원뿔은 종유석이 아니라 고깔이다. */
+function jaggedCone(rTop, rBot, h, seg = 7) {
+  /* 매끈한 원뿔은 종유석이 아니라 고깔이다. 두 가지를 흔든다 —
+     **둘레**(마디마다 다른 굵기)와 **기울기**(위아래가 조금 어긋난 축).
+     굵기만 흔들면 여전히 원뿔이고, 축을 눕혀야 자란 것처럼 보인다. */
+  const geo = new THREE.CylinderGeometry(rTop, rBot, h, seg, 6, true)
+  const pos = geo.attributes.position
+  const lean = new THREE.Vector2(rand(-0.16, 0.16), rand(-0.16, 0.16))
+  for (let i = 0; i < pos.count; i++) {
+    const y = pos.getY(i)
+    const t = (y + h / 2) / h                       // 0 아래 → 1 위
+    const ring = Math.sin(t * 9.1 + i * 0.7) * 0.16 + Math.sin(i * 12.9898) * 0.1
+    const k = 1 + ring
+    pos.setX(i, pos.getX(i) * k + lean.x * y)
+    pos.setZ(i, pos.getZ(i) * k + lean.y * y)
+    pos.setY(i, y + Math.sin(i * 78.233) * h * 0.025)
+  }
+  geo.computeVertexNormals()
+  return geo
+}
+
+/** 종유석 — 위에 매달린다. 원점이 천장 쪽이라 아래로 뻗는다. */
+export function buildStalactite() {
+  const h = rand(3.4, 7.2)
+  const m = new THREE.Mesh(jaggedCone(rand(0.5, 0.95), 0.04, h), STONE('#39332c'))
+  m.position.y = -h / 2
+  m.castShadow = true
+  const g = new THREE.Group()
+  g.add(m)
+  // 작은 것 하나를 옆에 더 단다 — 하나만 있으면 고드름이고 둘이면 동굴이다
+  if (Math.random() < 0.7) {
+    const h2 = h * rand(0.35, 0.6)
+    const s = new THREE.Mesh(jaggedCone(rand(0.22, 0.4), 0.03, h2), STONE('#332e28'))
+    s.position.set(rand(-0.9, 0.9), -h2 / 2, rand(-0.9, 0.9))
+    s.castShadow = true
+    g.add(s)
+  }
+  return g
+}
+
+/** 석순 — 바닥에서 솟는다. 종유석을 뒤집은 것이되 더 뭉툭하다. */
+export function buildStalagmite() {
+  const h = rand(1.1, 2.8)
+  const m = new THREE.Mesh(jaggedCone(0.08, rand(0.4, 0.8), h), STONE('#453e35'))
+  m.position.y = h / 2
+  m.castShadow = m.receiveShadow = true
+  const g = new THREE.Group()
+  g.add(m)
+  return g
+}
+
+/**
+ * 입구를 막은 바위.
+ *
+ * 이야기가 "입구를 바위가 막았다" 로 시작하는데 화면에는 그 바위가 없었다.
+ * 판에서 제일 먼저 눈에 들어와야 하는 물건이다 — 저것 때문에 못 나간다.
+ * 둘레에 빛을 한 줄 새 넣는다: 막힌 틈으로 새어드는 바깥 빛이다.
+ */
+export function buildDoorStone() {
+  const g = new THREE.Group()
+  const r = 4.6
+  const geo = new THREE.SphereGeometry(r, 14, 10)
+  const pos = geo.attributes.position
+  for (let i = 0; i < pos.count; i++) {
+    const k = 1 + (Math.sin(i * 45.164) * 0.5 + 0.5) * 0.22 - 0.11
+    pos.setXYZ(i, pos.getX(i) * k, pos.getY(i) * k * 1.12, pos.getZ(i) * k * 0.72)
+  }
+  geo.computeVertexNormals()
+  const rock = new THREE.Mesh(geo, STONE('#2e2a24'))
+  rock.position.y = r * 0.72
+  rock.castShadow = rock.receiveShadow = true
+  g.add(rock)
+
+  // 바위 뒤로 새는 빛 — 바깥이 있다는 유일한 표시다
+  const glow = new THREE.Mesh(
+    new THREE.PlaneGeometry(r * 2.4, r * 2.2),
+    new THREE.MeshBasicMaterial({
+      color: '#ffd9a0', transparent: true, opacity: 0.16,
+      depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+    }),
+  )
+  glow.position.set(0, r * 0.8, -0.9)
+  g.add(glow)
+  const lamp = new THREE.PointLight('#ffc98a', 7, 22, 2)
+  lamp.position.set(0, r * 0.7, -1.6)
+  g.add(lamp)
+  return g
+}
+
 export const PROP_BUILDERS = {
   feastTable: buildFeastTable,
   brazier: buildBrazier,
+  stalactite: buildStalactite,
+  stalagmite: buildStalagmite,
+  doorStone: buildDoorStone,
 }
