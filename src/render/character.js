@@ -59,10 +59,18 @@ const CLIP = {
   die: 'Death01',
 }
 
-/* 칼 3 타. 프레임 데이터는 타마다 달랐는데(13/16/36 데미지, 범위도 넉백도)
-   몸은 한 클립을 속도만 바꿔 세 번 틀고 있었다 — 손에 남는 건 같은 동작
-   세 번이다. 타마다 다른 동작을 준다. 없으면 한 종류로 되돌아간다. */
-const SLASH = { slash1: 'Sword_A', slash2: 'Sword_B', slash3: 'Sword_C' }
+/* 치는 동작 → 클립.
+   전에는 누가 뭘 하든 Sword_Attack 하나였다. 오디세우스의 3 타는 프레임
+   데이터가 타마다 다른데(13/16/36 데미지, 범위도 넉백도) 몸은 같은 클립을
+   속도만 바꿔 세 번 틀었고, 적도 베든 찌르든 활을 쏘든 같은 동작이었다 —
+   **궁수가 칼 휘두르는 몸짓으로 화살을 쐈다.**
+   이름이 뜻하는 대로 붙인다. 없는 것은 pick 이 한 종류로 되돌린다. */
+const SLASH = {
+  slash1: 'Sword_A', slash2: 'Sword_B', slash3: 'Sword_C',   // 오디세우스 3 타
+  swing: 'Sword_A', stab: 'Sword_C',                          // 적 — 베기 · 찌르기
+  shot: 'Bow_Shoot',                                          // 적 궁수
+  ally_spear: 'Sword_C', ally_sword: 'Sword_B',               // 동료 — 창은 찌르고 칼은 벤다
+}
 
 const ONE_SHOT = new Set([CLIP.attack, CLIP.roll, CLIP.hurt, CLIP.die, CLIP.shoot,
   ...Object.values(SLASH)])

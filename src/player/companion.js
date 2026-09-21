@@ -61,6 +61,8 @@ export class Companion extends Actor {
         : { rotation: [-0.25, 0, 0.1], position: [0, -0.02, 0.02] })
       this.group.add(rig.root)
     }
+    // 창은 찌르고 칼은 벤다 — 몸도 그렇게 움직여야 한다 (character.js SLASH)
+    this.attackId = weapon === 'spear' ? 'ally_spear' : 'ally_sword'
     this.reach = weapon === 'spear' ? 2.6 : 1.9
     this.damage = weapon === 'spear' ? 7 : 6
 
@@ -179,7 +181,7 @@ export class Companion extends Actor {
     this.dressFollow?.()
     this.rig.pose({
       t: this.animT, run: this._run, attack, draw: null, roll: 0,
-      attackId: attack ? 'ally' : null, attackDuration: 0.95, dead: false, flinch: 0,
+      attackId: attack ? this.attackId : null, attackDuration: 0.95, dead: false, flinch: 0,
     }, dt)
   }
 }
