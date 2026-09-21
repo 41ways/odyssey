@@ -526,9 +526,12 @@ export function buildRealHelmetProp() {
     }
     if (o.material && !mats.includes(o.material)) mats.push(o.material)
   })
-  // 원본 좌표계 그대로 둔다 — 자리·방향·크기는 player.js 의 MOUNT.helmet 이
-  // (실측으로 맞춘) 하나로 잡는다. 여기서 또 만지면 두 군데서 어긋난다.
+  // 자리·크기는 player.js 의 MOUNT.helmetReal 이 하나로 잡는다.
+  // 여기서 손대는 건 비율 하나뿐 — 이 투구는 좁고 앞뒤로 길쭉한데(폭:깊이
+  // 1:1.8) 이 캐릭터의 머리는 넓고 짧다(1:1.2). 균등하게 키우면 머리가
+  // 들어갈 만큼 넓힐 때 앞뒤로 40cm 짜리가 된다. 폭만 넓혀서 비율을 맞춘다.
   const g = new THREE.Group()
   g.add(root)
+  g.scale.set(1.35, 1, 1)
   return { group: g, mats }
 }
