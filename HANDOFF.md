@@ -64,15 +64,20 @@ URL 인자: `?god=0` 무적 끔, `?stage=N` 그 판부터, `?boss=1` 보스방 �
 | 활시위 컷신 | `stage/cuts.js` CUT_BOW | 안티노오스 앞, 거지 차림을 벗기 전 (`cutBefore`) |
 | 엔딩 | `ui/hud.js` credits | 여정의 기록 — 어디서 몇이 돌아오지 못했고, 무엇을 골랐는가 |
 
-**아직 대역인 것:** 갈림길 그림 넷(`public/img/fate-*.webp`)이 없어서 막간 그림을
-대신 쓴다 (`FATES[].fallback`). 파일만 넣으면 바뀐다. 프롬프트는 voyage.js 의 장면 설명.
+**갈림길 그림 넷** (`public/img/fate-*.webp`) 은 들어갔다 — 제미나이로 뽑았다.
 
-**하다 멈춘 것 (2026-09-18):** 오디세우스의 코드 투구(`gear.js` buildHelmetProp)를
-Sketchfab 'Agamemnon's Helmet' (Quesho, **CC-BY** — 크레딧 표기 필요)으로 바꾸는 중.
-원본은 `art/helmet-src.glb` (30MB, 삼각형 52만 — 볏 털 Hair 메시가 대부분).
-다음: Hair·Vertebrae 를 덜고 Helmet 을 simplify 해 수천 삼각형으로 줄인 뒤
-`public/models/helmet.glb` 로, player.js MOUNT.helmet 에 건다. 게임 안 크레딧에도 넣는다.
-(유료인 'Agamemnon The Odyssey (Rigged)' 는 받지 않았다.)
+**투구 (2026-09-21 끝):** 코드 투구를 Sketchfab 'Agamemnon's Helmet'
+(Quesho, **CC-BY**) 으로 바꿨다. 30MB·52만 삼각형 원본에서 볏 털을 덜고
+5,384 개·230KB 로 줄였다 (`tools/prep-helmet.mjs` → `public/models/helmet.glb`).
+붙이면서 걸린 것 —
+  · GLB 안 메시가 이미 0.01 배(원본 cm) 라 MOUNT 의 값이 0.009 대다.
+    한동안 "보정이 100 배 어긋난다" 고 적혀 있었는데 그게 아니었다.
+  · 원점이 투구 바닥이고 볏이 위로 길어서 통째 bbox 로 맞추면 머리 위에 뜬다.
+    볏 뺀 몸통과 Head 본에 매달린 정점(=머리)을 머리 좌표계에서 재서 포갰다.
+  · 원본 재질(metalness 1)과 압축된 색 텍스처(평균이 거의 순검정)가 겹쳐
+    새까맣게 나왔다. 텍스처를 버리고 다른 청동과 같은 값으로 칠한다.
+CC-BY 표기는 멈춤 메뉴(Esc) 의 **출처** 항목에 있다 (`ui/menu.js` CC_BY).
+새 CC-BY 에셋을 넣으면 거기에 한 줄 더한다 — **법적으로 필요**.
 
 **Mixamo:** 안티파테스 OBJ(170cm·정점 붙임)로 세 번 올렸는데 서버 리깅이
 `Unknown error while generating motion` 으로 떨어졌다. 그래서 autoskin 으로 갔다.
