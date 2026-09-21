@@ -42,6 +42,7 @@ import { Voyage, LOSSES, FATES } from './stage/voyage.js'
 import { FateScreen } from './ui/fate.js'
 import { VoyageHud } from './ui/voyagehud.js'
 import { Companion, companionsFor } from './player/companion.js'
+import { SailLeg } from './stage/sailleg.js'
 
 const MINIONS = { warrior: kikonesWarrior, archer: kikonesArcher, shield: kikonesShield,
   pig: circePig, wolf: circeWolf, lion: circeLion, giant: laistrygon }
@@ -670,6 +671,29 @@ class Game {
     if (!keepOpen) this.#thaw()
   }
 
+  /**
+   * 뱃길 한 구간 — 막간 액자를 평소처럼 튼 뒤, 마지막 장에서 액자가
+   * 물처럼 흐려지며 그 자리가 바다로 바뀐다. 그때부터 직접 몬다
+   * (stage/sailleg.js). 포세이돈이 노했으면(이름을 외쳤으면) 폭풍이다.
+   *
+   * @param spec  interludeFor() 가 만든 것 그대로 — lines·dest·scene·art·wear
+   */
+  async sailTo(spec) {
+    const storm = (this.voyage?.gods?.poseidon ?? 0) >= 2
+    // 이름 조심: this.sail 은 난이도(돛)다. 뱃길은 leg 로 둔다
+    const leg = new SailLeg(this, { storm, where: spec.dest })
+    this.#freeze()
+    await this.interlude.play({
+      ...spec,
+      meltToSea: true,
+      onMelt: () => leg.enter(),      // 액자가 녹는 동안 그 밑에 바다를 깐다
+    })
+    this.leg = leg
+    this.#thaw()
+    await new Promise(r => { this._legDone = r })
+    await this.curtain(() => { leg.leave(); this.leg = null })
+  }
+
   async playInterlude(spec, { keepOpen = false } = {}) {
     this.#freeze()
     await this.interlude.play({ ...spec, keepOpen })
@@ -1114,6 +1138,13 @@ class Game {
     if (this.paused) return
     if (this.fx.hitstop > 0) return
 
+    // 항해 구간이면 판 대신 바다가 돈다
+    if (this.leg) {
+      this.leg.update(dt)
+      this.input.update(dt)
+      if (this.leg.done) { const r = this._legDone; this._legDone = null; r?.() }
+      return
+    }
     this.run.update(dt)
     this.input.update(dt)
     const aim = this.input.updateAim()

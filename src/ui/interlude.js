@@ -145,6 +145,14 @@ const CSS = `
 #lude.lit .lamp,
 #lude.lit .glowwall { opacity:1; }
 
+/* 마지막 액자가 물처럼 녹아 없어지는 전환 (meltToSea). 필터로 일그러뜨리며
+   투명해진다 — display:none 으로 뚝 끊기 전에, 밑에 이미 깔아 둔 진짜 바다가
+   비쳐 보이기 시작한다. 골판(scrim)까지 같이 걸어야 배경도 같이 녹는다. */
+#lude.melting { pointer-events:none; transition:opacity 1.3s ease; }
+#lude.melting.gone { opacity:0; }
+#lude.melting .scene, #lude.melting .hall, #lude.melting .plate, #lude.melting .scrim {
+  filter:url(#lude-ripple); }
+
 #lude .frame { position:relative; z-index:2;
   width:min(940px, 78vw); max-height:82%; aspect-ratio:1049/603;
   background-image:url("/img/frame.webp?v=4");
@@ -326,6 +334,21 @@ export class Interlude {
     const st = document.createElement('style')
     st.textContent = CSS
     document.head.appendChild(st)
+    // 물결 필터 — 마지막 액자가 바다로 녹아드는 전환에 쓴다 (meltToSea).
+    // SVG 밖에서는 이런 일그러짐을 CSS 만으로 못 만든다.
+    const ns = 'http://www.w3.org/2000/svg'
+    const svg = document.createElementNS(ns, 'svg')
+    svg.setAttribute('width', '0'); svg.setAttribute('height', '0')
+    svg.style.cssText = 'position:absolute'
+    svg.innerHTML = `
+      <filter id="lude-ripple" x="-30%" y="-30%" width="160%" height="160%" color-interpolation-filters="sRGB">
+        <feTurbulence type="fractalNoise" baseFrequency="0.009 0.03" numOctaves="2" seed="7" result="noise"/>
+        <feDisplacementMap in="SourceGraphic" in2="noise" xChannelSelector="R" yChannelSelector="G">
+          <animate id="ludeRippleScale" attributeName="scale" from="0" to="170" dur="1.5s"
+            begin="indefinite" fill="freeze"/>
+        </feDisplacementMap>
+      </filter>`
+    root.appendChild(svg)
     this.el = document.createElement('div')
     this.el.id = 'lude'
     root.appendChild(this.el)
@@ -367,7 +390,8 @@ export class Interlude {
     document.body.style.cursor = ''
   }
 
-  play({ lines, dest, scene = 'sea', art = null, figure = false, wear = 0, keepOpen = false }) {
+  play({ lines, dest, scene = 'sea', art = null, figure = false, wear = 0, keepOpen = false,
+    meltToSea = false, onMelt = null }) {
     return new Promise(resolve => {
       const timers0 = []
       const arts = art ? (Array.isArray(art) ? art : [art]) : []
@@ -484,13 +508,41 @@ export class Interlude {
       if (destEl) timers.push(setTimeout(() => destEl.classList.add('in'), Math.max(600, t - 1400)))
       // 마지막 글줄을 한 번 접고 나간다. 그대로 끊으면 읽다 만 것처럼 남는다.
       const plate = this.el.querySelector('.plate')
-      // 마지막에는 조명이 먼저 꺼진다
-      timers.push(setTimeout(() => {
-        plate?.classList.add('out')
-        this.el.classList.remove('lit')
-        this.el.classList.add('dim')
-      }, t + 200))
-      timers.push(setTimeout(finish, t + 1300))
+      if (meltToSea) {
+        // 다음 판이 아니라 바다로 간다 — 접어 넣는 대신 액자 자체가 녹는다
+        timers.push(setTimeout(() => this.#melt(onMelt, finish), t + 200))
+      } else {
+        // 마지막에는 조명이 먼저 꺼진다
+        timers.push(setTimeout(() => {
+          plate?.classList.add('out')
+          this.el.classList.remove('lit')
+          this.el.classList.add('dim')
+        }, t + 200))
+        timers.push(setTimeout(finish, t + 1300))
+      }
     })
+  }
+
+  /**
+   * 마지막 액자가 물처럼 흐려지며 바다로 바뀐다.
+   *
+   * onMelt 가 그 밑에 진짜 바다를 깐다(stage/sailleg.js 의 SailLeg.enter) —
+   * 액자가 다 녹기 전에 미리 깔아 둬야 "사라진다" 가 아니라 "바다로 변한다" 가
+   * 된다. 필터(일그러짐)와 opacity(사라짐)를 같이 걸어서, 뚝 끊기지 않고
+   * 물결 속으로 풀려나가듯 없어지게 한다.
+   */
+  async #melt(onMelt, finish) {
+    this.el.classList.add('melting')
+    const ready = onMelt?.()
+    // 다음 프레임에 걸어야 opacity 전이가 실제로 재생된다 (같은 프레임에
+    // 클래스를 두 개 넣으면 브라우저가 전이 없이 바로 끝난 값으로 그린다)
+    requestAnimationFrame(() => {
+      this.el.classList.add('gone')
+      document.getElementById('ludeRippleScale')?.beginElement()
+    })
+    await new Promise(r => setTimeout(r, 1500))
+    await ready
+    this.el.classList.remove('lit')
+    finish()
   }
 }

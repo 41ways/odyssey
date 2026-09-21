@@ -281,10 +281,11 @@ export class Run {
     }
     if (afterBoss) await g.grantBlessing(this.stage)
     if (afterBoss) await g.offerUpgrade(`${this.stage.name} 통과`, '가져갈 것을 하나 고른다')
+    // 막간 액자를 평소처럼 튼다. 마지막 장이 물처럼 녹아 바다가 되고,
+    // 거기서부터 직접 몬다 (stage/sailleg.js, Game.sailTo).
     const lude = interludeFor(this.index)
-    // 막간은 켜 둔 채로 넘긴다 — 다음 판의 막이 내려오면 그때 닫힌다
     g.music.play('sail')
-    if (lude) await g.playInterlude(lude, { keepOpen: true })
+    if (lude) await g.sailTo(lude)
     // 뱃길 위의 갈림길 — 이야기 속 선택 (stage/voyage.js)
     const fate = fateAfter(this.stage.id)
     if (fate) await g.chooseFate(fate)       // 액자는 켠 채로 — 그 위에 올라온다
