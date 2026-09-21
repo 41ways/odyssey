@@ -398,6 +398,28 @@ export class World {
   }
 
   /**
+   * 바다 모드 — 판을 통째로 치우고 물만 남긴다 (항해 구간, stage/sailleg.js).
+   *
+   * 판을 새로 만들지 않고 있는 것을 감춘다. 땅·벽·잡석·소품·미로가 사라지면
+   * 남는 건 빛과 안개뿐이고, 그 위에 바다를 얹으면 배 한 척이 뜬다.
+   * 돌아올 때 원래대로 켜야 하므로 무엇을 껐는지 기억해 둔다.
+   */
+  setSeaMode(on, { bg = '#4a5560', fog = 0.012, fogColor = '#5c6a76' } = {}) {
+    const parts = [this.ground, this.wall, this.rocks, this.propGroup, this.mazeMesh, this.cliff].filter(Boolean)
+    if (on) {
+      this._seaSaved = { vis: parts.map(p => p.visible), bg: this.scene.background, fog: this.scene.fog }
+      for (const p of parts) p.visible = false
+      this.scene.background = new THREE.Color(bg)
+      this.scene.fog = new THREE.FogExp2(fogColor, fog)
+    } else if (this._seaSaved) {
+      parts.forEach((p, i) => { p.visible = this._seaSaved.vis[i] ?? true })
+      this.scene.background = this._seaSaved.bg
+      this.scene.fog = this._seaSaved.fog
+      this._seaSaved = null
+    }
+  }
+
+  /**
    * 절벽. 판 한쪽 끝에 바위벽을 세운다.
    *
    * 스킬라는 배에 올라타는 짐승이 아니라 절벽 그 자체다. 벽이 없으면
