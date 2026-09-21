@@ -541,6 +541,20 @@ export class World {
     this.#setSnow(!!e.snow)
     this.#setPost(e)
     if (a.ground) await this.#setGround(a.ground, a.repeat ?? 8)
+
+    /* 새 판의 첫 프레임을 미리 굽는다.
+       판이 바뀌면 그 판의 재질과 텍스처가 **처음 그려지는 순간** GPU 로
+       올라간다 — 셰이더를 엮고 텍스처를 넘기는 동안 프레임이 통째로 멈춰서,
+       막이 걷히자마자 화면이 한 번 턱 끊긴다. 판마다 꼬박꼬박 그랬다.
+       막이 내려와 있는 지금 미리 해 두면 걷힐 때는 그릴 것만 남는다. */
+    try {
+      if (this.renderer.compileAsync) await this.renderer.compileAsync(this.scene, this.camera)
+      else this.renderer.compile(this.scene, this.camera)
+      /* 셰이더만으로는 모자란다. 그림자 지도와 후처리 패스는 **실제로 한 번
+         그려 봐야** 만들어져서, 굽기만 하고 넘기면 첫 프레임이 여전히 140ms
+         걸렸다. 막 뒤에서 한 장 그려 버린다 — 어차피 안 보이는 화면이다. */
+      this.render()
+    } catch { /* 미리 굽기는 없어도 그만이다 — 첫 프레임이 한 번 끊길 뿐 */ }
   }
 
   /**
