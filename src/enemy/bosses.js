@@ -12,7 +12,7 @@ import { rand } from '../core/math.js'
    눈을 찌르기 전과 후가 다른 보스다. 1페는 보고 피할 수 있게 느리게,
    2페는 앞이 안 보이니 아무 데나 던진다. */
 export const POLYPHEMOS = {
-  id: 'polyphemos', name: '폴리페모스', title: '외눈의 목자',
+  id: 'polyphemos', how: '큰 걸 맞으면 끝이다 — 물러섰다 붙는다. 쓰러지면 **눈**을 활로 쏜다.', name: '폴리페모스', title: '외눈의 목자',
   // 5미터짜리는 느리게 움직이고 오래 쉰다. 빠르면 커 보이지 않는다.
   hp: 900, radius: 2.2, mass: 200, speed: 1.5, keepRange: [4.4, 8.5], gap: [2.6, 4.0],
   turnHalf: 0.55,        // 고개를 천천히 돌린다. 스치듯 따라붙지 못한다
@@ -85,7 +85,7 @@ export const POLYPHEMOS = {
    보고 피하는 판이고, 여기는 **시선을 나눠야 하는** 판이다. 왕의 창을 피하면서
    활잡이를 먼저 끊어야 하니까. 파훼가 다르면 판이 다르다. */
 export const ANTIPHATES = {
-  id: 'antiphates', name: '안티파테스', title: '식인 거인의 왕',
+  id: 'antiphates', how: '왕은 **부름꾼이 살아 있는 동안 안 깎인다.** 먼저 부름꾼을 치운다.', name: '안티파테스', title: '식인 거인의 왕',
   hp: 760, radius: 1.5, mass: 90, speed: 3.6, keepRange: [3.4, 7.4], gap: [1.1, 1.9],
   barHeight: 5.4, groggyMult: 1.9,
   guarded: true,           // 부름꾼이 살아 있으면 몸이 안 열린다
@@ -164,7 +164,7 @@ export const ANTIPHATES = {
    오래 멍해진다. 안 끊으면 체력의 두 할이 돌아온다. 7초 시전을 보고도
    물러서면 싸움이 길어지는 게 아니라 **안 끝난다**. */
 export const KIRKE = {
-  id: 'kirke', name: '키르케', title: '아이아이에의 마녀',
+  id: 'kirke', how: '술잔을 들면 **붙어라** — 멀리 있으면 돼지가 된다. 몰리를 받았다면 통하지 않는다.', name: '키르케', title: '아이아이에의 마녀',
   hp: 620, radius: 0.6, mass: 24, speed: 4.4, keepRange: [7, 11], gap: [0.8, 1.4],
   barHeight: 2.4, groggyMult: 1.6, turnHalf: 0.1,
   breakGroggy: 3.2,        // 끊었을 때 열리는 반격 창. 들어간 값을 돌려준다
@@ -239,7 +239,7 @@ export const KIRKE = {
    그리고 노래는 안 아프다 — 붙잡는다. 잡히면 그 다음 탄막이 아픈 것이 되고,
    그게 이 여자가 노래로 배를 가라앉히는 방식이다. */
 export const SIREN = {
-  id: 'siren', name: '세이렌', title: '노래하는 것',
+  id: 'siren', how: '노래는 **등 뒤 한 조각**만 조용하다. 맞으면 느려지고, 그 다음 탄막이 아프다.', name: '세이렌', title: '노래하는 것',
   // 몸이 키 4.2 가 되면서 몸통 반지름과 이름표 높이를 같이 올렸다.
   // 0.7 이면 칼이 꼬리 가장자리를 스쳐도 헛친다.
   hp: 680, radius: 1.0, mass: 26, speed: 3.2, keepRange: [5, 9], gap: [0.7, 1.3],
@@ -323,7 +323,7 @@ export const SIREN = {
    배수는 1.8 배. 기다리다 맞는 값을 돌려줘야 기다릴 이유가 생기고,
    여섯 번이면 체력의 절반쯤이 여기서 나간다 — 파훼가 싸움의 절반이다. */
 export const SKYLLA = {
-  id: 'skylla', name: '스킬라', title: '여섯 머리의 것',
+  id: 'skylla', how: '여섯 머리는 **거둬들일 때** 끊긴다. 내려찍은 뒤 회복 구간을 노린다.', name: '스킬라', title: '여섯 머리의 것',
   hp: 840, radius: 1.4, mass: 140, speed: 2.6, keepRange: [4, 8], gap: [0.6, 1.1],
   barHeight: 4.6, groggyMult: 2.0,
   heads: 6, severMult: 1.8, severGroggy: 1.8,
@@ -385,7 +385,7 @@ export const SKYLLA = {
 /* ── 카리브디스 ──────────────────────────────────────────
    움직이지 않는다. 소용돌이를 피하면서 가운데 눈을 친다. 탄막 게임. */
 export const CHARYBDIS = {
-  id: 'charybdis', name: '카리브디스', title: '삼키는 소용돌이',
+  id: 'charybdis', how: '멈추면 빨려 들어간다. 헤엄치면서 **테두리 이빨**을 깬다.', name: '카리브디스', title: '삼키는 소용돌이',
   hp: 720, radius: 1.6, mass: 999, speed: 0, keepRange: [0, 0], gap: [0.5, 0.9],
   barHeight: 3.4, groggyMult: 1.5, turnHalf: 0.4,
   // 소용돌이 그 자체다. 사람 몸은 감추고 깔때기와 팔만 남긴다.
@@ -479,7 +479,7 @@ export const TELEGONOS = {
    이야기에서도 그렇다. 그 활은 아무도 못 당기는 활이었고, 그가 쏜 것은
    잔을 입으로 가져가던 자였다. */
 export const ANTINOOS = {
-  id: 'antinoos', name: '안티노오스', title: '구혼자들의 우두머리',
+  id: 'antinoos', how: '활을 든 자다 — **기둥 뒤**로 붙는다. 구혼자가 붙으면 먼저 떼어 낸다.', name: '안티노오스', title: '구혼자들의 우두머리',
   hp: 700, radius: 0.55, mass: 38, speed: 6.2, keepRange: [5.5, 9], gap: [0.5, 0.9],
   flees: true,          // 붙으면 도망친다. 쫓아가서 잡아야 한다
   barHeight: 2.4, groggyMult: 1.9, turnHalf: 0.07,

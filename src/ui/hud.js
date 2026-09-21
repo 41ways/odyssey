@@ -144,11 +144,14 @@ const CSS = `
 
 #hud .keys kbd { background:#191510; border:1px solid var(--line-dim); border-radius:2px;
   padding:1px 7px; color:var(--text); font-family:var(--serif); font-size:10.5px; letter-spacing:.06em; }
-#hud .stats { position:absolute; right:20px; top:18px; font-size:12px; text-align:right;
+/* 누적 피해와 fps — 오른쪽 **아래**로 내렸다. 위쪽 오른편은 지도(ui/minimap.js)
+   와 할 일 판(ui/quest.js) 자리다. 이 둘은 지금 판단에 쓰는 것이고, 누적
+   피해는 끝나고 보는 숫자라 자리를 내주는 쪽이 맞다. */
+#hud .stats { position:absolute; right:20px; bottom:18px; font-size:12px; text-align:right;
   color:#9d9084; font-variant-numeric:tabular-nums; line-height:1.9;
   font-family:var(--serif); letter-spacing:.04em;
   text-shadow:0 1px 3px rgba(0,0,0,.9); }
-#hud .stats b { color:var(--gold); font-size:25px; font-weight:700; letter-spacing:.02em;
+#hud .stats b { color:var(--gold); font-size:20px; font-weight:700; letter-spacing:.02em;
   text-shadow:0 0 26px rgba(232,200,132,.4); }
 /* 판 이름 현판.
    ── 왜 고쳤나 ──

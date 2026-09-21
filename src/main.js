@@ -9,6 +9,8 @@ import { separate, setRenderAlpha } from './combat/actor.js'
 import { Player } from './player/player.js'
 import { kikonesWarrior, kikonesArcher, kikonesShield, circePig, circeWolf, circeLion, laistrygon } from './enemy/kikones.js'
 import { Hud } from './ui/hud.js'
+import { Minimap } from './ui/minimap.js'
+import { QuestPanel } from './ui/quest.js'
 import { meanderURI } from './ui/theme.js'
 import { TitleScreen } from './ui/title.js'
 import { DifficultyScreen, SAILS } from './ui/difficulty.js'
@@ -39,6 +41,7 @@ import { models } from './render/models.js'
 import { preloadCharacter } from './render/character.js'
 import { preloadRealHelmet } from './player/gear.js'
 import { rand, dist2d } from './core/math.js'
+import { iGa } from './core/hangul.js'
 import { Voyage, LOSSES, FATES } from './stage/voyage.js'
 import { FateScreen } from './ui/fate.js'
 import { VoyageHud } from './ui/voyagehud.js'
@@ -66,6 +69,9 @@ class Game {
     this.projectiles = new Projectiles(this.render3d.scene, this.fx, this.particles)
     this.pickups = new Pickups(this.render3d.scene, this.fx)
     this.hud = new Hud(uiRoot)
+    // 넓어진 판에서 길을 잃지 않게 — 지도와 할 일 (ui/minimap.js, ui/quest.js)
+    this.minimap = new Minimap(uiRoot)
+    this.quest = new QuestPanel(uiRoot)
     this.hud.setUpgradePool([...UPGRADES, ...RELICS])
     this.levelUp = new LevelUp(uiRoot)
     this.equipCard = new EquipCard(uiRoot)
@@ -908,7 +914,7 @@ class Game {
   }
 
   /** 동료가 장판에 걸려 주저앉았다 */
-  onAllyDown(a) { this.hud.toast(`${a.name}이(가) 쓰러졌다 — 곁에 서면 일으킨다`, 2.2) }
+  onAllyDown(a) { this.hud.toast(`${a.name}${iGa(a.name)} 쓰러졌다 — 곁에 서면 일으킨다`, 2.2) }
 
   /**
    * 못 일으켰다. 그 사람만 잃는 게 아니다 — 그를 따르던 노 젓는 자리가
@@ -1330,7 +1336,9 @@ class Game {
     // 60Hz 시뮬과 화면 주사율 사이를 채운다 (combat/actor.js 의 ALPHA)
     setRenderAlpha(alpha)
     const real = this._real ?? 1 / 60
-    if (this.covered) return
+    if (this.covered) { this.minimap.show(false); this.quest.show(false); return }
+    // 제목 화면에서는 아직 판이 없다 — 빈 원반이 떠 있으면 안 된다
+    this.minimap.show(!!this.run?.stage)
     const cam = this.render3d.camera
     this.player.sync(cam)
     for (const e of this.enemies) e.sync(cam)
@@ -1346,6 +1354,9 @@ class Game {
       this.camFocus ? null : (this.input.pointerInside ? this.input.aim : null),
       this._real ?? 1 / 60)
     this.render3d.render()
+    // 지도와 할 일은 판이 덮여 있지 않을 때만 — 액자 위에 원반이 떠 있으면 안 된다
+    this.minimap.draw(this)
+    this.quest.update(this)
     this.hud.update(this.player, {
       totalDamage: this.totalDamage, dt: this._real ?? 1 / 60,
       kills: this.kills, kit: kitProgress(this.kills), level: this.level,

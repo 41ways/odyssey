@@ -175,6 +175,9 @@ export class Run {
       face: `/img/boss/${b.cfg.id}.webp?v=2`,   // v2: 세이렌 초상을 인어로
     })
     g.hud.setBoss(b)
+    // 파훼 한 줄을 할 일 판에 걸어 둔다. 처음 한 번 말하고 사라지면
+    // 그 말을 놓친 사람에게는 판이 통째로 막힌다 (ui/quest.js)
+    g.quest?.setHow(b.cfg.how ?? null)
 
     // 소용돌이 판 — 여기서는 헤엄치고, 테두리 이빨을 깬다
     if (cfg.maelstrom) {
@@ -248,6 +251,7 @@ export class Run {
     const fell = this.boss
     this._fellId = fell?.cfg?.id
     g.render3d.setBossFocus(null)
+    g.quest?.setHow(null)
     if (this.maelstrom) {
       this.maelstrom.dispose(); this.maelstrom = null
       g.maelstrom = null; g.player.swimming = false
