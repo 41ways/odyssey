@@ -18,14 +18,26 @@ const SHORE = {
     shape: 'grove',      // 불탄 마을 언저리. 자연 지형이라 각지지 않되 완전한 원도 아니다
     // 털린 마을의 가장자리 — 엎어진 항아리와 부서진 기둥
     props: [{ key: 'jar', count: 9, ring: [1.03, 1.12], scale: [0.8, 1.3], tint: '#8a5f3c' },
-            { key: 'column', count: 3, ring: [1.04, 1.11], scale: [0.7, 1.0], tint: '#b9ac92' }] },
+            { key: 'column', count: 3, ring: [1.04, 1.11], scale: [0.7, 1.0], tint: '#b9ac92' },
+            /* 발밑도 채운다. 가장자리만 세워 두면 정작 싸우는 화면에는 맨
+               흙바닥만 남아서, 넓은 갈색 마당에서 치고받는 그림이 된다
+               (숲 판이 먼저 겪고 고친 것이다 — FOREST 의 grass·bush 참고).
+               불탄 마을이라 마른 풀과 덤불로, 색은 타고 남은 쪽으로 끌어온다.
+               키는 허리 아래. 가운데는 비운다 — 보스가 서고 장판이 깔린다. */
+            { key: 'grass', count: 34, ring: [0.24, 1.0], scale: [0.7, 1.3], tint: '#7d6b3f' },
+            { key: 'bush', count: 11, ring: [0.36, 0.98], scale: [0.6, 0.95], tint: '#5a4a2c' },
+            { key: 'jar', count: 5, ring: [0.4, 0.92], scale: [0.6, 0.9], tint: '#6f4c2e' }] },
   env: { bg: '#150c08', fog: 0.019, fogColor: '#1a0e08', exposure: 1.05, camDistance: 20.5,
     key: '#ffb478', keyIntensity: 2.4, rim: '#6f8cff', rimIntensity: 1.1,
     hemiSky: '#3a4a74', hemiGround: '#140f0a', hemiIntensity: 0.55 },
 }
 const CAVE = {
   arena: { radius: 15, ground: 'cyclops', repeat: 7, wallColor: '#1a1714', rockColor: '#3d372f',
-    shape: 'cave' },     // 벽이 들고 나야 동굴이다 — 구석이 있어야 숨을 데가 생긴다
+    shape: 'cave',       // 벽이 들고 나야 동굴이다 — 구석이 있어야 숨을 데가 생긴다
+    // 바닥에 떨어진 돌. 맨 바닥만 있으면 넓은 방이지 동굴이 아니다.
+    // 폴리페모스가 서는 가운데는 비운다
+    props: [{ key: 'cliffRock', count: 16, ring: [0.3, 1.0], scale: [0.3, 0.7], tint: '#4a423a' },
+            { key: 'jar', count: 4, ring: [0.9, 1.1], scale: [0.7, 1.0], tint: '#5a4a38' }] },
   // 거인이 나오는 방이라고 카메라를 물리면 내가 작아질 뿐 거인은 안 커진다.
   // 카메라는 그대로 두고 거인을 키운다.
   env: { bg: '#07080a', fog: 0.032, fogColor: '#0a0b0e', exposure: 1.0, camDistance: 26,
@@ -36,7 +48,10 @@ const CLIFF = {
   arena: { radius: 17, ground: 'telepylos', repeat: 8, wallColor: '#2a2e33', rockColor: '#4a4f55',
     shape: 'cove',       // 좁은 만 — 한쪽은 바다로 열리고 반대쪽은 바위로 막힌다
     // 좁은 만 — 바위 절벽 위로 라이스트리고네스의 집들이 있었다
-    props: [{ key: 'columnRound', count: 5, ring: [1.03, 1.12], scale: [0.9, 1.4], tint: '#9aa0a6' }] },
+    props: [{ key: 'columnRound', count: 5, ring: [1.03, 1.12], scale: [0.9, 1.4], tint: '#9aa0a6' },
+            // 발밑은 눈 맞은 돌밭. 북쪽 끝이라 풀은 성기고 돌이 많다
+            { key: 'cliffRock', count: 14, ring: [0.26, 1.0], scale: [0.3, 0.6], tint: '#6b7079' },
+            { key: 'grass', count: 16, ring: [0.3, 0.98], scale: [0.6, 1.0], tint: '#6a7060' }] },
   env: { bg: '#0c1014', fog: 0.024, fogColor: '#151c26', exposure: 1.06, camDistance: 22,
     snow: true,          // 북쪽 끝이다. 눈이 온다
     key: '#cfd8e8', keyIntensity: 2.0, rim: '#5f7fa8', rimIntensity: 1.2,

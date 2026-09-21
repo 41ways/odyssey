@@ -184,14 +184,14 @@ function matchClips(clips) {
  * 보스와 그 판에만 나오는 소품만 여기로 미룬다.
  */
 export const STAGE_MODELS = {
-  ismaros: ['cyclops', 'cyclopsBody', 'sheep'],
-  telepylos: ['antiphates', 'laistrygon', 'cliffRock'],
+  ismaros: ['cyclops', 'cyclopsBody', 'sheep', 'grass', 'bush', 'cliffRock'],
+  telepylos: ['antiphates', 'laistrygon', 'cliffRock', 'grass'],
   aiaia: ['hooded', 'pig', 'wolf', 'tree', 'bush', 'flowerbush', 'grass'],
   // 저승: 바위 벽(잡석 파일), 페르세포네의 검은 나무, 잿빛 아스포델
   underworld: ['tree', 'flowerbush'],   // crag 는 공용 (잡석이 쓴다)
   sirens: ['siren', 'ship'],
   messina: ['skylla', 'tentacle', 'serpentHead', 'snake', 'ship'],
-  ithaca: ['king', 'column', 'jar'],
+  ithaca: ['king', 'column', 'jar'],   // 연회상·화로는 코드로 짠다 (render/props.js)
   death: [],
 }
 
