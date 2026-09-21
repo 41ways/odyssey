@@ -3,6 +3,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
 import { clone as cloneRigged } from 'three/examples/jsm/utils/SkeletonUtils.js'
 import { clamp } from '../core/math.js'
+import { retargetClips } from './retarget.js'
 
 /**
  * 모듈형 캐릭터.
@@ -52,19 +53,71 @@ const CLIP = {
   sprint: 'Sprint_Loop',
   attack: 'Sword_Attack',
   roll: 'Roll',
-  aim: 'Pistol_Aim_Neutral',   // 활 조준으로 전용한다
-  shoot: 'Pistol_Shoot',
+  aim: 'Bow_Draw',   // 받아 온 활 (없으면 pick 이 권총 조준으로 되돌린다)
+  shoot: 'Bow_Shoot',
   hurt: 'Hit_Chest',
   die: 'Death01',
 }
 
-const ONE_SHOT = new Set([CLIP.attack, CLIP.roll, CLIP.hurt, CLIP.die, CLIP.shoot])
+/* 칼 3 타. 프레임 데이터는 타마다 달랐는데(13/16/36 데미지, 범위도 넉백도)
+   몸은 한 클립을 속도만 바꿔 세 번 틀고 있었다 — 손에 남는 건 같은 동작
+   세 번이다. 타마다 다른 동작을 준다. 없으면 한 종류로 되돌아간다. */
+const SLASH = { slash1: 'Sword_A', slash2: 'Sword_B', slash3: 'Sword_C' }
+
+const ONE_SHOT = new Set([CLIP.attack, CLIP.roll, CLIP.hurt, CLIP.die, CLIP.shoot,
+  ...Object.values(SLASH)])
 
 /* 활 동작은 애니메이션 묶음(Quaternius UAL)에 없다 — 43 개를 다 뒤져도
    칼·주먹·권총·마법뿐이라 권총 조준(Pistol_Aim_Neutral)을 빌려 쓴다.
    팔 마디를 덧돌려 시위 당기는 자세를 흉내 내 봤지만, 권총 조준이 이미
    두 팔을 앞으로 모으고 있어서 덧돌린 각도가 거의 티가 나지 않았다.
    대신 활 자체를 바로 끼우는 쪽이 훨씬 크게 먹혔다 — player.js MOUNT.bow. */
+
+/**
+ * 묶음에 없는 동작을 밖에서 받아 온다 (gameasset.net, CC0 — CREDITS.md).
+ *
+ * 활이 없어서 권총 조준을 빌려 쓰고 있었고, 칼 3 타는 한 클립을 속도만 바꿔
+ * 세 번 틀고 있었다 — 프레임 데이터는 타마다 다른데 몸은 세 번 같았다.
+ *
+ * ── 팔만 옮긴다 ──
+ * 처음엔 뼈대를 통째로 옮겼다. 그랬더니 오디세우스가 **공중에 수평으로
+ * 누웠다.** 엉덩이 보정을 꺼도, 파일을 나눠도, 스킨을 떼도 똑같았다.
+ * 골반을 빼니 다리는 제자리를 찾았는데 이번엔 허리에서 90° 접혔다.
+ *
+ * 받아 온 파일은 BVH 에서 변환된 것이라 몸통 뼈들의 **쉬는 자세가 우리와
+ * 직각으로 다르다.** retarget 은 '쉬는 자세로부터 얼마나 돌았나' 를 옮기므로
+ * 기준이 직각으로 어긋난 뼈에서는 결과도 직각으로 어긋난다. 골반도 척추도
+ * 거기 해당한다.
+ *
+ * 팔은 다르다 — 어깨 아래로는 두 뼈대가 같은 방향으로 쉬고 있어서 그대로
+ * 옮겨진다. 그리고 **우리에게 필요한 건 팔이다.** 활을 당기는 것도 칼을
+ * 휘두르는 것도 팔이 하는 일이고, 몸통과 다리는 게임이 이미 잘 다룬다
+ * (서 있기·달리기·구르기). 하체는 하던 동작 그대로, 팔만 활을 당긴다 —
+ * 달리면서 겨누는 것도 이쪽이 자연스럽다.
+ */
+const EXTRA = ['Bow_Draw', 'Bow_Shoot', 'Sword_A', 'Sword_B', 'Sword_C']
+const EXTRA_MAP = {
+  LeftShoulder: 'clavicle_l', LeftArm: 'upperarm_l', LeftForeArm: 'lowerarm_l', LeftHand: 'hand_l',
+  RightShoulder: 'clavicle_r', RightArm: 'upperarm_r', RightForeArm: 'lowerarm_r', RightHand: 'hand_r',
+}
+
+async function borrowExtra(get) {
+  let body
+  try { body = await get(SETS.hero.body) } catch { return [] }
+  const out = []
+  for (const name of EXTRA) {
+    try {
+      const src = await get(`/models/anim/${name}.glb`)
+      const made = retargetClips(body.scene, src.scene, src.animations, EXTRA_MAP)
+      for (const c of made) { c.name = name; out.push(c) }
+    } catch (err) {
+      // 하나가 없어도 나머지는 쓴다. 빠진 것은 CLIP 이 예전 것으로 되돌린다
+      console.info(`[character] '${name}' 없음:`, err.message)
+    }
+  }
+  if (out.length) console.info(`[character] 받아 온 동작 ${out.length}종: ${out.map(c => c.name).join(', ')}`)
+  return out
+}
 
 /** 벌 이름 → { body, clips, gear } · 못 불러온 벌은 false */
 const cache = {}
@@ -89,6 +142,9 @@ export async function preloadCharacter() {
     for (const k of Object.keys(SETS)) cache[k] = false
     return false
   }
+
+  // 묶음에 없는 것을 밖에서 받아 와 상체에 얹는다 (위 EXTRA 참고)
+  clips = [...clips, ...await borrowExtra(get)]
 
   await Promise.all(Object.entries(SETS).map(async ([name, spec]) => {
     try {
@@ -202,6 +258,10 @@ export function createCharacter({ height = 1.82, facing = 0, tint = null, gear: 
     actions[clip.name] = a
   }
 
+  /* 받아 온 동작이 안 실렸으면 묶음 안의 대역으로 조용히 되돌아간다 */
+  const FALLBACK = { Bow_Draw: 'Pistol_Aim_Neutral', Bow_Shoot: 'Pistol_Shoot' }
+  const pick = name => (actions[name] ? name : (FALLBACK[name] ?? CLIP.attack))
+
   let current = null
   const play = (name, { fade = 0.14, speed = 1, restart = false } = {}) => {
     const next = actions[name] ?? actions[CLIP.idle]
@@ -306,10 +366,12 @@ export function createCharacter({ height = 1.82, facing = 0, tint = null, gear: 
       } else if (s.attack) {
         const key = `atk${s.attackId ?? ''}`
         if (lastOneShot !== key) {
-          play(CLIP.attack, { fade: 0.05, speed: fitSpeed(CLIP.attack, s.attackDuration ?? 0.4), restart: true })
+          // 타마다 다른 동작. 없으면 한 종류로 돌아간다
+          const name = pick(SLASH[s.attackId] ?? CLIP.attack)
+          play(name, { fade: 0.05, speed: fitSpeed(name, s.attackDuration ?? 0.4), restart: true })
           lastOneShot = key
         }
-      } else if (s.draw != null) { play(CLIP.aim, { fade: 0.12 }); lastOneShot = null }
+      } else if (s.draw != null) { play(pick(CLIP.aim), { fade: 0.12 }); lastOneShot = null }
       else if (s.run > 0.12) { play(s.run > 0.85 ? CLIP.sprint : CLIP.run, { fade: 0.16, speed: 0.85 + s.run * 0.35 }); lastOneShot = null }
       else { play(CLIP.idle, { fade: 0.2 }); lastOneShot = null }
 

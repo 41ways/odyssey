@@ -6,6 +6,19 @@
 - **Universal Animation Library** — Quaternius, https://quaternius.com/packs/universalanimationlibrary.html — **CC0**
 - **Modular Character Outfits – Fantasy** — Quaternius, https://quaternius.com/packs/modularcharacteroutfitsfantasy.html — **CC0**
 
+## 동작 (애니메이션)
+
+- **Universal Animation Library** (위) — 걷기·달리기·칼·구르기·죽기 43 종
+- **gameasset.net** — https://anim.gameasset.net/ — **CC0**
+  묶음에 **없는 것만** 골라 왔다. 활 둘(`Bow_Draw`·`Bow_Shoot`)과 칼 셋
+  (`Sword_A/B/C` — 3 타가 세 번 같은 동작이던 것을 타마다 다르게).
+  받아서 이름만 정리하는 건 `tools/prep-anims.mjs`.
+
+  뼈 이름이 Mixamo 계열이라 게임 안에서 우리 뼈대로 옮긴다. **팔만** 옮긴다 —
+  몸통·골반은 쉬는 자세가 직각으로 달라서 옮기면 몸이 눕거나 접힌다
+  ([#6](https://github.com/41ways/odyssey/issues/6)). 자세한 경위는
+  `render/character.js` 의 EXTRA 주석.
+
 CC0 는 출처 표기가 의무가 아니지만 적어 둔다. 어디서 왔는지 모르는 에셋이 쌓이는 게 제일 위험하다.
 
 원본 zip 은 `art/` 에 있고 git 에는 안 올라간다.
