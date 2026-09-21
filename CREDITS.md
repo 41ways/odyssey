@@ -6,6 +6,16 @@
 - **Universal Animation Library** — Quaternius, https://quaternius.com/packs/universalanimationlibrary.html — **CC0**
 - **Modular Character Outfits – Fantasy** — Quaternius, https://quaternius.com/packs/modularcharacteroutfitsfantasy.html — **CC0**
 
+## 동작 (애니메이션)
+
+- **Universal Animation Library** 위 참고 — 걷기·달리기·칼·구르기·죽기 (43종)
+- **gameasset.net** — https://anim.gameasset.net/ — **CC0**
+  묶음에 없는 것만 골라 왔다. 활 둘(`Bow_Draw`, `Bow_Shoot`)과 칼 셋
+  (`Sword_A/B/C` — 3타 콤보가 세 번 같은 동작이던 것을 타마다 다르게).
+  뼈 이름이 Mixamo 계열이라 게임 안에서 우리 뼈대로 옮겨 쓴다
+  (`render/character.js` 의 EXTRA_MAP, `render/retarget.js`).
+  받아서 한 파일로 묶는 건 `tools/prep-anims.mjs`.
+
 CC0 는 출처 표기가 의무가 아니지만 적어 둔다. 어디서 왔는지 모르는 에셋이 쌓이는 게 제일 위험하다.
 
 원본 zip 은 `art/` 에 있고 git 에는 안 올라간다.
