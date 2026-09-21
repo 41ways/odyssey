@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { makeOcean } from '../render/ocean.js'
 import { makeStorm } from '../render/storm.js'
 import { models } from '../render/models.js'
+import { buildIsle } from '../render/props.js'
 import { CAMERA_RIG } from '../render/world.js'
 
 /**
@@ -21,7 +22,8 @@ import { CAMERA_RIG } from '../render/world.js'
  * 싸움이 없는 구간이라 칼과 활은 쉰다.
  */
 
-const GOAL = 250          // 이만큼 나아가면 도착
+const GOAL = 250          // 갈 섬이 이만큼 앞에 선다
+const ARRIVE = 46         // 섬 밑동이 이 안에 들면 닿은 것으로 친다
 const LEN = 3.2, BEAM = 1.1
 
 export class SailLeg {
@@ -42,9 +44,11 @@ export class SailLeg {
   async enter() {
     const g = this.g
     const w = g.render3d
+    /* 안개는 옅게. 판에서 쓰던 만큼(0.008) 끼면 200m 앞의 섬이 통째로 묻혀서
+       갈 곳이 안 보인다 — 바다에서 안개는 분위기가 아니라 눈가리개다. */
     w.setSeaMode(true, this.storm
-      ? { bg: '#2b333c', fog: 0.014, fogColor: '#39434e' }
-      : { bg: '#6d7f8c', fog: 0.008, fogColor: '#7d8f9c' })
+      ? { bg: '#2b333c', fog: 0.005, fogColor: '#39434e' }
+      : { bg: '#6d7f8c', fog: 0.0025, fogColor: '#7d8f9c' })
 
     this.ocean = makeOcean({
       sea: this.storm ? 'storm' : 'calm',
@@ -69,6 +73,22 @@ export class SailLeg {
     if (made) this.ship.add(made.root)
     w.scene.add(this.ship)
 
+    /* 갈 곳과 떠나온 곳.
+       바다만 있을 때는 어디로 가는지도, 뱃머리가 어디를 보는지도 알 수 없었다 —
+       물은 사방이 같아서 배를 돌려도 화면이 똑같다. 섬을 둘 세우면 그제야
+       방향이 생기고, 물이 흐르는 게 아니라 내가 나아가는 것으로 읽힌다.
+       가려던 섬이 커지고 떠나온 섬이 작아지는 것이 곧 남은 거리다. */
+    this.isle = buildIsle({ h: 58, r: 52, color: this.storm ? '#3b444c' : '#5c646a' })
+    this.isle.position.set(0, -4, GOAL)
+    w.scene.add(this.isle)
+    this.behind = buildIsle({ h: 40, r: 44, color: this.storm ? '#333b42' : '#565e64', seed: 2.2 })
+    this.behind.position.set(-18, -5, -95)
+    w.scene.add(this.behind)
+    // 섬이 안개에 먹히지 않게, 그리고 먼 수평선까지 보이게
+    this._far = w.camera.far
+    w.camera.far = 900
+    w.camera.updateProjectionMatrix()
+
     // 갑판 위의 사람들 — 남은 동료 수만큼 (많으면 여섯까지)
     this.crew = []
     const n = Math.min(6, Math.ceil((g.voyage?.crew ?? 0) / 90))
@@ -83,16 +103,19 @@ export class SailLeg {
       this.crew.push(c)
     }
 
-    /* 카메라는 배를 따라간다.
-       처음에는 판보다 멀리(30) 위에서(40°) 잡았다 — 바다를 넓게 보여 주려고
-       했는데, 그 높이에서는 파고 1.3m 짜리 물결이 아예 안 보였다. 회색 안개
-       덮인 판때기 위에 배가 얹혀 있는 그림이 나왔다. 내려앉아서 낮게 보면
-       같은 바다가 물결친다 — 파도는 옆에서 봐야 파도다. */
-    this._rig = { distance: CAMERA_RIG.distance, pitch: CAMERA_RIG.pitch, follow: CAMERA_RIG.follow, lead: CAMERA_RIG.lead }
-    CAMERA_RIG.distance = 17
-    CAMERA_RIG.pitch = THREE.MathUtils.degToRad(26)
+    /* 카메라는 배를 따라간다. 판에서 쓰는 쿼터뷰(30m·40°)를 그대로 가져오면
+       두 가지가 한꺼번에 죽는다 —
+         · 그 높이에서는 파고 1.3m 짜리 물결이 안 보여서 바다가 회색 판때기가 되고
+         · 시선이 발치로 꽂혀 **수평선이 화면 밖으로 나간다**. 갈 섬이 저 앞에
+           서 있어도 화면에 안 들어오니 어디로 가는지 알 길이 없었다.
+       눈높이까지 내려앉힌다(17m·11°). 파도는 옆에서 봐야 파도고, 갈 곳은
+       수평선에 있어야 보인다. */
+    this._rig = { distance: CAMERA_RIG.distance, pitch: CAMERA_RIG.pitch, yaw: CAMERA_RIG.yaw, follow: CAMERA_RIG.follow, lead: CAMERA_RIG.lead }
+    CAMERA_RIG.distance = 28
+    CAMERA_RIG.pitch = THREE.MathUtils.degToRad(14)
     CAMERA_RIG.follow = 0.35
     CAMERA_RIG.lead = 0
+    // 시선을 갑판 높이로 올린다. 수면(0)을 보면 화면이 물로 반쯤 찬다
     this.focus = new THREE.Vector3()
     g.camFocus = this.focus
     /* 땅에 서 있던 사람들을 치운다.
@@ -152,9 +175,38 @@ export class SailLeg {
     this.ship.rotateZ(s.roll - s.rudder * s.speed * 0.012)
     // 바다판은 배를 따라온다 — 파도 식이 월드 좌표라 이어 붙어도 티가 안 난다
     this.ocean.mesh.position.set(Math.round(s.x / 8) * 8, 0, Math.round(s.z / 8) * 8)
-    this.focus.set(s.x, 0, s.z)
+    this.focus.set(s.x, s.y + 1.4, s.z)
 
-    if (s.gone / GOAL >= 1) this.done = true
+    /* 카메라는 **뱃고물 뒤**에 선다.
+       판의 카메라는 yaw 가 고정이다 — 방향키 축과 화면 축을 맞추려고 일부러
+       그렇게 뒀다. 그 규칙을 바다로 그대로 들고 왔더니 카메라가 늘 월드
+       한쪽에 박혀서, 배가 그쪽으로 갈 때는 뱃머리 너머가 아니라 **카메라
+       뒤쪽**이 목적지가 됐다. 가려는 섬이 화면 밖에 있으니 어디로 가는지
+       알 수가 없다. 여기서는 뱃머리가 보는 쪽이 화면 위가 되게 돌린다. */
+    const wantYaw = s.heading + Math.PI
+    const d = Math.atan2(Math.sin(wantYaw - CAMERA_RIG.yaw), Math.cos(wantYaw - CAMERA_RIG.yaw))
+    CAMERA_RIG.yaw += d * Math.min(1, dt * 2.2)
+
+    /* 도착은 **섬에 닿는 것**이다.
+       전에는 나아간 거리(gone)만 셌다 — 뱃머리를 어디로 두든 같은 거리를 가면
+       도착해서, 키를 잡는 일에 뜻이 없었다. 이제 섬까지의 거리로 잰다.
+       빗나가면 그만큼 늦고, 돌아서 다시 와야 한다. */
+    const dx = this.isle.position.x - s.x, dz = this.isle.position.z - s.z
+    const left = Math.hypot(dx, dz)
+    s.left = left
+    if (left < ARRIVE) this.done = true
+
+    /* 빗나갔을 때만 말해 준다.
+       섬이 화면 밖으로 나가면 어느 쪽으로 돌려야 하는지 알 길이 없다. 다만
+       제대로 가고 있을 때까지 계속 띄우면 잔소리가 된다 — 뱃머리가 섬을
+       보고 있으면 조용하다. */
+    const want = Math.atan2(dx, dz)
+    const off = Math.atan2(Math.sin(want - s.heading), Math.cos(want - s.heading))
+    this._say = (this._say ?? 2) - dt
+    if (this._say <= 0 && Math.abs(off) > 0.5) {
+      this._say = 3.2
+      g.hud.toast(off > 0 ? '섬은 오른쪽 — D 로 돌려라' : '섬은 왼쪽 — A 로 돌려라', 2)
+    }
   }
 
   leave() {
@@ -164,6 +216,12 @@ export class SailLeg {
     this.ocean.mesh.material.dispose()
     if (this.stormFx) { w.scene.remove(this.stormFx.group); this.stormFx.dispose() }
     w.scene.remove(this.ship)
+    for (const isle of [this.isle, this.behind]) {
+      if (!isle) continue
+      w.scene.remove(isle)
+      isle.traverse(o => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose() } })
+    }
+    if (this._far) { w.camera.far = this._far; w.camera.updateProjectionMatrix() }
     w.setSeaMode(false)
     Object.assign(CAMERA_RIG, this._rig)
     g.camFocus = null

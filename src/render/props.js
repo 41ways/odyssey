@@ -106,6 +106,43 @@ export function buildBrazier() {
   return g
 }
 
+/**
+ * 바다 한가운데의 섬 — 갈 곳과 떠나온 곳.
+ *
+ * 항해 구간에 바다밖에 없을 때는 **어디로 가는지 알 수가 없었다.** 물은
+ * 사방이 같고, 배를 돌려도 화면이 똑같으니 뱃머리가 어디를 보는지조차
+ * 읽히지 않는다. 나아간 거리만 세고 있어서 아무 쪽으로 가도 도착했다 —
+ * 조작은 있는데 뜻이 없는 구간이었다.
+ *
+ * 수평선에 섬을 둔다. 갈 곳이 앞에 서고 떠나온 곳이 뒤로 멀어지면 그제야
+ * 방향이 생기고, 물이 흐르는 게 아니라 **내가 나아가는** 것으로 읽힌다.
+ *
+ * 멀리서 실루엣으로만 보이므로 안은 비워도 된다 — 능선 하나와 그 앞의
+ * 낮은 곶 몇. 다가갈수록 커지는 것만으로 남은 거리가 읽힌다.
+ *
+ * @param o.h     봉우리 높이 (m)
+ * @param o.r     밑동 반지름 (m)
+ * @param o.color 바위 색 — 멀리 있을수록 하늘에 가깝게
+ */
+export function buildIsle({ h = 52, r = 46, color = '#5a5f62', seed = 0 } = {}) {
+  const g = new THREE.Group()
+  const rock = new THREE.MeshStandardMaterial({ color, roughness: 1, flatShading: true })
+  const add = (geo, x, y, z, ry = 0) => {
+    const m = new THREE.Mesh(geo, rock)
+    m.position.set(x, y, z)
+    m.rotation.y = ry
+    g.add(m)
+    return m
+  }
+  // 봉우리 — 여덟 면이면 능선이 진다. 더 매끈하면 종처럼 보인다
+  add(new THREE.ConeGeometry(r, h, 8, 1), 0, h / 2 - 2, 0, seed)
+  // 어깨와 곶 — 밑동이 물에 잠기는 선을 흩어 준다
+  add(new THREE.ConeGeometry(r * 0.62, h * 0.52, 7, 1), r * 0.62, h * 0.26 - 2, -r * 0.34, seed + 1.1)
+  add(new THREE.ConeGeometry(r * 0.48, h * 0.34, 6, 1), -r * 0.7, h * 0.17 - 2, r * 0.3, seed + 2.3)
+  add(new THREE.ConeGeometry(r * 0.34, h * 0.2, 6, 1), r * 0.15, h * 0.1 - 2, r * 0.78, seed + 3.7)
+  return g
+}
+
 export const PROP_BUILDERS = {
   feastTable: buildFeastTable,
   brazier: buildBrazier,
