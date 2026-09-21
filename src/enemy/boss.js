@@ -787,6 +787,22 @@ export class Boss extends Actor {
       flinch: this.groggy > 0 ? 1 : 0,
     }, dt)
 
+    /* 받아 온 몸이 선 자세부터 숙여 있는 경우가 있다 (look.straighten).
+       폴리페모스가 그랬다 — 키 6.4 짜리인데 머리가 2.1 에 있었다. 고릴라처럼
+       상체를 접고 있어서 "무언가 거대한 것이 일어섰다" 는 말과 어긋났고,
+       무엇보다 **쏴야 할 눈이 아래를 보고 있었다.** 클립이 아니라 모델의
+       선 자세가 그런 것이라 클립을 바꿔도 안 펴진다. 척추를 그만큼 되젖힌다.
+       pose() 가 매 프레임 뼈를 다시 쓰므로 그 뒤에 얹어야 한다. */
+    const st = this.cfg.look?.straighten
+    if (st) {
+      if (this._spine === undefined) {
+        let found = null
+        this.rig.root.traverse(o => { if (o.isBone && o.name === st.bone) found = o })
+        this._spine = found
+      }
+      this._spine?.rotateX(-st.amount)
+    }
+
     // 쓰러진 동안에는 정말로 무너져야 한다.
     //
     // 전에는 0.26 라디안 숙이고 0.45 내리는 게 전부였다. 키 6.4 짜리한테

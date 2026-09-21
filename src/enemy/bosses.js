@@ -26,7 +26,10 @@ export const POLYPHEMOS = {
   // 맨살 덩치가 그대로 보인다.
   // 스케치팹 'Cyclops Rig' (DM-913, CC-BY). 리깅 + Idle 포함. 눈은 모델에 있다.
   look: { model: 'cyclopsBody', height: 6.4, bulk: 1.55, tint: '#c9a07a',
-    gear: ['legs'] },
+    gear: ['legs'],
+    // 이 모델은 선 자세부터 상체가 접혀 있다 — 머리가 골반 한 뼘 위에 온다.
+    // 그만큼 되젖혀서 세운다. 완전히 펴지는 않는다, 목자는 구부정한 게 맞다
+    straighten: { bone: 'Spine_77', amount: 0.6 } },
   phases: [
     {
       below: 1,
