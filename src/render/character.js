@@ -60,6 +60,12 @@ const CLIP = {
 
 const ONE_SHOT = new Set([CLIP.attack, CLIP.roll, CLIP.hurt, CLIP.die, CLIP.shoot])
 
+/* 활 동작은 애니메이션 묶음(Quaternius UAL)에 없다 — 43 개를 다 뒤져도
+   칼·주먹·권총·마법뿐이라 권총 조준(Pistol_Aim_Neutral)을 빌려 쓴다.
+   팔 마디를 덧돌려 시위 당기는 자세를 흉내 내 봤지만, 권총 조준이 이미
+   두 팔을 앞으로 모으고 있어서 덧돌린 각도가 거의 티가 나지 않았다.
+   대신 활 자체를 바로 끼우는 쪽이 훨씬 크게 먹혔다 — player.js MOUNT.bow. */
+
 /** 벌 이름 → { body, clips, gear } · 못 불러온 벌은 false */
 const cache = {}
 

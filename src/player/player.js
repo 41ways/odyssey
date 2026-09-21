@@ -171,7 +171,11 @@ const GEAR_PARTS = {
  */
 const MOUNT = {
   sword: { bone: 'hand_r', rotation: [-0.25, 0, 0.1], position: [0, -0.02, 0.02] },
-  bow: { bone: 'hand_l', rotation: [Math.PI / 2, 0, 0], position: [0, -0.02, 0.02] },
+  /* 활은 **뒤집혀** 달려 있었다 — 활채가 궁수 쪽으로 휘고 시위가 바깥을
+     보는, 실제로는 쏠 수 없는 모양이었다. 반 바퀴 돌려 시위를 몸 쪽에 둔다.
+     (활 동작 클립이 없어 권총 조준을 빌려 쓰는 탓에 자세만으로는 활을 쏘는
+     것처럼 안 보였는데, 방향을 바로잡으니 그쪽이 훨씬 크게 먹혔다.) */
+  bow: { bone: 'hand_l', rotation: [Math.PI / 2, Math.PI, 0], position: [0, -0.02, 0.02] },
   // 투구는 머리보다 크면 냄비가 된다. 모델 머리에 맞춰 줄이고 중심을 맞춘다.
   helmet: { bone: 'Head', rotation: [0, 0, 0], position: [0.075, 0.07, 0.02], scale: 0.55 },
   /* 받아 온 진짜 투구(Sketchfab, CC-BY) — 원본 좌표계가 코드 투구와 다르다.
@@ -695,14 +699,18 @@ export class Player extends Actor {
       flinch: this.stagger > 0 ? clamp(this.stagger / 0.3, 0, 1) : 0,
     }, dt)
 
-    // 활은 당길 때만 손으로 온다 (코드 인체는 등에 매달아 둔 활이 따로 있다)
+    /* 손에 드는 것은 한 번에 하나.
+       활은 두 손으로 당긴다 — 칼을 쥔 채로 시위를 당기면 칼날이 얼굴
+       앞을 가로질러 조준선을 덮는다. 당기는 동안에는 칼을 치우고 활을
+       꺼낸다. 코드 인체는 등에 맨 활이 따로 있어서 그쪽을 숨긴다. */
     const drawing = this.drawing > 0
     if (this.weapons.bowBack) {
       this.weapons.bowHand.visible = drawing
       this.weapons.bowBack.visible = !drawing
     } else if (this.weapons.bowHand) {
-      this.weapons.bowHand.visible = true
+      this.weapons.bowHand.visible = drawing
     }
+    if (this.weapons.sword) this.weapons.sword.visible = !drawing
 
     // 망토 — 마디마다 윗마디를 뒤쫓는다
     const turn = angleDelta(this._lastFacing, this.facing) / Math.max(dt, 1e-4)

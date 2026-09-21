@@ -151,7 +151,7 @@ export function buildWeapons(fig) {
   const j = fig.j
   const mats = []
   const mk = (c, r, m) => { const x = new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: m }); mats.push(x); return x }
-  const steel = mk('#efe9dc', 0.22, 0.95)
+  const steel = mk('#efe9dc', 0.4, 0.55)      // 거울로 두면 검어진다 — 아래 설명
   const bronze = mk('#c08a3e', 0.32, 0.85)
   const wood = mk('#6b4a2c', 0.8, 0)
   const add = (p, m) => { m.castShadow = true; p.add(m); return m }
@@ -210,7 +210,17 @@ function propMaterials() {
   }
   return {
     mats,
-    steel: mk('#efe9dc', 0.22, 0.95),
+    /* 칼날.
+       metalness 0.95·roughness 0.22 로 두었더니 각도에 따라 **새까만
+       판때기**가 됐다 — 얼굴 앞을 검은 상자가 가리는 그림이 나온다.
+       금속은 확산광이 없어서 되쏠 것이 있어야 보이는데, 이 씬에는 반사할
+       환경(environment)이 없다. 등불을 정통으로 맞는 좁은 각도에서만
+       번쩍하고 나머지는 검다. 청동(0.85)은 바탕색이 밝은 갈색이라 덜
+       티나지만 흰 강철은 바로 드러난다.
+       환경을 굽어 넣어 봤지만 이 렌더 경로에서는 scene.environment 가
+       먹지 않았다. 그래서 금속기를 줄이고 거칠기를 올려 확산 성분을
+       남긴다 — 어느 각도에서도 은빛이 보인다. 투구도 같은 처방이다. */
+    steel: mk('#efe9dc', 0.4, 0.55),
     bronze: mk('#c08a3e', 0.32, 0.85),
     wood: mk('#6b4a2c', 0.8),
     crest: mk('#a8322a', 0.92),
