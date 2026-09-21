@@ -123,7 +123,10 @@ export class SailLeg {
        열 걸음 떨어진 **물 위에 서서** 같이 건넜다. 갑판 위 사람은 이 구간이
        따로 세운다 (아래 crew). */
     g.player.group.visible = false
-    this._hidden = (g.allies ?? []).filter(a => a.group.visible)
+    /* 적도 같이 치운다. 판을 막 끝내고 오는 길이라 **방금 쓰러뜨린 보스의
+       시체가 그대로 남아 있다** — 키 6.4 짜리 폴리페모스가 허옇게 물 위에
+       떠서 배를 따라왔다. */
+    this._hidden = [...(g.allies ?? []), ...(g.enemies ?? [])].filter(a => a.group?.visible)
     for (const a of this._hidden) a.group.visible = false
 
     // 어디로 가는지·분위기는 막간 액자가 이미 말했다 (녹아서 여기로 넘어왔다).
