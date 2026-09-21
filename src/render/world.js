@@ -210,7 +210,8 @@ export class World {
     // 잡석 — 이동 속도를 눈으로 가늠할 기준점
     const rockGeo = new THREE.DodecahedronGeometry(1, 0)
     const rockMat = new THREE.MeshStandardMaterial({ color: '#544738', roughness: 1 })
-    const rocks = new THREE.InstancedMesh(rockGeo, rockMat, 110)
+    // 판이 넓어지면 개수도 같이 는다 (applyStage 의 area). 풀은 한 번만 잡는다.
+    const rocks = new THREE.InstancedMesh(rockGeo, rockMat, 420)
     rocks.castShadow = rocks.receiveShadow = true
     const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler()
     for (let i = 0; i < 110; i++) {
@@ -535,11 +536,19 @@ export class World {
     this.ground.material.color.set(a.groundTint ?? '#ffffff')
     this.rocks.visible = a.rocks !== false
     this.rocks.material.color.set(a.rockColor ?? '#544738')
-    this.#scatterRocks(a.rockScale ?? [0.2, 0.65], a.rockCount ?? 46)
+    // 잡석은 인스턴스라 드로우콜이 하나다. 넓이(제곱)를 그대로 따라가도 싸다.
+    const area = Math.min(6, Math.max(1, (this.arenaRadius / 16) ** 2))
+    this.#scatterRocks(a.rockScale ?? [0.2, 0.65], Math.round((a.rockCount ?? 46) * area))
 
     this.#setProps(a.props)
     this.#setSnow(!!e.snow)
     this.#setPost(e)
+    /* 바닥 결 반복수는 **판이 넓어져도 그대로 둔다.**
+       판에 비례해 올려 봤다 (9 → 20). 그랬더니 같은 무늬가 스무 번 반복되는
+       격자가 눈에 그대로 드러났다 — 흙이 아니라 장판이 깔린다. 반복수를
+       그대로 두면 한 장이 3.5m 에서 8m 로 늘어나는데, 이 카메라 거리에서는
+       그게 '늘어난 무늬' 가 아니라 '큰 지형 얼룩' 으로 읽힌다.
+       남는 반복 티는 #breakTiling 의 큰 얼룩이 지운다. */
     if (a.ground) await this.#setGround(a.ground, a.repeat ?? 8)
 
     /* 새 판의 첫 프레임을 미리 굽는다.
@@ -575,8 +584,18 @@ export class World {
     if (!list?.length) return
     const g = new THREE.Group()
     const R = this.arenaRadius
+    /* 판이 넓어지면 소품도 같이 늘어야 한다.
+       고리 비율(ring)로 놓으므로 자리는 저절로 퍼지는데, **개수**는 그대로라
+       판을 두 배로 넓히면 밀도가 4분의 1이 된다 — 넓힌 자리가 맨 흙바닥이
+       되어서 넓어진 게 아니라 비어 보인다. 기준 반지름 18 에 맞춰 늘린다.
+       제곱이 아니라 1차로만 늘린다: 제곱으로 맞추면 드로우콜이 300 을 넘는다.
+       줄 맞춰 세우는 것(기둥 여덟)은 개수가 곧 모양이라 건드리지 않는다. */
+    const dense = Math.min(2.4, Math.max(1, R / 18))
     for (const spec of list) {
-      for (let i = 0; i < (spec.count ?? 1); i++) {
+      const count = spec.spread === false
+        ? (spec.count ?? 1)
+        : Math.round((spec.count ?? 1) * dense)
+      for (let i = 0; i < count; i++) {
         // 받아 온 모델이거나(models), 코드로 짠 것이거나(props.js)
         const build = PROP_BUILDERS[spec.key]
         const made = build ? { root: build(), mats: [] } : models.create(spec.key)
@@ -588,7 +607,7 @@ export class World {
            갑판 판의 배 세 척이 한쪽에 겹쳐 서서 한 척처럼 보였다 — 세 번
            굴린 난수가 가까이 나오면 그렇게 된다. 자리를 수만큼 나눠 하나씩
            맡기고, 제 칸 안에서만 흔든다. 고르게 서면서도 줄 맞춘 티는 안 난다. */
-        const n = spec.count ?? 1
+        const n = count
         const slot = (Math.PI * 2) / n
         const a = spec.spread === false
           ? (i / n) * Math.PI * 2 + (spec.offset ?? 0)
@@ -674,7 +693,10 @@ export class World {
       if (i >= n) { m.makeScale(0, 0, 0); rocks.setMatrixAt(i, m); continue }
       const a = rand(0, Math.PI * 2)
       const rr = this.arena ? this.arena.radiusAt(a) : R
-      const r = rand(4, rr + 1.2)
+      /* 반지름을 고르게 뽑으면 가운데가 빽빽하고 바깥이 성글다 —
+         넓이가 r² 로 늘기 때문이다. 판이 좁을 땐 티가 안 났는데 36 으로
+         넓히고 나니 가장자리가 휑해졌다. 넓이에 고르게 뿌리려면 제곱에서 뽑는다. */
+      const r = Math.sqrt(rand(16, (rr + 1.2) ** 2))
       const s = rand(lo, hi)
       e.set(rand(0, 3), rand(0, 3), rand(0, 3)); q.setFromEuler(e)
       m.compose(new THREE.Vector3(Math.sin(a) * r, s * 0.32, Math.cos(a) * r), q, new THREE.Vector3(s, s * 0.6, s))
@@ -787,7 +809,80 @@ export class World {
     if (nrm) m.normalScale.set(0.7, 0.7)
     // 거칠기맵이 있으면 스칼라는 1 이어야 한다 (곱해지기 때문).
     if (rgh) m.roughness = 1
+    this.#breakTiling(m)
     m.needsUpdate = true
+  }
+
+  /**
+   * 바닥의 격자를 지운다.
+   *
+   * ── 무엇이 보였나 ──
+   * 판을 반지름 16 에서 36 으로 넓히자 바닥에 **바둑판이 떴다.** 한 장짜리
+   * 텍스처를 아홉 번 스무 번 반복해 까는데, 그 한 장 안에 밝기 기울기가
+   * 있으면 이어 붙인 자리마다 밝은 귀와 어두운 귀가 맞닿는다 — 눈은 그걸
+   * 흙이 아니라 격자로 읽는다. 반복수를 줄여도, 노멀 세기를 0 으로 내려도
+   * 그대로였다 (둘 다 실제로 해 봤다). 격자는 알베도 자체에 있었다.
+   *
+   * ── 어떻게 지우나 ──
+   * 이니고 킬레즈의 방법을 쓴다. 칸마다 **읽는 자리를 난수만큼 밀고 뒤집어**
+   * 네 번 읽은 뒤 부드럽게 섞는다. 같은 텍스처인데 칸마다 다른 조각이
+   * 깔리므로 이어지는 무늬가 사라진다. 메모리는 그대로고 늘어나는 건
+   * 텍스처 읽기뿐인데, 바닥은 큰 판 하나라 그 값을 치를 만하다.
+   *
+   * textureGrad 를 쓰는 이유: 자리를 밀면 칸 경계에서 UV 가 튀어서 GPU 가
+   * 밉 단계를 잘못 고른다 — 경계마다 흐릿한 선이 한 줄씩 생긴다. 미분값을
+   * 원래 UV 에서 떠서 넘겨 주면 그 선이 없어진다.
+   */
+  #breakTiling(m) {
+    if (m.userData.detiled) return
+    m.userData.detiled = true
+    const HELPERS = `
+      vec4 odyHash4( vec2 p ) {
+        return fract( sin( vec4( 1.0 + dot( p, vec2( 37.0, 17.0 ) ),
+                                 2.0 + dot( p, vec2( 11.0, 47.0 ) ),
+                                 3.0 + dot( p, vec2( 41.0, 29.0 ) ),
+                                 4.0 + dot( p, vec2( 23.0, 31.0 ) ) ) ) * 103.0 );
+      }
+      vec4 odyNoTile( sampler2D samp, vec2 uv ) {
+        vec2 iuv = floor( uv ), fuv = fract( uv );
+        vec2 ddx = dFdx( uv ), ddy = dFdy( uv );
+        vec4 acc = vec4( 0.0 );
+        vec2 b = smoothstep( 0.25, 0.75, fuv );
+        for ( int j = 0; j < 2; j ++ ) {
+          for ( int i = 0; i < 2; i ++ ) {
+            vec2 g = vec2( float( i ), float( j ) );
+            vec4 o = odyHash4( iuv + g );
+            vec2 flip = sign( o.zw - 0.5 );          // 칸마다 뒤집어 방향까지 흩는다
+            float w = ( i == 0 ? 1.0 - b.x : b.x ) * ( j == 0 ? 1.0 - b.y : b.y );
+            acc += w * textureGrad( samp, uv * flip + o.xy, ddx * flip, ddy * flip );
+          }
+        }
+        return acc;
+      }`
+    m.onBeforeCompile = shader => {
+      const f = shader.fragmentShader
+      shader.fragmentShader = f
+        .replace( 'void main() {', HELPERS + '\n void main() {' )
+        .replace( '#include <map_fragment>',
+          `#ifdef USE_MAP
+             diffuseColor *= odyNoTile( map, vMapUv );
+           #endif` )
+        .replace( '#include <roughnessmap_fragment>',
+          `float roughnessFactor = roughness;
+           #ifdef USE_ROUGHNESSMAP
+             roughnessFactor *= odyNoTile( roughnessMap, vRoughnessMapUv ).g;
+           #endif` )
+        .replace( '#include <normal_fragment_maps>',
+          `#ifdef USE_NORMALMAP_OBJECTSPACE
+             #include <normal_fragment_maps>
+           #elif defined( USE_NORMALMAP_TANGENTSPACE )
+             vec3 odyN = odyNoTile( normalMap, vNormalMapUv ).xyz * 2.0 - 1.0;
+             odyN.xy *= normalScale;
+             normal = normalize( tbn * odyN );
+           #else
+             #include <normal_fragment_maps>
+           #endif` )
+    }
   }
 
   /**

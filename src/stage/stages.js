@@ -14,7 +14,7 @@ import { CUT_CAVE, CUT_WHIRL, CUT_ITHACA, CUT_TELEPYLOS, CUT_BOW } from './cuts.
 /* ── 구간별 환경 조각 ────────────────────────────────────── */
 
 const SHORE = {
-  arena: { radius: 16, ground: 'ismaros', repeat: 9, wallColor: '#2a2018', rockColor: '#544738',
+  arena: { radius: 36, ground: 'ismaros', repeat: 9, wallColor: '#2a2018', rockColor: '#544738',
     shape: 'grove',      // 불탄 마을 언저리. 자연 지형이라 각지지 않되 완전한 원도 아니다
     // 털린 마을의 가장자리 — 엎어진 항아리와 부서진 기둥
     props: [{ key: 'jar', count: 9, ring: [1.03, 1.12], scale: [0.8, 1.3], tint: '#8a5f3c' },
@@ -27,12 +27,12 @@ const SHORE = {
             { key: 'grass', count: 34, ring: [0.24, 1.0], scale: [0.7, 1.3], tint: '#7d6b3f' },
             { key: 'bush', count: 11, ring: [0.36, 0.98], scale: [0.6, 0.95], tint: '#5a4a2c' },
             { key: 'jar', count: 5, ring: [0.4, 0.92], scale: [0.6, 0.9], tint: '#6f4c2e' }] },
-  env: { bg: '#150c08', fog: 0.019, fogColor: '#1a0e08', exposure: 1.05, camDistance: 20.5,
+  env: { bg: '#150c08', fog: 0.019, fogColor: '#1a0e08', exposure: 1.05, camDistance: 27,
     key: '#ffb478', keyIntensity: 2.4, rim: '#6f8cff', rimIntensity: 1.1,
     hemiSky: '#3a4a74', hemiGround: '#140f0a', hemiIntensity: 0.55 },
 }
 const CAVE = {
-  arena: { radius: 15, ground: 'cyclops', repeat: 7, wallColor: '#1a1714', rockColor: '#3d372f',
+  arena: { radius: 34, ground: 'cyclops', repeat: 7, wallColor: '#1a1714', rockColor: '#3d372f',
     shape: 'cave',       // 벽이 들고 나야 동굴이다 — 구석이 있어야 숨을 데가 생긴다
     // 바닥에 떨어진 돌. 맨 바닥만 있으면 넓은 방이지 동굴이 아니다.
     // 폴리페모스가 서는 가운데는 비운다
@@ -40,25 +40,25 @@ const CAVE = {
             { key: 'jar', count: 4, ring: [0.9, 1.1], scale: [0.7, 1.0], tint: '#5a4a38' }] },
   // 거인이 나오는 방이라고 카메라를 물리면 내가 작아질 뿐 거인은 안 커진다.
   // 카메라는 그대로 두고 거인을 키운다.
-  env: { bg: '#07080a', fog: 0.032, fogColor: '#0a0b0e', exposure: 1.0, camDistance: 26,
+  env: { bg: '#07080a', fog: 0.032, fogColor: '#0a0b0e', exposure: 1.0, camDistance: 30,
     key: '#ff9a52', keyIntensity: 2.2, rim: '#4a6ea8', rimIntensity: 0.8,
     hemiSky: '#1e2838', hemiGround: '#0c0a08', hemiIntensity: 0.35 },
 }
 const CLIFF = {
-  arena: { radius: 17, ground: 'telepylos', repeat: 8, wallColor: '#2a2e33', rockColor: '#4a4f55',
+  arena: { radius: 38, ground: 'telepylos', repeat: 8, wallColor: '#2a2e33', rockColor: '#4a4f55',
     shape: 'cove',       // 좁은 만 — 한쪽은 바다로 열리고 반대쪽은 바위로 막힌다
     // 좁은 만 — 바위 절벽 위로 라이스트리고네스의 집들이 있었다
     props: [{ key: 'columnRound', count: 5, ring: [1.03, 1.12], scale: [0.9, 1.4], tint: '#9aa0a6' },
             // 발밑은 눈 맞은 돌밭. 북쪽 끝이라 풀은 성기고 돌이 많다
             { key: 'cliffRock', count: 14, ring: [0.26, 1.0], scale: [0.3, 0.6], tint: '#6b7079' },
             { key: 'grass', count: 16, ring: [0.3, 0.98], scale: [0.6, 1.0], tint: '#6a7060' }] },
-  env: { bg: '#0c1014', fog: 0.024, fogColor: '#151c26', exposure: 1.06, camDistance: 22,
+  env: { bg: '#0c1014', fog: 0.024, fogColor: '#151c26', exposure: 1.06, camDistance: 28,
     snow: true,          // 북쪽 끝이다. 눈이 온다
     key: '#cfd8e8', keyIntensity: 2.0, rim: '#5f7fa8', rimIntensity: 1.2,
     hemiSky: '#4a5a72', hemiGround: '#181c20', hemiIntensity: 0.6 },
 }
 const FOREST = {
-  arena: { radius: 16, ground: 'aiaia', repeat: 7, wallColor: '#23301f', rockColor: '#3e4a34',
+  arena: { radius: 36, ground: 'aiaia', repeat: 7, wallColor: '#23301f', rockColor: '#3e4a34',
     shape: 'grove',      // 숲은 나무가 정하는 모양이다. 동굴만큼 각지지는 않게
     // 키르케의 숲. 집 둘레에는 약을 담던 항아리가 굴러다닌다
     props: [{ key: 'tree', count: 22, ring: [1.02, 1.16], scale: [0.85, 1.3] },
@@ -69,13 +69,13 @@ const FOREST = {
             { key: 'bush', count: 14, ring: [0.35, 0.98], scale: [0.7, 1.1] },
             { key: 'flowerbush', count: 12, ring: [0.25, 0.95], scale: [0.8, 1.2] },
             { key: 'grass', count: 40, ring: [0.2, 1.0], scale: [0.8, 1.5] }] },
-  env: { bg: '#0a1208', fog: 0.022, fogColor: '#101a10', exposure: 1.08, camDistance: 21,
+  env: { bg: '#0a1208', fog: 0.022, fogColor: '#101a10', exposure: 1.08, camDistance: 27,
     key: '#e8d08a', keyIntensity: 2.1, rim: '#a06fd0', rimIntensity: 1.3,
     hemiSky: '#54704a', hemiGround: '#141a10', hemiIntensity: 0.55 },
 }
 const UNDER = {
   keepEnv: true,        // 톤 시안이 덮지 않는다 — 여기 어둠은 연출이다
-  arena: { radius: 16, ground: 'underworld', repeat: 7, wallColor: '#0e0c10', rocks: false,
+  arena: { radius: 34, ground: 'underworld', repeat: 7, wallColor: '#0e0c10', rocks: false,
     shape: 'square',     // 기둥이 줄 맞춰 선 곳이다. 누군가 지은 방이어야 한다
     // 망자의 자리. 기둥은 고르게 둘러선다 — 아무렇게나 두면 폐허가 되고,
     // 줄을 맞추면 누군가 세운 곳이 된다
@@ -84,11 +84,11 @@ const UNDER = {
   // 어둡되 길이 보여야 한다. 전에는 싸움이 없는 빈 마당이라 캄캄해도
   // 됐지만, 이제 걸어서 길을 찾아야 하므로 벽이 읽혀야 한다.
   // 안개를 걷어내고(0.045 → 0.028) 바닥빛을 올린다.
-  env: { bg: '#050408', fog: 0.028, fogColor: '#0a0812', exposure: 1.02, camDistance: 21,
+  env: { bg: '#050408', fog: 0.028, fogColor: '#0a0812', exposure: 1.02, camDistance: 27,
     key: '#9a8ee0', keyIntensity: 1.6, rim: '#d05a6a', rimIntensity: 1.1,
     hemiSky: '#3a3158', hemiGround: '#0c0a12', hemiIntensity: 0.62 },
 }
-const DECK = (radius = 14, cam = 20) => ({
+const DECK = (radius = 26, cam = 22) => ({
   arena: { radius, ground: 'ship', repeat: 5, wallColor: '#141a22', rocks: false,
     shape: 'deck',       // 갑판은 좁고 길다. 옆으로 피할 데가 없어야 배 위 싸움이 된다
     // 뱃전 너머로 남은 배들이 따라온다
@@ -99,7 +99,7 @@ const DECK = (radius = 14, cam = 20) => ({
 })
 /** 가로로 누운 뱃전. 스킬라가 매달릴 난간이 화면 위를 가로지른다. */
 const BROADSIDE = {
-  arena: { radius: 15, ground: 'ship', repeat: 5, wallColor: '#10161e', rocks: false,
+  arena: { radius: 28, ground: 'ship', repeat: 5, wallColor: '#10161e', rocks: false,
     shape: 'deckWide',
     // 먼 쪽 뱃전 너머는 절벽이다. 스킬라가 여기서 뻗어 나온다.
     cliff: { height: 13, depth: 5.5, count: 15, color: '#5a6068', back: 1.2 },
@@ -118,7 +118,7 @@ const BROADSIDE = {
  * 늘어난 결이 물살처럼 읽힌다. 모양은 둥글다: 소용돌이는 네모지지 않는다.
  */
 const WHIRL = {
-  arena: { radius: 15, ground: 'ship', repeat: 2, shape: 'round', rocks: false,
+  arena: { radius: 30, ground: 'ship', repeat: 2, shape: 'round', rocks: false,
     groundTint: '#43698c', wallColor: '#0a141e',
     props: [{ key: 'ship', count: 3, ring: [1.2, 1.5], scale: [0.8, 1.1], y: -2.6 }] },
   env: { bg: '#050c14', fog: 0.032, fogColor: '#08111c', exposure: 1.0, camDistance: 24,
@@ -126,7 +126,7 @@ const WHIRL = {
     hemiSky: '#1e3350', hemiGround: '#050a12', hemiIntensity: 0.5 },
 }
 const STORM = {
-  arena: { radius: 15, ground: 'ship', repeat: 5, wallColor: '#10161e', rocks: false,
+  arena: { radius: 28, ground: 'ship', repeat: 5, wallColor: '#10161e', rocks: false,
     shape: 'deck',       // 폭풍 속 갑판도 갑판이다
     props: [{ key: 'ship', count: 2, ring: [1.2, 1.55], scale: [0.9, 1.2], y: -1.4 }] },
   env: { bg: '#04080e', fog: 0.034, fogColor: '#070d16', exposure: 1.0, camDistance: 24,
@@ -134,7 +134,7 @@ const STORM = {
     hemiSky: '#223349', hemiGround: '#060a10', hemiIntensity: 0.45 },
 }
 const HALL = {
-  arena: { radius: 15, ground: 'ithaca', repeat: 8, wallColor: '#2a2420', rocks: false,
+  arena: { radius: 23, ground: 'ithaca', repeat: 8, wallColor: '#2a2420', rocks: false,
     shape: 'hall',       // 홀은 사람이 지은 방이고, 정사각이 아니라 안으로 긴 방이다
     // 구혼자들이 스무 해를 먹어 치운 홀
     props: [{ key: 'column', count: 10, ring: [1.06, 1.06], scale: [1.2, 1.2], spread: false, tint: '#e3d8be' },
@@ -143,14 +143,14 @@ const HALL = {
             { key: 'feastTable', count: 12, ring: [0.9, 0.96], offset: 0.3, scale: [1.15, 1.4], faceIn: true },
             { key: 'brazier', count: 6, ring: [0.99, 1.02], offset: 0.8 },
             { key: 'jar', count: 9, ring: [1.04, 1.12], scale: [0.9, 1.3], tint: '#8a5f3c' }] },
-  env: { bg: '#0f0a06', fog: 0.024, fogColor: '#160f08', exposure: 1.1, camDistance: 20.5,
+  env: { bg: '#0f0a06', fog: 0.024, fogColor: '#160f08', exposure: 1.1, camDistance: 24,
     key: '#ffc888', keyIntensity: 2.6, rim: '#8a6fd0', rimIntensity: 0.9,
     hemiSky: '#4a3f5a', hemiGround: '#1a1208', hemiIntensity: 0.5 },
 }
 const BEACH = {
-  arena: { radius: 16, ground: 'shore', repeat: 8, wallColor: '#241f1a', rockColor: '#4a4238',
+  arena: { radius: 36, ground: 'shore', repeat: 8, wallColor: '#241f1a', rockColor: '#4a4238',
     shape: 'round' },    // 마지막은 트인 해변이다. 여기만은 둥근 게 맞다
-  env: { bg: '#0a0c12', fog: 0.02, fogColor: '#10131a', exposure: 1.04, camDistance: 21,
+  env: { bg: '#0a0c12', fog: 0.02, fogColor: '#10131a', exposure: 1.04, camDistance: 27,
     key: '#e8c8a0', keyIntensity: 2.0, rim: '#6f7fd0', rimIntensity: 1.2,
     hemiSky: '#3a4258', hemiGround: '#14120e', hemiIntensity: 0.55 },
 }
@@ -207,7 +207,7 @@ export const STAGES = [
       ],
       clear: '항구 안쪽에서 거대한 그림자가 걸어 나온다.',
     },
-    boss: { ...CLIFF, camDistance: 22, name: '라이스트리고네스의 항구', id: 'antiphates',
+    boss: { ...CLIFF, camDistance: 28, name: '라이스트리고네스의 항구', id: 'antiphates',
       intro: '항구 전체가 우리를 향해 돌아섰다.' },
     clear: '배 한 척만 남았다.',
   },
@@ -226,7 +226,7 @@ export const STAGES = [
       ],
       clear: '집 문이 열렸다.',
     },
-    boss: { ...FOREST, camDistance: 21, name: '키르케의 집', id: 'kirke',
+    boss: { ...FOREST, camDistance: 27, name: '키르케의 집', id: 'kirke',
       intro: '술잔을 든 여자가 웃는다.' },
     clear: '돼지가 다시 사람이 되었다.',
   },
@@ -243,7 +243,7 @@ export const STAGES = [
     id: 'sirens', name: '세이렌의 바다', title: '노래하는 것',
     sea: true,           // 포세이돈의 영역 — 그가 노했으면 적이 질기다 (voyage.js)
     wave: {
-      ...DECK(14, 20),
+      ...DECK(26, 22),
       intro: '돛대에 몸을 묶었다. 그래도 귀는 열려 있다.',
       goal: 16,
       steps: [
@@ -252,7 +252,7 @@ export const STAGES = [
       ],
       clear: '갑판이 비었다. 그때 노래가 시작된다.',
     },
-    boss: { ...DECK(14, 22), name: '세이렌의 바위', id: 'siren',
+    boss: { ...DECK(26, 24), name: '세이렌의 바위', id: 'siren',
       intro: '노래가 들린다. 귀를 막을 수 없다.' },
     clear: '노래가 멎었다.',
   },
@@ -283,7 +283,7 @@ export const STAGES = [
         // 카리브디스가 있는 곳은 갑판이 아니라 소용돌이 한가운데다
         // 여기서는 걷지 않는다 — 헤엄치고, 테두리 이빨을 깬다 (stage/maelstrom.js)
         { boss: 'charybdis', label: '소용돌이 쪽으로', line: '카리브디스 — 바다가 통째로 빨려 들어간다',
-          stage: { ...WHIRL, maelstrom: { radius: 13, pull: 5.4 } } },
+          stage: { ...WHIRL, maelstrom: { radius: 26, pull: 5.4 } } },
       ],
     },
     clear: '해협을 지났다.',
@@ -306,7 +306,7 @@ export const STAGES = [
       ],
       clear: '한 사람만 남았다.',
     },
-    boss: { ...HALL, camDistance: 20, name: '이타카의 홀', id: 'antinoos',
+    boss: { ...HALL, camDistance: 24, name: '이타카의 홀', id: 'antinoos',
       // 싸움은 활로 시작된다. 거지 차림을 벗기 전에 튼다
       cutBefore: CUT_BOW,
       intro: '술잔을 내려놓고 칼을 뽑는다.' },

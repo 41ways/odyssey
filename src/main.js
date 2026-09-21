@@ -223,13 +223,30 @@ class Game {
     return this.track(e)
   }
 
-  /** 웨이브용 — 늘 플레이어 반대편 가장자리에서 들어온다. 등 뒤에 생기면 억울하다. */
+  /**
+   * 웨이브용 — 보이는 데까지만, 그리고 앞쪽에서.
+   *
+   * 전에는 **판 가장자리**에서 넣었다. 판이 반지름 16 일 때는 그게 곧
+   * '화면 바깥 조금' 이었는데, 판을 36 으로 넓히고 나니 적이 50 걸음 밖에서
+   * 생겨서 걸어오는 데만 십 초가 걸렸다. 넓힌 판이 '넓어진 싸움' 이 아니라
+   * '기다리는 시간' 이 된 것이다.
+   *
+   * 그래서 가장자리가 아니라 **나를 중심으로 한 고리**에서 넣는다. 화면
+   * 밖이되 멀지 않은 거리(22~30)에, 판 밖으로는 안 나가게 깎아서.
+   * 방향은 여전히 판 가운데 쪽 — 등 뒤에 생기면 억울하다.
+   */
   spawnEnemy(kind = 'warrior') {
     const p = this.player.pos
     const away = Math.atan2(-p.x, -p.z) + rand(-1.1, 1.1)
     const arena = this.render3d.arena
-    const r = (arena ? arena.radiusAt(away) : this.arenaRadius) - rand(0.6, 2.2)
-    const e = this.spawnMinion(kind, Math.sin(away) * r, Math.cos(away) * r)
+    // 나에게서 이만큼 떨어진 자리. 판이 좁으면 자연히 가장자리가 된다.
+    const want = rand(22, 30)
+    let x = p.x + Math.sin(away) * want
+    let z = p.z + Math.cos(away) * want
+    const d = Math.hypot(x, z)
+    const edge = (arena ? arena.radiusAt(Math.atan2(x, z)) : this.arenaRadius) - 1.5
+    if (d > edge) { const k = edge / d; x *= k; z *= k }
+    const e = this.spawnMinion(kind, x, z)
 
     // 무리 안에 다르게 싸워야 하는 한 마리를 섞는다 (enemy/elite.js).
     // 웨이브가 수만 늘리면 판이 어려워지는 게 아니라 길어질 뿐이다.
