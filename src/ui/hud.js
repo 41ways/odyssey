@@ -7,7 +7,10 @@ const MEANDER = meanderURI('#c8973e', 0.9)
 const CSS = `
 #hud { position:absolute; inset:0; pointer-events:none;
   font-family:var(--body); color:var(--ivory); }
-#hud .bottom { position:absolute; left:50%; bottom:34px; transform:translateX(-50%);
+/* 체력 판은 화면 바닥에 바짝 붙인다 — 보스전에서는 시선이 보스 쪽으로
+   끌려가 플레이어가 화면 아래로 내려오는데, 34px 에서는 그 자리를 판이
+   덮어서 제 몸이 안 보였다. */
+#hud .bottom { position:absolute; left:50%; bottom:16px; transform:translateX(-50%);
   display:flex; flex-direction:column; align-items:center; gap:10px; }
 /* 체력 — 청동 판에 박아 넣은 도기 띠.
    테두리 하나로 끝내면 브라우저 진행바처럼 보인다. 판을 깔고, 뇌문을 얹고,

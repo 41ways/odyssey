@@ -808,7 +808,21 @@ export class World {
    * 지금 화면이 누구를 보고 있는지. 보스가 서 있는 동안에는 이쪽으로 시선을 끈다.
    * null 이면 평소대로 플레이어만 본다.
    */
-  setBossFocus(actor) { this.bossFocus = actor ?? null }
+  setBossFocus(actor) {
+    this.bossFocus = actor ?? null
+    /* 큰 보스는 머리가 화면 위로 잘린다.
+       세이렌(키 4.2)은 상체가 화면 꼭대기에 붙어 체력바에 겹쳤다 — 노래하는
+       입도, 쏘아야 할 자리도 화면 밖이라 '보고 친다' 가 성립하지 않았다.
+       시선을 보스 키만큼 올린다. 사람 크기(1.8)면 0 이라 잡졸에는 영향이 없다.
+       키는 등장할 때 한 번만 잰다 — 매 프레임 재면 뼈가 움직일 때마다 시선이
+       출렁인다. */
+    this.bossLift = 0
+    if (!actor) return
+    const box = new THREE.Box3().setFromObject(actor.group)
+    const h = box.max.y - box.min.y
+    // 너무 올리면 이번엔 플레이어가 화면 아래 HUD 뒤로 밀린다. 1.8 에서 끊는다
+    if (Number.isFinite(h)) this.bossLift = THREE.MathUtils.clamp(h - 2, 0, 1.8)
+  }
 
   /** focus = 플레이어 위치, aim = 마우스 지점. 시선이 조준 쪽으로 살짝 끌려간다. */
   updateCamera(focus, aim, dt) {
@@ -834,6 +848,7 @@ export class World {
         want.x += bx / len * shift
         want.z += bz / len * shift
       }
+      want.y += this.bossLift ?? 0
     }
 
     if (aim) {
