@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { Sky } from 'three/examples/jsm/objects/Sky.js'
 import { makeOcean } from '../render/ocean.js'
 import { models } from '../render/models.js'
+import { makeStorm } from '../render/storm.js'
 
 /**
  * 항해 시험 화면 — 파도 바다 위에 배 한 척.
@@ -14,11 +15,11 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
 renderer.setSize(innerWidth, innerHeight)
 renderer.outputColorSpace = THREE.SRGBColorSpace
 renderer.toneMapping = THREE.ACESFilmicToneMapping
-renderer.toneMappingExposure = 0.55
+renderer.toneMappingExposure = 0.42       // 폭풍 — 해가 구름에 먹혔다
 document.body.appendChild(renderer.domElement)
 
 const scene = new THREE.Scene()
-scene.fog = new THREE.FogExp2('#9fb3c2', 0.0045)
+scene.fog = new THREE.FogExp2('#6a7885', 0.011)   // 비에 시야가 막힌다
 const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.5, 3000)
 
 // 하늘 — 바다가 비출 것
@@ -26,25 +27,39 @@ const sun = new THREE.Vector3()
 const sky = new Sky()
 sky.scale.setScalar(10000)
 const su = sky.material.uniforms
-su.turbidity.value = 6; su.rayleigh.value = 1.6; su.mieCoefficient.value = 0.005; su.mieDirectionalG.value = 0.82
-sun.setFromSphericalCoords(1, THREE.MathUtils.degToRad(90 - 22), THREE.MathUtils.degToRad(200))
+su.turbidity.value = 20; su.rayleigh.value = 0.5; su.mieCoefficient.value = 0.03; su.mieDirectionalG.value = 0.9
+sun.setFromSphericalCoords(1, THREE.MathUtils.degToRad(90 - 6), THREE.MathUtils.degToRad(200))
 su.sunPosition.value.copy(sun)
 scene.add(sky)
 const pmrem = new THREE.PMREMGenerator(renderer)
 scene.environment = pmrem.fromScene(sky).texture
 
-scene.add(new THREE.HemisphereLight('#bcd4ea', '#2a3036', 1.2))
-const key = new THREE.DirectionalLight('#fff0d8', 2.4)
+scene.add(new THREE.HemisphereLight('#7e8c9c', '#171c21', 1.0))
+const key = new THREE.DirectionalLight('#b9c6d4', 1.1)
 key.position.copy(sun).multiplyScalar(50)
 scene.add(key)
 
 let ocean = null
 const setSea = name => {
   if (ocean) { scene.remove(ocean.mesh); ocean.mesh.geometry.dispose(); ocean.mesh.material.dispose() }
-  ocean = makeOcean({ sea: name, sun: sun.clone().normalize() })
+  ocean = makeOcean({
+    sea: name, sun: sun.clone().normalize(),
+    waterColor: name === 'calm' ? '#0e2a3a' : '#0a1a24',
+    sunColor: '#c9d6e4', distortion: name === 'calm' ? 2.2 : 2.8,
+  })
   scene.add(ocean.mesh)
 }
-setSea('calm')
+setSea('storm')
+
+// 폭풍 — 먹구름·비·돌풍·번개 (render/storm.js)
+const storm = makeStorm()
+scene.add(storm.group)
+/* 비와 구름은 물에 비치지 않게 한다.
+   수면 반사는 장면을 한 번 더 그리는 것이라, 빗줄기 수천 개가 물에 비치면
+   가느다란 실이 물 위를 덮어 기름띠처럼 보인다. 층(layer) 1 로 옮기고
+   주 카메라만 그 층을 본다 — 반사 카메라는 층 0 만 본다. */
+storm.group.traverse(o => o.layers.set(1))
+camera.layers.enable(1)
 
 // 배
 await models.preload(['galley'])
@@ -56,7 +71,12 @@ scene.add(ship)
 
 const state = { x: 0, z: 0, heading: 0, speed: 0, sail: 0, rudder: 0, pitch: 0, roll: 0, y: 0 }
 const keys = new Set()
-addEventListener('keydown', e => { keys.add(e.code); if (e.code === 'Digit1') setSea('calm'); if (e.code === 'Digit2') setSea('rough') })
+addEventListener('keydown', e => {
+  keys.add(e.code)
+  if (e.code === 'Digit1') { setSea('calm'); storm.group.visible = false }
+  if (e.code === 'Digit2') { setSea('rough'); storm.group.visible = true }
+  if (e.code === 'Digit3') { setSea('storm'); storm.group.visible = true }
+})
 addEventListener('keyup', e => keys.delete(e.code))
 addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight) })
 
@@ -86,6 +106,9 @@ const clock = new THREE.Clock()
 function frame() {
   const dt = Math.min(clock.getDelta(), 1 / 20)
   ocean.update(dt)
+  storm.update(dt, ship.position, () => console.info('천둥'))
+  // 번개가 치면 하늘도 한 번 밝아진다
+  renderer.toneMappingExposure = 0.42 + storm.state.flash * 0.5
   // 돛과 키
   if (keys.has('KeyW')) state.sail = Math.min(1, state.sail + dt * 0.6)
   if (keys.has('KeyS')) state.sail = Math.max(0, state.sail - dt * 0.8)
@@ -96,7 +119,7 @@ function frame() {
   state.x += Math.sin(state.heading) * state.speed * dt
   state.z += Math.cos(state.heading) * state.speed * dt
   ride(dt)
-  ship.position.set(state.x, state.y - 0.35, state.z)
+  ship.position.set(state.x, state.y - 0.12, state.z)
   ship.rotation.set(0, 0, 0)
   ship.rotateY(state.heading)
   ship.rotateX(state.pitch)

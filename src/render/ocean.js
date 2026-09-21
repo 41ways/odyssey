@@ -29,6 +29,13 @@ export const SEAS = {
     { dir: [-0.4, 1], len: 9, steep: 0.1 },
     { dir: [1, -0.7], len: 5.5, steep: 0.08 },
   ],
+  // 폭풍 — 하늘이 먼저 무너진 바다 (render/storm.js 와 같이 쓴다)
+  storm: [
+    { dir: [1, 0.35], len: 64, steep: 0.28 },
+    { dir: [0.75, 1], len: 31, steep: 0.24 },
+    { dir: [-0.5, 1], len: 15, steep: 0.18 },
+    { dir: [1, -0.6], len: 7.5, steep: 0.12 },
+  ],
   // 거친 바다 — 포세이돈이 노했을 때
   rough: [
     { dir: [1, 0.3], len: 46, steep: 0.24 },
@@ -100,7 +107,9 @@ export function makeOcean({
   const normals = new THREE.TextureLoader().load(textures, t => { t.wrapS = t.wrapT = THREE.RepeatWrapping })
   const geo = new THREE.PlaneGeometry(size, size, seg, seg)
   const water = new Water(geo, {
-    textureWidth: 512, textureHeight: 512,
+    // 반사를 512 로 두고 굴절을 세게 주면 수면에 기름띠 같은 무늬가 돈다 —
+    // 낮은 해상도의 반사를 크게 휘저은 자국이다. 반사를 키우고 굴절을 줄인다
+    textureWidth: 1024, textureHeight: 1024,
     waterNormals: normals,
     sunDirection: sun.clone(),
     sunColor: new THREE.Color(sunColor),
