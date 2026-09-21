@@ -127,6 +127,7 @@ export class Run {
       g.player.action.stop()
       g.render3d.camTarget.copy(g.player.pos)
       g.setAllies?.(this.stage, part)
+      g.setSheep?.(part)
     })
     // 구간이 제 이름을 들고 있으면 그걸 쓴다 (해안 → 동굴처럼 자리가 바뀔 때)
     if (banner) g.hud.banner(part.name ?? this.stage.name, intro, 3.4)

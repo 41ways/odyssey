@@ -46,6 +46,7 @@ import { Voyage, LOSSES, FATES } from './stage/voyage.js'
 import { FateScreen } from './ui/fate.js'
 import { VoyageHud } from './ui/voyagehud.js'
 import { Companion, companionsFor, rallyPower } from './player/companion.js'
+import { spawnFlock } from './enemy/sheep.js'
 import { SailLeg } from './stage/sailleg.js'
 
 const MINIONS = { warrior: kikonesWarrior, archer: kikonesArcher, shield: kikonesShield,
@@ -95,6 +96,7 @@ class Game {
 
     this.enemies = []
     this.allies = []          // 곁에서 싸우는 동료 (player/companion.js)
+    this.sheep = []           // 폴리페모스의 양 (enemy/sheep.js)
     this.corpses = []
     this.totalDamage = 0
     this.kills = 0
@@ -312,6 +314,8 @@ class Game {
     for (const c of this.corpses) this.render3d.scene.remove(c.group)
     this.enemies.length = 0
     this.corpses.length = 0
+    for (const s of this.sheep) { this.render3d.scene.remove(s.group); s.dispose() }
+    this.sheep.length = 0
     this.hazards.length = 0
     this.notice?.clear()
     this.pickups.clear()
@@ -931,6 +935,29 @@ class Game {
   }
 
   /**
+   * 양을 푼다. 판이 flock 을 적어 둔 곳에서만 (지금은 동굴 하나).
+   * 양은 적이 아니라 **살아 있는 지형**이다 (enemy/sheep.js 의 주석).
+   */
+  setSheep(part = {}) {
+    for (const s of this.sheep) { this.render3d.scene.remove(s.group); s.dispose() }
+    this.sheep.length = 0
+    const n = part.arena?.flock ?? part.flock ?? 0
+    if (!n) return
+    for (const s of spawnFlock(this, n)) {
+      this.sheep.push(s)
+      this.render3d.scene.add(s.group)
+    }
+  }
+
+  /** 양이 울었다. 거인이 그 자리를 알아낸다 (enemy/boss.js 의 hear). */
+  onSheepCry(sheep) {
+    const b = this.run?.boss
+    if (!b || b.dead || !b.cfg?.hunts) return
+    b.hear(this.player.pos.x, this.player.pos.z)
+    this.hud.toast('양이 울었다 — 거인이 이쪽을 안다', 2.0)
+  }
+
+  /**
    * 판 사이의 갈림길 (stage/voyage.js 의 FATES).
    * 고른 것을 그 자리에서 적용하고, 신의 눈금이 어떻게 움직였는지 돌려준다.
    */
@@ -1256,6 +1283,7 @@ class Game {
 
     for (const e of this.enemies) { e.think(dt); e.step(dt, this.arenaRadius) }
     for (const a of this.allies) { a.think(dt); a.step(dt, this.arenaRadius) }
+    for (const s of this.sheep) s.think(dt)
 
     const all = [p, ...this.enemies]
     separate([...all, ...this.allies], dt)
@@ -1343,6 +1371,7 @@ class Game {
     this.player.sync(cam)
     for (const e of this.enemies) e.sync(cam)
     for (const a of this.allies) a.sync(cam)
+    for (const s of this.sheep) s.sync()
     for (const c of this.corpses) { c.sync(cam); c.group.position.y = -Math.min(c.deathT / 0.45, 1) * 1.6 }
     this.#aimCursor()
     // 연출 중에는 카메라가 다른 것을 본다

@@ -83,6 +83,7 @@ CC-BY 는 작가 표기가 조건이다. 배포 시 이 표를 크레딧 화면�
 | Tentacle | **스킬라의 여섯 머리**(돌색) · **카리브디스의 여섯 팔**(살색) | https://poly.pizza/m/BR1vpIvvvv |
 | Giant | **안티파테스** — Attack·Idle·Run·Walk·HitRecieve·Death 7 클립 | https://poly.pizza/search/ogre |
 | Viking Boat | **항해하는 배** — 네모 돛 하나에 노를 젓는 낮은 배 (호메로스의 검은 배 대역) | https://poly.pizza/m/J7SCPiNoSy |
+| Sheep | **폴리페모스의 양** — 그의 우리에 사는 것들. 부딪히면 운다 (`enemy/sheep.js`) | https://poly.pizza/m/C39AUXUUes |
 | Rock Large | **저승 벽** — 층진 바위를 쌓아 미로를 세운다 | https://poly.pizza/m/54jZKTAt5p |
 | Bushes · Flower Bushes · Grass | **키르케의 숲 바닥** — 나무는 판 가장자리라 싸우는 화면에 안 들어온다 | https://poly.pizza/m/J2h3HrO356 · https://poly.pizza/m/1X06RgvSr6 · https://poly.pizza/m/UGTOzcO3P2 |
 

@@ -44,7 +44,7 @@ const base = (cfg, shape, onFire) => ({
         run.strikeAt = { x: h.tx, z: h.tz }
       }
     }
-    run.aim = { x: b.world.player.pos.x, z: b.world.player.pos.z }
+    run.aim = b.aimPoint()
     if (cfg.say) b.world.onBossSay?.(cfg.say)
     const t = shape(b, run)
     run.telegraph = b.fx.telegraph.show({
@@ -360,6 +360,9 @@ export class Boss extends Actor {
        중격을 박고, 동료를 불러 한꺼번에 밀고, 그 창에서 몰아친다.
        한 번 무너뜨릴 때마다 다음 벽이 높아진다 (poiseMax). 안 그러면
        중격만 돌려 써서 보스가 계속 꿇어앉아 있는다. */
+    // 소리로 찾는 보스가 '지금 알고 있는 자리' (aimPoint)
+    this.known = cfg.hunts ? { x: 0, z: 0 } : null
+    this.heardT = 0
     this.poise = 0
     this.poiseMax = cfg.poise ?? 100
     this._poiseIdle = 0
@@ -428,6 +431,33 @@ export class Boss extends Actor {
   }
 
   get phase() { return this.cfg.phases[Math.max(0, this.phaseIndex)] }
+
+  /**
+   * 어디를 향해 치는가.
+   *
+   * 보통은 지금 내 자리다. 그런데 **소리로 찾는** 보스(cfg.hunts)는 다르다 —
+   * 폴리페모스는 캄캄한 제 우리 안의 목자다. 멀리 있으면 내가 어디 있는지
+   * 모르고, 마지막으로 알아낸 자리를 친다.
+   *
+   * 알아내는 길은 셋 — 가까이 가거나(sense), 그를 때리거나, **양이 울거나**
+   * (enemy/sheep.js). 그래서 이 판에서는 '어떻게 돌아갈까' 가 판단이 된다.
+   */
+  aimPoint() {
+    const p = this.world.player.pos
+    if (!this.cfg.hunts || !this.known) return { x: p.x, z: p.z }
+    return { x: this.known.x, z: this.known.z }
+  }
+
+  /** 소리를 들었다. 그 자리를 알아내고 곧바로 친다. */
+  hear(x, z) {
+    if (!this.cfg.hunts || this.dead) return
+    this.known = { x, z }
+    this.heardT = 0.9
+    this.facing = Math.atan2(x - this.pos.x, z - this.pos.z)
+    this.nextAt = Math.min(this.nextAt ?? 0, 0.25)
+    this.fx.ring(this.pos.x, this.pos.z, { color: '#ffd9a0', radius: this.radius * 3.2, life: 0.6 })
+    this.world.onBossSay?.('거인이 소리 난 쪽으로 돌아섰다')
+  }
 
   /**
    * 무력화를 쌓는다. 다 차면 무너진다.
@@ -598,6 +628,9 @@ export class Boss extends Actor {
       amount = Math.min(amount, room)
     }
 
+    // 때리면 들킨다. 어둠 속에서도 칼이 닿으면 거기 있는 줄 안다
+    if (this.known) { this.known.x = this.world.player.pos.x; this.known.z = this.world.player.pos.z }
+
     // 그로기 중에는 더 아프게 맞는다
     const mult = this.groggy > 0 ? (this.cfg.groggyMult ?? 1.8) : 1
     const out = super.hurt(amount * mult, { ...opts, knockback: 0, stagger: 0, crit: this.groggy > 0 })
@@ -691,6 +724,14 @@ export class Boss extends Actor {
           })
         }
       } else this._eyeT = 0
+    }
+
+    /* 소리로 찾는 보스 — 가까이 오면 알아챈다.
+       멀리 있으면 마지막으로 알아낸 자리를 그대로 들고 있다. 그래서 크게
+       돌아가면 그의 바위가 엉뚱한 데 떨어진다. */
+    if (this.known) {
+      if (this.heardT > 0) this.heardT -= dt
+      if (dist2d(this.pos, p.pos) < (this.cfg.sense ?? 7)) { this.known.x = p.pos.x; this.known.z = p.pos.z }
     }
 
     // 안 맞고 지나가면 무력화가 도로 풀린다. 한 판 내내 조금씩 쌓아

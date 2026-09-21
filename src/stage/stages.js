@@ -82,7 +82,12 @@ const CAVE = {
       { key: 'brazier', count: 2, ring: [0.62, 0.72], scale: [1.2, 1.5], offset: 1.9 },
       // 그리고 저 바위 때문에 못 나간다. 들어온 쪽(남쪽, a=0)에 하나
       { key: 'doorStone', count: 1, ring: [1.0, 1.0], spread: false, offset: 0 },
-    ] },
+    ],
+    /* 거인은 **목자**다. 그의 우리에 양이 한 마리도 없었다.
+       때리는 것도 아니고 때려도 되는 것도 아니다 — 살아 있는 지형이다.
+       다만 부딪히면 울고, 그 소리가 거인에게 내 자리를 알려 준다
+       (enemy/sheep.js · Boss.hear). 지름길과 돌아가는 길이 생긴다. */
+    flock: 7 },
   // 거인이 나오는 방이라고 카메라를 물리면 내가 작아질 뿐 거인은 안 커진다.
   // 카메라는 그대로 두고 거인을 키운다.
   env: { bg: '#050607', fog: 0.036, fogColor: '#07080b', exposure: 1.0, camDistance: 30,

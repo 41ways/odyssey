@@ -29,7 +29,7 @@
 const GAP = {
   swing: 0.05, hit: 0.03, crit: 0.06, thud: 0.04, clang: 0.05,
   draw: 0.2, shoot: 0.05, roll: 0.12, step: 0.09,
-  level: 0.4, chime: 0.15, boom: 0.08, deny: 0.18,
+  level: 0.4, chime: 0.15, boom: 0.08, deny: 0.18, bleat: 0.5,
 }
 
 export class Sfx {
@@ -212,6 +212,21 @@ export class Sfx {
     if (!this.#ok('shoot')) return
     this.#puff({ dur: full ? 0.14 : 0.08, from: full ? 2600 : 1900, to: 420, q: 1.5, gain: full ? 0.34 : 0.2 })
     this.#tone({ f0: full ? 420 : 520, f1: full ? 120 : 200, dur: 0.1, gain: full ? 0.22 : 0.12, type: 'triangle' })
+  }
+
+  /**
+   * 양의 울음.
+   *
+   * 이 소리는 **경고**다. 동굴에서 양에 부딪히면 이게 울고, 그 순간
+   * 키클롭스가 어디 있는지 안다 (enemy/sheep.js). 그러니 아기자기한
+   * 소리가 아니라 **덜컥하는** 소리여야 한다 — 떨리는 중음을 두 번,
+   * 두 번째를 조금 내려서 "메에" 의 꺾임을 만든다.
+   */
+  bleat() {
+    if (!this.#ok('bleat')) return
+    this.#tone({ f0: 430, f1: 390, dur: 0.16, gain: 0.2, type: 'sawtooth' })
+    this.#tone({ f0: 360, f1: 300, dur: 0.22, gain: 0.17, type: 'sawtooth', delay: 0.15 })
+    this.#puff({ dur: 0.3, from: 1500, to: 600, q: 1.2, gain: 0.16, rate: 0.9 })
   }
 
   /** 구른다. 천과 흙 — 낮고 넓은 잡음. */
