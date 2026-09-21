@@ -21,6 +21,28 @@ function makeBar(width, color) {
   return g
 }
 
+/**
+ * 렌더 보간 비율.
+ *
+ * 시뮬레이션은 60Hz 로 고정인데 화면은 그보다 빠를 수 있다 (맥북 ProMotion
+ * 은 120Hz). 그러면 두 프레임에 한 번씩 **똑같은 자리**를 그리게 되어,
+ * 부드러운 게 아니라 잘게 떠는 것으로 보인다. 몸이 60Hz 로 걷는데 화면만
+ * 120 번 찍히는 것이다.
+ *
+ * 그래서 한 칸 전 자리와 지금 자리를 둘 다 들고 있다가 그 사이를 그린다.
+ * 규칙(판정·프레임 데이터)은 여전히 60Hz 고정이고 **보이는 것만** 사이를 채운다.
+ */
+let ALPHA = 0
+export function setRenderAlpha(a) { ALPHA = a > 0 && a < 1 ? a : (a >= 1 ? 1 : 0) }
+
+/** 각도는 그냥 섞으면 -179° 와 179° 사이에서 한 바퀴 돈다 */
+function mixAngle(a, b, k) {
+  let d = (b - a) % (Math.PI * 2)
+  if (d > Math.PI) d -= Math.PI * 2
+  if (d < -Math.PI) d += Math.PI * 2
+  return a + d * k
+}
+
 export class Actor {
   constructor({ hp = 100, radius = 0.5, mass = 1, team = 'enemy', fx = null } = {}) {
     this.pos = new THREE.Vector3()
@@ -43,6 +65,12 @@ export class Actor {
     this.action = new ActionRunner(this)
     this.group = new THREE.Group()
     this.bodyMats = []
+    // 보간용 — 한 칸 전 자리와 지금 자리
+    this._p0 = new THREE.Vector3()
+    this._p1 = new THREE.Vector3()
+    this._f0 = 0
+    this._f1 = 0
+    this._marked = false
   }
 
   attachBar(width = 1.3, color = '#e0443a', height = 2.2) {
@@ -159,12 +187,38 @@ export class Actor {
         this.vel.multiplyScalar(0.3)
       }
     }
+
+    this.mark()
+  }
+
+  /**
+   * 이번 칸의 자리를 적어 둔다 (위 ALPHA 주석).
+   *
+   * 판이 바뀌거나 보스를 자리에 세울 때처럼 **한 칸에 갈 수 없는 거리**를
+   * 건너뛰면 사이를 채우지 않고 붙여 버린다. 안 그러면 막이 걷히는 첫
+   * 프레임에 옛 자리에서 새 자리로 길게 끌려오는 게 보인다. 부르는 쪽마다
+   * '여기선 붙여라' 를 적는 대신 거리로 알아서 가른다 — 자리를 옮기는 곳이
+   * 지금도 예닐곱 군데고 앞으로 더 는다.
+   */
+  mark() {
+    const far = (this.pos.x - this._p1.x) ** 2 + (this.pos.z - this._p1.z) ** 2 > 4
+    if (far) { this._p0.copy(this.pos); this._f0 = this.facing }
+    else { this._p0.copy(this._p1); this._f0 = this._f1 }
+    this._p1.copy(this.pos)
+    this._f1 = this.facing
+    this._marked = true
   }
 
   /** 시각 갱신. 렌더 시점에 부른다. */
   sync(camera) {
-    this.group.position.copy(this.pos)
-    this.group.rotation.y = this.facing
+    // 한 칸도 안 돈 몸(막 세운 것)은 적어 둔 자리가 없다 — 그냥 제자리에
+    if (this._marked) {
+      this.group.position.lerpVectors(this._p0, this._p1, ALPHA)
+      this.group.rotation.y = mixAngle(this._f0, this._f1, ALPHA)
+    } else {
+      this.group.position.copy(this.pos)
+      this.group.rotation.y = this.facing
+    }
     if (this.bar) {
       this.bar.quaternion.copy(camera.quaternion)
       this.bar.rotation.z = 0

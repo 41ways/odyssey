@@ -5,7 +5,7 @@ import { Input } from './core/input.js'
 import { createLoop } from './core/loop.js'
 import { Projectiles } from './combat/projectile.js'
 import { Particles } from './render/particles.js'
-import { separate } from './combat/actor.js'
+import { separate, setRenderAlpha } from './combat/actor.js'
 import { Player } from './player/player.js'
 import { kikonesWarrior, kikonesArcher, kikonesShield, circePig, circeWolf, circeLion, laistrygon } from './enemy/kikones.js'
 import { Hud } from './ui/hud.js'
@@ -129,8 +129,8 @@ class Game {
 
     this.loop = createLoop({
       update: dt => this.update(dt),
-      render: () => this.draw(),
-      fx: real => { this.fx.update(real); this._real = real },
+      render: alpha => this.draw(alpha),
+      fx: real => { this.fx.update(real); this._real = real; this.drive(real) },
     })
     this.loop.start()
     // 시작 화면을 먼저 보여 주고, 아무 키나 누르면 첫 판이 열린다
@@ -1296,12 +1296,23 @@ class Game {
       || this.reel?.el?.classList.contains('on'))
   }
 
-  draw() {
-    const real = this._real ?? 1 / 60
-    // 시간이 걸린 연출은 덮여 있어도 계속 흘러야 한다 — 막이 걷히는 순간
-    // 제자리에 있어야 하니까.
+  /**
+   * 시간이 걸리는 연출 — 막이 걷히는 몸풀기, 장비가 몸에 붙는 장면.
+   *
+   * **그리기가 아니라 시계에 붙인다.** 전에는 draw() 안에 있었는데, 그러면
+   * 화면을 안 그리는 동안(액자가 다 덮었을 때, 탭이 뒤로 갔을 때) 연출이
+   * 통째로 멈춘다. 장비 카드는 이 타이머가 끝나야 닫히니까 판이 영영 멈춘
+   * 채로 남는다. 연출은 시간이 흐르면 흘러야 한다.
+   */
+  drive(real) {
     this.#driveSettle(real)
     this.#driveEquipFx(real)
+  }
+
+  draw(alpha = 0) {
+    // 60Hz 시뮬과 화면 주사율 사이를 채운다 (combat/actor.js 의 ALPHA)
+    setRenderAlpha(alpha)
+    const real = this._real ?? 1 / 60
     if (this.covered) return
     const cam = this.render3d.camera
     this.player.sync(cam)
@@ -1312,7 +1323,9 @@ class Game {
     // 연출 중에는 카메라가 다른 것을 본다
     this.render3d.updateSnow(real, this.player.pos)
     this.render3d._mist?.userData.tick?.(real)
-    this.render3d.updateCamera(this.camFocus ?? this.player.pos,
+    // 카메라도 **그려진 자리**를 따라간다. 규칙상의 pos 를 따라가면
+    // 몸은 사이를 채워 움직이는데 카메라만 60Hz 로 뛰어서 둘이 어긋난다.
+    this.render3d.updateCamera(this.camFocus ?? this.player.group.position,
       this.camFocus ? null : (this.input.pointerInside ? this.input.aim : null),
       this._real ?? 1 / 60)
     this.render3d.render()
@@ -1336,7 +1349,7 @@ window.__game = game
 if (import.meta.env?.DEV) {
   /** 패널이 숨어 있으면 rAF 가 멈춰 캐릭터가 바인드 포즈(T포즈)로 남는다. 손으로 돌려 준다. */
   window.__tick = (n = 60) => {
-    for (let i = 0; i < n; i++) { game.fx.update(1 / 60); game.update(1 / 60) }
+    for (let i = 0; i < n; i++) { game.fx.update(1 / 60); game.drive(1 / 60); game.update(1 / 60) }
     game._real = 1 / 60
     game.draw()
   }

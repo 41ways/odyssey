@@ -78,9 +78,39 @@ export class Telegraph {
     mesh.rotation.z = opts.facing ?? 0   // 평면을 눕혔으니 로컬 z 회전이 월드 yaw 가 된다
     mesh.visible = true
     this.scene.add(mesh)
-    const rec = { mesh, t: 0, dur: opts.duration, fade: 0, alpha0: u.uAlpha.value }
+    const rec = { mesh, t: 0, dur: opts.duration, fade: 0, alpha0: u.uAlpha.value, opts }
     this.live.push(rec)
     return rec
+  }
+
+  /**
+   * 이 자리가 지금 칠해져 있는가.
+   *
+   * 장판은 사람에게만 보여 주는 그림이 아니다 — **동료도 읽는다**
+   * (player/companion.js). 전에는 동료가 늘 오디세우스 뒤 한 뼘에 붙어
+   * 있어서 거인의 장판마다 통째로 깔렸다. 피할 수 있어야 '안 피했다' 가
+   * 실수가 된다.
+   *
+   * @returns 덮고 있는 장판의 원점 {x, z} 또는 null
+   */
+  dangerAt(x, z, pad = 0.5) {
+    for (const rec of this.live) {
+      if (rec.fade > 0) continue                 // 이미 터졌거나 끊긴 것
+      const o = rec.opts
+      if (!o) continue
+      const dx = x - o.x, dz = z - o.z
+      const d = Math.hypot(dx, dz)
+      if (d > (o.range ?? 0) + pad) continue
+      if (o.inner && d < o.inner - pad) continue  // 도넛 한가운데는 안전하다
+      const half = o.halfAngle ?? Math.PI
+      if (half < Math.PI - 0.01) {
+        let diff = Math.abs(Math.atan2(dx, dz) - (o.facing ?? 0)) % (Math.PI * 2)
+        if (diff > Math.PI) diff = Math.PI * 2 - diff
+        if (diff > half) continue
+      }
+      return { x: o.x, z: o.z, inner: o.inner ?? 0, range: o.range ?? 0 }
+    }
+    return null
   }
   /** 시전이 끊겼을 때. 장판이 그냥 사라지면 뭐가 일어난 건지 안 읽힌다. */
   cancel(rec) { if (rec && rec.fade === 0) rec.fade = 0.12 }

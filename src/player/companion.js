@@ -191,6 +191,31 @@ export class Companion extends Actor {
       return
     }
 
+    // 휘두르는 중 — 선딜 뒤에 한 번 맞히고, 후딜이 끝나면 풀린다
+    if (this.swing) {
+      const s = this.swing
+      s.t += dt
+      if (!s.hit && s.t >= 0.32) {
+        s.hit = true
+        const e = s.target
+        if (e && !e.dead && dist2d(e.pos, this.pos) < this.reach + e.radius + 1.2) {
+          const rally = s.rally ?? 0
+          // 적의 경직·밀림은 작게. 동료가 적을 붙잡아 두면 플레이어의 판단이 사라진다
+          e.hurt(this.damage * (rally ? 2.4 : 1), {
+            from: this.pos, knockback: rally ? 5 : 2, hitstop: rally ? 0.04 : 0,
+            stagger: rally ? 0.2 : 0.06, color: '#bfe8df',
+          })
+          if (rally) {
+            e.breakPoise?.(rally, 'rally')
+            this.fx?.ring(e.pos.x, e.pos.z, { color: '#9ff0c0', radius: 1.8, life: 0.35 })
+          }
+          this.world.sfx?.hit?.()
+        }
+      }
+      if (s.t >= 0.95) this.swing = null
+      return
+    }
+
     /* 함성에 응했다. 보스든 뭐든 지금 부른 표적 하나에 달려들어 한 번 민다.
        동료가 보스를 치는 건 이때뿐이다 (맨 위 규칙). */
     if (this.rally) {
@@ -217,30 +242,36 @@ export class Companion extends Actor {
       return
     }
 
-    // 휘두르는 중 — 선딜 뒤에 한 번 맞히고, 후딜이 끝나면 풀린다
-    if (this.swing) {
-      const s = this.swing
-      s.t += dt
-      if (!s.hit && s.t >= 0.32) {
-        s.hit = true
-        const e = s.target
-        if (e && !e.dead && dist2d(e.pos, this.pos) < this.reach + e.radius + 1.2) {
-          const rally = s.rally ?? 0
-          // 적의 경직·밀림은 작게. 동료가 적을 붙잡아 두면 플레이어의 판단이 사라진다
-          e.hurt(this.damage * (rally ? 2.4 : 1), {
-            from: this.pos, knockback: rally ? 5 : 2, hitstop: rally ? 0.04 : 0,
-            stagger: rally ? 0.2 : 0.06, color: '#bfe8df',
-          })
-          if (rally) {
-            e.breakPoise?.(rally, 'rally')
-            this.fx?.ring(e.pos.x, e.pos.z, { color: '#9ff0c0', radius: 1.8, life: 0.35 })
-          }
-          this.world.sfx?.hit?.()
-        }
-      }
-      if (s.t >= 0.95) this.swing = null
+    /* 칠해진 자리에서 빠져나온다.
+       예고를 읽고 피하는 건 오디세우스의 일이지만, 동료가 **아예 못 읽으면**
+       거인의 장판마다 셋이 통째로 깔린다. 그러면 '못 일으켰다' 가 내 실수가
+       아니라 그냥 세금이 된다. 피할 줄 알되 느리게 피한다 — 붙어 싸우던
+       자세에서 빠져나오는 데 시간이 걸리니 늦게 반응한 만큼은 맞는다.
+       **함성에 응해 달려가는 동안은 안 피한다** (위). 부르면 보스 품으로
+       뛰어드는 것이고, 거기가 제일 위험한 자리다 — 그게 이 기술의 값이다.
+       휘두르는 중에도 못 피한다 (위) — 한 번 내지른 창은 거두지 못한다. */
+    const zone = this.world.fx?.telegraph?.dangerAt?.(this.pos.x, this.pos.z, this.radius)
+    if (!zone) { this._zoneT = 0; this._react = null }
+    else {
+      // 반응이 한 박자 늦다. 사람마다 다르게 — 셋이 한 몸처럼 동시에 비키면
+      // 그건 피하는 게 아니라 장판이 동료를 안 건드리는 것이다.
+      this._react ??= rand(0.3, 0.72)
+      this._zoneT = (this._zoneT ?? 0) + dt
+    }
+    if (zone && this._zoneT > this._react) {
+      const dx = this.pos.x - zone.x, dz = this.pos.z - zone.z
+      const d = Math.hypot(dx, dz) || 1
+      // 도넛이면 안쪽으로, 나머지는 바깥으로
+      const inward = zone.inner > 0 && d < (zone.inner + zone.range) / 2
+      const s2 = (inward ? -1 : 1) * 5.6 * dt
+      this.pos.x += (dx / d) * s2
+      this.pos.z += (dz / d) * s2
+      this.facing = dampAngle(this.facing, Math.atan2(dx / d * (inward ? -1 : 1), dz / d * (inward ? -1 : 1)), 0.1, dt)
+      this._moved = 1
+      this.swing = null
       return
     }
+
 
     this.cooldown -= dt
     const t = this.target && !this.target.dead ? this.target : (this.target = this.#pickTarget())
