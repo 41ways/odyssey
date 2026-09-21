@@ -89,6 +89,43 @@ export function retargetClips(dstScene, srcScene, clips, map, { fps = 30, hips =
   const dstRest = restWorld(dst, order)
   const dstRestLocal = new Map(order.map(b => [b, b.quaternion.clone()]))
 
+  /* ── 몸통을 기준으로 옮긴다 (팔만 옮길 때) ─────────────────
+     받아 온 궁수는 활을 당기면서 **몸을 90도 돌린다.** 우리는 팔만 옮기므로
+     (몸통·골반은 쉬는 자세가 직각으로 달라 옮기면 몸이 접힌다 — #6) 그
+     몸통 회전이 갈 데가 없어서 **팔에 그대로 얹혔다.** 화면에서는 활을
+     당기는 게 아니라 T 자로 서 있는 것으로 보였다: 팔꿈치가 (-0.25, 0.01, 0),
+     정확히 옆이었다.
+
+     그래서 월드가 아니라 **몸통 기준**으로 옮긴다. '월드에서 얼마나 돌았나'
+     대신 '몸통에 대해 얼마나 돌았나' 를 옮기면, 몸이 어디를 보든 팔은 몸에
+     대해 같은 자리에 온다.
+
+         몸통기준 = 몸통월드⁻¹ · 뼈월드
+         돈 만큼  = 몸통기준(지금) · 몸통기준(쉴 때)⁻¹
+         받는 뼈  = 받는몸통(쉴 때) · 돈 만큼 · 받는몸통(쉴 때)⁻¹ · 받는뼈(쉴 때)
+
+     몸통 뼈는 자동으로 고른다 — 옮기는 뼈들 중 **부모가 옮기는 목록에 없는**
+     것의 부모가 곧 그 가지의 뿌리다 (쇄골의 부모 = 가슴).
+     온몸을 옮기는 경우(골반까지 포함)에는 이 보정이 필요 없다. 그때는
+     몸통 회전이 제자리에 옮겨지니까. */
+  let srcTorso = null, dstTorso = null
+  {
+    const mappedDst = new Set(dstOf.keys())
+    for (const [sb, db] of pairs) {
+      if (db.parent && !mappedDst.has(db.parent) && sb.parent) {
+        srcTorso = sb.parent; dstTorso = db.parent
+        break
+      }
+    }
+    // 골반이 목록에 있으면 온몸을 옮기는 것이다 — 그때는 월드 그대로 간다
+    if (hips && srcTorso) { srcTorso = null; dstTorso = null }
+  }
+  const srcTorsoRest = srcTorso ? restWorld(src, [srcTorso]).get(srcTorso) : null
+  const dstTorsoRest = dstTorso ? restWorld(dst, [dstTorso]).get(dstTorso) : null
+  const srcTorsoRestInv = srcTorsoRest ? srcTorsoRest.clone().invert() : null
+  const dstTorsoRestInv = dstTorsoRest ? dstTorsoRest.clone().invert() : null
+  if (srcTorso) console.info(`[retarget] 몸통 기준으로 옮긴다: ${srcTorso.name} → ${dstTorso.name}`)
+
   /* 엉덩이 높이 비율 — 걸음에서 몸이 오르내리는 폭을 다리 길이에 맞춘다.
      월드 높이끼리 나누면 안 된다. 두 파일의 원점이 달라서(한쪽은 발이 0 이
      아니다) 비율이 엉뚱하게 커지고, 쓰러지는 동작에서 폴리페모스가 땅속으로
@@ -111,6 +148,7 @@ export function retargetClips(dstScene, srcScene, clips, map, { fps = 30, hips =
 
   const mixer = new THREE.AnimationMixer(src)
   const qa = new THREE.Quaternion(), qb = new THREE.Quaternion(), qp = new THREE.Quaternion()
+  const qt = new THREE.Quaternion()
   const vp = new THREE.Vector3()
   const out = []
 
@@ -135,8 +173,17 @@ export function retargetClips(dstScene, srcScene, clips, map, { fps = 30, hips =
       for (const b of order) {
         const s = dstOf.get(b)
         s.getWorldQuaternion(qa)                              // 주는 뼈 지금
-        qb.copy(srcRest.get(s)).invert()                      // 주는 뼈 쉬는 자세⁻¹
-        qa.multiply(qb)                                       // 쉬는 자세에서 돈 만큼 (월드)
+        if (srcTorso) {
+          // 몸통 기준으로 — 주는 쪽이 몸을 돌려도 팔은 몸에 대해 같은 자리
+          srcTorso.getWorldQuaternion(qt).invert()
+          qa.premultiply(qt)                                  // 몸통기준(지금)
+          qb.copy(srcTorsoRestInv).multiply(srcRest.get(s)).invert()   // 몸통기준(쉴 때)⁻¹
+          qa.multiply(qb)                                     // 돈 만큼 (몸통 기준)
+          qa.premultiply(dstTorsoRest).multiply(dstTorsoRestInv)       // 받는 몸통 기준으로
+        } else {
+          qb.copy(srcRest.get(s)).invert()                    // 주는 뼈 쉬는 자세⁻¹
+          qa.multiply(qb)                                     // 쉬는 자세에서 돈 만큼 (월드)
+        }
         qa.multiply(dstRest.get(b))                           // 받는 뼈 쉬는 자세에 얹는다
         b.parent.getWorldQuaternion(qp).invert()
         b.quaternion.copy(qp.multiply(qa))                    // 로컬로
