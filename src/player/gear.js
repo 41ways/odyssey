@@ -259,6 +259,60 @@ export function buildBowProp() {
 }
 
 /**
+ * 호플론 — 그리스의 둥근 방패.
+ *
+ * 쳐내기(player.js 의 guard)를 쓰려면 **막는 것이 보여야** 한다. 몸짓만으로는
+ * 막는 중인지 그냥 선 것인지 구분이 안 되고, 구분이 안 되면 타이밍 기술이
+ * 성립하지 않는다.
+ *
+ * 호플론의 생김새는 둘로 정해진다 — 접시처럼 굽은 판과, 가장자리를 한 바퀴
+ * 두른 청동 테. 평평한 원반으로 두면 뚜껑이 된다. 안쪽에는 팔을 끼우는
+ * 띠(포르팍스)와 손잡이(안틸라베)를 단다: 뒤가 보이는 각이 있어서
+ * 비어 있으면 종이처럼 얇아 보인다.
+ *
+ * 문양은 고르곤이다. 그릴 것이 없으면 방패가 청동 접시로 읽힌다.
+ */
+export function buildShieldProp() {
+  const M = propMaterials()
+  const g = new THREE.Group()
+  const add = (m, parent = g) => { m.castShadow = true; parent.add(m); return m }
+  const R = 0.46
+
+  // 접시처럼 굽은 판 — 구를 잘라 쓴다. 원기둥으로 하면 뚜껑이 된다
+  const face = add(new THREE.Mesh(
+    new THREE.SphereGeometry(R * 2.1, 28, 12, 0, Math.PI * 2, 0, 0.235),
+    M.bronze,
+  ))
+  face.rotation.x = Math.PI / 2
+  face.position.z = -R * 1.72
+  face.material.side = THREE.DoubleSide
+
+  // 가장자리 테
+  const rim = add(new THREE.Mesh(new THREE.TorusGeometry(R, 0.035, 8, 30), M.bronze))
+
+  // 고르곤 — 얼굴 하나에 뱀 여덟. 작게 읽히므로 윤곽만 있으면 된다
+  const dark = new THREE.MeshStandardMaterial({ color: '#4a3210', roughness: 0.6, metalness: 0.5 })
+  const mask = add(new THREE.Mesh(new THREE.CircleGeometry(R * 0.34, 16), dark))
+  mask.position.z = 0.055
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2
+    const sn = add(new THREE.Mesh(new THREE.TorusGeometry(R * 0.11, 0.014, 5, 10, Math.PI * 1.3), dark))
+    sn.position.set(Math.cos(a) * R * 0.44, Math.sin(a) * R * 0.44, 0.05)
+    sn.rotation.z = a
+  }
+
+  // 뒤 — 팔띠와 손잡이. 없으면 종이처럼 얇아 보인다
+  const strap = add(new THREE.Mesh(new THREE.TorusGeometry(R * 0.3, 0.022, 6, 14), M.wood))
+  strap.position.z = -0.1
+  strap.rotation.y = Math.PI / 2
+  const grip = add(new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, R * 0.5, 6), M.wood))
+  grip.position.set(R * 0.52, 0, -0.08)
+  grip.rotation.z = Math.PI / 2
+
+  return { group: g, mats: [...M.mats, dark] }
+}
+
+/**
  * 코린토스식 투구.
  *
  * 반구에 박스를 얹으면 냄비가 된다. 진짜 실루엣은 옆에서 본 윤곽에서 나온다 —

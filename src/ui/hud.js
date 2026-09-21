@@ -58,6 +58,21 @@ const CSS = `
     linear-gradient(180deg, rgba(255,220,180,.6) 0 2px, transparent 2px),
     linear-gradient(180deg,#ff7a4a 0%,#c23a1e 46%,#7a1a10 100%); }
 
+/* 자세(체간) — 체력 바로 아래 얇은 한 줄.
+   막으면 차오르고 다 차면 무너진다 (player.js 의 guard). 체력과 **반대로**
+   읽히는 값이라 색을 갈라 둔다: 체력은 줄어서 위험해지고, 자세는 차서
+   위험해진다. 그래서 차오를수록 붉어진다. */
+#hud .postwrap { width:368px; height:5px; margin-top:3px; border-radius:2px;
+  background:#0d0a07; overflow:hidden; position:relative; opacity:0; transition:opacity .25s;
+  box-shadow:inset 0 1px 3px rgba(0,0,0,.9), 0 0 0 1px rgba(200,230,255,.18); }
+#hud .postwrap.on { opacity:1 }
+#hud .postwrap i { display:block; height:100%; width:100%; transform-origin:left center;
+  transform:scaleX(0);
+  background:linear-gradient(90deg,#6aa8bc,#bfe8ff); transition:transform .1s linear; }
+#hud .postwrap.hot i { background:linear-gradient(90deg,#d8883a,#ffcf7a); }
+#hud .postwrap.broken { box-shadow:inset 0 1px 3px rgba(0,0,0,.9), 0 0 16px rgba(255,120,80,.7); }
+#hud .postwrap.broken i { background:#ff7a4a; transform:scaleX(1) !important; }
+
 /* 경험치 — 체력 아래 얇은 한 줄. 왼쪽에 레벨 숫자를 청동 표로 박는다.
    숫자가 막대 안에 들어가면 5px 높이에 안 들어가고, 막대 위에 얹으면
    체력바와 줄이 어긋난다. 옆에 세우는 게 제일 조용하다. */
@@ -288,6 +303,7 @@ export class Hud {
           <i class="rivet bl"></i><i class="rivet br"></i>
           <div class="hp"><b></b><i></i><span></span></div>
         </div>
+        <div class="postwrap"><i></i></div>
         <div class="xpwrap"><b class="lvchip">1</b><div class="xp"><i></i></div></div>
         <span class="lv"></span>
         <div class="row"><div class="pips"></div><div class="focus"></div></div>
@@ -296,6 +312,7 @@ export class Hud {
         <div><b class="k wasd"></b> 이동 &nbsp; <b class="k mouse"></b> 조준</div>
         <div><b class="k lmb"></b> 칼 (3타) &nbsp; <b class="k rmb"></b> 활 (꾹 눌러 차징) &nbsp; <b class="k space"></b> 구르기</div>
         <div><kbd>Shift</kbd> 중격 — 기세를 태운다 &nbsp; <kbd>E</kbd> 함성 — 동료를 부른다</div>
+        <div><kbd>Q</kbd> 막기 — <b style="color:#9fd8e8">맞기 직전</b>에 누르면 쳐낸다 (무력화를 크게 민다)</div>
         <div class="grown"></div>
         <div class="dev"><kbd>Tab</kbd> 판 고르기 · <kbd>L</kbd> 화면 톤 · <kbd>M</kbd> 음소거 · <kbd>]</kbd> 다음 판 · <kbd>R</kbd> 처음부터</div>
       </div>
@@ -325,6 +342,8 @@ export class Hud {
     this.hpFill = el.querySelector('.hp i')
     this.hpGhost = el.querySelector('.hp b')
     this.hpText = el.querySelector('.hp span')
+    this.postWrap = el.querySelector('.postwrap')
+    this.postFill = el.querySelector('.postwrap i')
     this.pips = el.querySelector('.pips')
     this.focusEl = el.querySelector('.focus')
     this.focusEls = []
@@ -492,6 +511,16 @@ export class Hud {
       // 원형이라 가로로 늘이는 대신 시계 방향 각도로 채운다
       const k2 = filled ? 1 : charging ? clamp(player.rollTimer / TUNING.roll.regen, 0, 1) : 0
       this.pipEls[i].style.setProperty('--k', k2.toFixed(3))
+    }
+
+    // 자세 — 막기를 쓰기 시작한 뒤부터만 보인다. 안 쓰는 사람에게는 없는 줄이다
+    if (this.postWrap) {
+      const k = clamp((player.posture ?? 0) / (player.maxPosture ?? 100), 0, 1)
+      const broken = (player.broken ?? 0) > 0
+      this.postWrap.classList.toggle('on', k > 0.005 || broken || player.guarding)
+      this.postWrap.classList.toggle('hot', k > 0.6)
+      this.postWrap.classList.toggle('broken', broken)
+      if (!broken) this.postFill.style.transform = `scaleX(${k.toFixed(3)})`
     }
 
     // 기세 구슬 · 함성. 구르기 방패 아래 한 줄로 붙는다.

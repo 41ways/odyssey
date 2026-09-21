@@ -6,7 +6,7 @@ import { dist2d } from '../core/math.js'
 import { clamp, damp, dampAngle, angleDelta } from '../core/math.js'
 import { newStats } from './stats.js'
 import { buildFigure, wrapFigure } from '../render/figure.js'
-import { buildGear, buildWeapons, KIT, buildSwordProp, buildBowProp, buildHelmetProp, buildRealHelmetProp, buildCapeProp, buildSkirtProp } from './gear.js'
+import { buildGear, buildWeapons, KIT, buildSwordProp, buildBowProp, buildShieldProp, buildHelmetProp, buildRealHelmetProp, buildCapeProp, buildSkirtProp } from './gear.js'
 import { createCharacter } from '../render/character.js'
 import { models } from '../render/models.js'
 
@@ -27,6 +27,36 @@ export const TUNING = {
     iframeStart: 0.03,
     iframeEnd: 0.25,      // 0.22초 무적. 짧게 잡아야 회피가 실력이 된다
     recovery: 0.08,
+  },
+  /**
+   * 막기와 쳐내기 (세키로의 체간·쳐내기).
+   *
+   * ── 왜 넣었나 ──
+   * 이 게임의 방어는 **구르기 하나**였다. 그러면 모든 예고의 정답이 같아진다 —
+   * 옆으로 구른다. 보스마다 패턴을 다르게 짜 놔도 답이 하나면 다 같은 싸움이다.
+   * 막기가 생기면 답이 둘이 된다: 피할 것인가, 받아칠 것인가.
+   *
+   * ── 세 층 ──
+   *   · **막기**(누르고 있는다) — 피해 30%만 받고 나머지는 자세로 받는다.
+   *     자세가 다 차면 무너진다. 그래서 계속 막고만 있을 수는 없다.
+   *   · **쳐내기**(맞기 직전에 누른다) — 피해 0, 자세 0. 대신 **적의 무력화를
+   *     크게 민다.** 방어가 공격이 되는 자리이고, 세키로의 전부가 여기 있다.
+   *   · **자세 붕괴** — 자세가 다 차면 1.1초 굳는다. 그 사이에 맞으면 크게 아프다.
+   *
+   * 창은 0.18초다. 사람 눈이 예고를 보고 반응하는 데 0.2초쯤 걸리니,
+   * **보고 나서 누르면 늦고 읽고 나서 눌러야 맞는** 폭이다.
+   */
+  guard: {
+    window: 0.18,        // 이 안에 눌렀으면 쳐낸 것
+    posture: 100,        // 자세 한도
+    blockCut: 0.30,      // 막으면 피해가 이만큼만 들어온다
+    postureCost: 0.85,   // 막은 피해 1당 자세 몇
+    regen: 26,           // 초당 회복 (안 막고 안 맞을 때)
+    regenGuard: 9,       // 막고 있는 동안의 회복
+    hitPause: 0.7,       // 맞고 나서 회복이 멈추는 시간
+    breakLock: 1.1,      // 무너지면 굳는 시간
+    speed: 0.42,         // 막는 동안의 이동속도
+    poise: 15,           // 쳐낼 때 적에게 미는 무력화
   },
   bow: {
     /**
@@ -236,6 +266,10 @@ const MOUNT = {
      (활 동작 클립이 없어 권총 조준을 빌려 쓰는 탓에 자세만으로는 활을 쏘는
      것처럼 안 보였는데, 방향을 바로잡으니 그쪽이 훨씬 크게 먹혔다.) */
   bow: { bone: 'hand_l', rotation: [Math.PI / 2, Math.PI, 0], position: [0, -0.02, 0.02] },
+  /* 방패는 **왼팔 안쪽**에 끼운다 (활과 같은 손이지만 둘을 동시에 들 일은 없다).
+     면이 몸 앞을 보게 반 바퀴 돌리고, 손목이 아니라 팔뚝 쪽으로 밀어 준다 —
+     손에 딱 붙이면 주먹만 한 접시를 든 것처럼 보인다. */
+  shield: { bone: 'hand_l', rotation: [0, Math.PI / 2, 0], position: [0.06, -0.16, 0.02], scale: 0.92 },
   // 투구는 머리보다 크면 냄비가 된다. 모델 머리에 맞춰 줄이고 중심을 맞춘다.
   helmet: { bone: 'Head', rotation: [0, 0, 0], position: [0.075, 0.07, 0.02], scale: 0.55 },
   /* 받아 온 진짜 투구(Sketchfab, CC-BY) — 원본 좌표계가 코드 투구와 다르다.
@@ -263,6 +297,7 @@ function buildFromModel() {
 
   const sword = buildSwordProp()
   const bow = buildBowProp()
+  const shield = buildShieldProp()
   // 받아 온 투구가 있으면 그걸 쓴다. 없으면(파일이 안 실렸으면) 코드 투구로.
   const realHelmet = buildRealHelmetProp()
   const helmet = realHelmet ?? buildHelmetProp()
@@ -272,6 +307,7 @@ function buildFromModel() {
 
   rig.attachTo(MOUNT.sword.bone, sword.group, MOUNT.sword)
   rig.attachTo(MOUNT.bow.bone, bow.group, MOUNT.bow)
+  rig.attachTo(MOUNT.shield.bone, shield.group, MOUNT.shield)
   rig.attachTo(helmetMount.bone, helmet.group, helmetMount)
   rig.attachToBody(cape.group, MOUNT.cape)
   const skirtMount = rig.attachToBody(skirt.group, MOUNT.skirt)
@@ -286,6 +322,7 @@ function buildFromModel() {
   }
   helmet.group.visible = false
   cape.group.visible = false
+  shield.group.visible = false     // 막는 동안에만 보인다 (player.js 의 guard)
 
   // 발밑 표식
   const mark = new THREE.Mesh(
@@ -329,7 +366,7 @@ function buildFromModel() {
 
   return {
     rig,
-    weapons: { sword: sword.group, bowHand: bow.group, bowBack: null },
+    weapons: { sword: sword.group, bowHand: bow.group, bowBack: null, shield: shield.group },
     cape,
     capeSim: cape,
     skirt,
@@ -441,6 +478,13 @@ export class Player extends Actor {
     this._focusIdle = 0
     this.rallyCd = 0          // 함성 재사용 대기 (main.js 의 rally)
     this.rallyMax = 20
+    // 막기·쳐내기 (위 TUNING.guard)
+    this.guarding = false
+    this.guardT = 99          // 막기를 누른 뒤 지난 시간. window 안이면 쳐낸다
+    this.posture = 0
+    this.maxPosture = TUNING.guard.posture
+    this.postureHold = 0      // 맞고 나서 회복이 멈춘 시간
+    this.broken = 0           // 자세가 무너져 굳은 시간
     this.comboNext = null
     this._move = new THREE.Vector3()
 
@@ -489,6 +533,25 @@ export class Player extends Actor {
       if (this._focusIdle > 5) { this.focus--; this._focusIdle = 2.2 }
     }
     if (this.rallyCd > 0) this.rallyCd -= dt
+
+    /* 막기와 자세.
+       누르고 있는 동안만 막는다. 눌린 지 얼마나 됐는지(guardT)가 쳐내기의
+       전부라, 여기서 시계를 돌리고 hurt() 가 그 값을 읽는다. */
+    const G = TUNING.guard
+    if (this.broken > 0) {
+      this.broken -= dt
+      this.guarding = false
+    } else {
+      const wantGuard = this.input.isHeld('guard') && this.rolling <= 0 && this.drawing <= 0 && !this.action.active
+      if (wantGuard && !this.guarding) this.guardT = 0       // 이제 막 들었다 — 쳐내기 창이 열린다
+      else if (wantGuard) this.guardT += dt
+      this.guarding = wantGuard
+      if (!wantGuard) this.guardT = 99
+    }
+    if (this.postureHold > 0) this.postureHold -= dt
+    else if (this.posture > 0) {
+      this.posture = Math.max(0, this.posture - (this.guarding ? G.regenGuard : G.regen) * dt)
+    }
 
     // 구르기 충전 회복 — 하나씩 순서대로 찬다
     if (this.rollCharges < (this.maxRollCharges ?? TUNING.roll.charges)) {
@@ -573,6 +636,22 @@ export class Player extends Actor {
       return
     }
     if (this.input.consume('rally')) this.world.rally?.()
+    /* 자세가 무너졌으면 아무것도 못 한다. 세키로가 여기서 무서운 이유는
+       '막다가 무너지면 그 다음 한 방을 그대로 맞는다' 이기 때문이다. */
+    if (this.broken > 0) {
+      this.#moveBy(dt, 0.2)
+      this.step(dt, this.world.arenaRadius)
+      this.#visual(dt, false)
+      return
+    }
+    // 막는 동안은 칼도 활도 안 나간다. 느리게 걸을 수는 있다
+    if (this.guarding) {
+      this.facing = dampAngle(this.facing, Math.atan2(aim.x - this.pos.x, aim.z - this.pos.z), TUNING.turnHalf * 1.6, dt)
+      this.#moveBy(dt, TUNING.guard.speed)
+      this.step(dt, this.world.arenaRadius)
+      this.#visual(dt, false)
+      return
+    }
     if (this.input.consume('bow')) { this.drawing = 0.0001; this.#visual(dt, false); this.step(dt, this.world.arenaRadius); return }
     if (this.input.consume('heavy')) { this.faceTo(aim.x, aim.z); this.#heavy(); this.step(dt, this.world.arenaRadius); this.#visual(dt, false); return }
     if (this.input.consume('slash')) { this.faceTo(aim.x, aim.z); this.action.play(SLASH.slash1); this.step(dt, this.world.arenaRadius); this.#visual(dt, false); return }
@@ -678,6 +757,12 @@ export class Player extends Actor {
    */
   hurt(amount, opts = {}) {
     const before = this.invuln > 0 || this.rolling > 0 || this.god
+    // 구르기 무적이 먼저다 — 구르는 중이면 막기를 볼 것도 없다
+    if (!before && this.guarding && this.broken <= 0 && !this.dead) {
+      const G = TUNING.guard
+      if (this.guardT <= G.window) return this.#deflect(amount, opts)
+      return this.#block(amount, opts, G)
+    }
     const out = super.hurt(amount, opts)
     if (out === 'hit') this.world.sfx?.thud()
     else if (out === 'iframe' && before) {
@@ -692,6 +777,85 @@ export class Player extends Actor {
       }
     }
     return out
+  }
+
+  /**
+   * 쳐냈다.
+   *
+   * 피해도 자세도 0 이다. 대신 **친 쪽의 무력화를 크게 민다** — 방어가
+   * 공격이 되는 자리이고, 이 게임에서 무력화는 그로기로, 그로기는 두 배
+   * 피해로 이어진다 (enemy/boss.js). 그러니 쳐내기 셋이 중격 한 번과
+   * 같은 값을 한다. 막는 것이 '버티는 일' 이 아니라 '이기는 길' 이어야
+   * 방어에 손이 간다.
+   */
+  #deflect(amount, opts) {
+    const G = TUNING.guard
+    this.posture = Math.max(0, this.posture - 12)     // 잘 쳐내면 오히려 숨이 돌아온다
+    this.gainFocus(1)
+    this.world.sfx?.clang()
+    this.world.sfx?.crit?.()
+    this.fx?.freeze(0.09)
+    this.fx?.shake(0.3)
+    this.fx?.number(this.pos.clone().setY(2.1), '쳐냄', { color: '#bfe8ff', size: 26, crit: true })
+    this.fx?.ring(this.pos.x, this.pos.z, { color: '#bfe8ff', radius: 2.2, life: 0.35 })
+    // 친 쪽을 찾아 무력화를 민다. from 은 때린 자리라 거기서 가장 가까운 놈이다
+    const from = opts.from
+    if (from) {
+      let best = null, bd = Infinity
+      for (const e of this.world.enemies) {
+        if (e.dead) continue
+        const d = dist2d(e.pos, from)
+        if (d < bd) { bd = d; best = e }
+      }
+      if (best) {
+        best.breakPoise?.(G.poise)
+        best.stagger = Math.max(best.stagger, 0.22)
+        this.world.particles?.burst?.({
+          x: from.x, y: 1.2, z: from.z, count: 12,
+          color: '#cfefff', speed: 7, size: 0.1, life: 0.4, gravity: 3,
+        })
+      }
+    }
+    return 'iframe'
+  }
+
+  /**
+   * 막았다.
+   *
+   * 피해의 30% 만 몸으로 받고 나머지는 자세로 받는다. 자세가 다 차면
+   * 무너진다 — 그래서 계속 막고만 있을 수는 없고, 언젠가는 쳐내거나
+   * 굴러야 한다. 그 '언젠가' 를 고르는 것이 이 규칙의 전부다.
+   */
+  #block(amount, opts, G) {
+    this.postureHold = G.hitPause
+    this.posture += amount * G.postureCost
+    this.world.sfx?.clang()
+    this.fx?.freeze(0.05)
+    this.fx?.shake(0.16)
+    this.fx?.ring(this.pos.x, this.pos.z, { color: '#c8973e', radius: 1.6, life: 0.26 })
+    // 밀린다 — 막아도 큰 것은 몸을 밀어낸다
+    if (opts.from) {
+      const dx = this.pos.x - opts.from.x, dz = this.pos.z - opts.from.z
+      const d = Math.hypot(dx, dz) || 1
+      this.vel.x += (dx / d) * (opts.knockback ?? 6) * 0.5 / this.mass
+      this.vel.z += (dz / d) * (opts.knockback ?? 6) * 0.5 / this.mass
+    }
+    const through = amount * G.blockCut
+    const out = super.hurt(through, { ...opts, knockback: 0, stagger: 0, hitstop: 0 })
+    if (this.posture >= this.maxPosture) this.#breakPosture()
+    return out
+  }
+
+  /** 자세가 무너졌다. 굳는다 — 그 사이에 오는 것은 그대로 맞는다. */
+  #breakPosture() {
+    this.posture = this.maxPosture
+    this.broken = TUNING.guard.breakLock
+    this.guarding = false
+    this.action.stop()
+    this.world.sfx?.deny?.()
+    this.fx?.shake(0.5)
+    this.fx?.number(this.pos.clone().setY(2.2), '자세 무너짐', { color: '#ff8a5a', size: 24 })
+    this.fx?.ring(this.pos.x, this.pos.z, { color: '#ff8a5a', radius: 2.8, life: 0.5 })
   }
 
   /** 기세를 전부 태워 한 번 내리친다. 빈손이어도 나가되, 값은 칸 수가 정한다. */
@@ -826,6 +990,20 @@ export class Player extends Actor {
       this.weapons.bowHand.visible = drawing
     }
     if (this.weapons.sword) this.weapons.sword.visible = !drawing
+    /* 방패는 막는 동안에만 든다. 늘 들고 있으면 왼손에 활과 겹치고,
+       무엇보다 **막는 중인지 아닌지가 안 보인다** — 타이밍 기술은 상태가
+       보여야 성립한다. 쳐내기 창(0.18초) 동안은 한 번 번쩍인다. */
+    if (this.weapons.shield) {
+      const sh = this.weapons.shield
+      sh.visible = this.guarding
+      if (sh.visible) {
+        const flash = this.guardT <= TUNING.guard.window ? 1 : 0
+        sh.traverse(o => {
+          if (!o.isMesh || !o.material?.emissive) return
+          o.material.emissive.setRGB(flash * 0.55, flash * 0.75, flash * 0.9)
+        })
+      }
+    }
 
     // 망토 — 마디마다 윗마디를 뒤쫓는다
     const turn = angleDelta(this._lastFacing, this.facing) / Math.max(dt, 1e-4)
