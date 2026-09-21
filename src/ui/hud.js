@@ -77,7 +77,7 @@ const CSS = `
   font-size:11px; color:#8b7a60; letter-spacing:.05em; white-space:nowrap; }
 
 /* 구르기 — 청동 방패 세 닢. 차오르는 중인 것은 시계 방향으로 채워진다 */
-#hud .pips { display:flex; gap:11px; margin-top:2px; }
+#hud .pips { display:flex; gap:11px; }
 #hud .pip { --k:1; position:relative; width:19px; height:19px; border-radius:50%;
   background:radial-gradient(circle at 34% 28%, #2b2317, #15100a 70%);
   box-shadow:inset 0 1px 2px rgba(0,0,0,.9), 0 0 0 1px rgba(232,200,132,.3),
@@ -93,6 +93,35 @@ const CSS = `
 #hud .pip.full { box-shadow:inset 0 1px 2px rgba(0,0,0,.9), 0 0 0 1px rgba(255,210,130,.55),
              0 3px 8px rgba(0,0,0,.6), 0 0 14px rgba(232,200,132,.35); }
 #hud .pip.empty i { background:rgba(40,33,22,.85); }
+
+/* 기세 — 칼자루에 드는 불. 구르기 방패와 달리 각지게 세워서
+   "충전" 이 아니라 "쌓인 것" 으로 읽히게 한다 (Wukong 의 棍势). */
+/* 구르기 방패와 기세는 **한 줄**에 둔다. 아래로 한 줄 더 쌓으면 체력판이
+   그만큼 위로 밀려 올라와 쿼터뷰에서 제 몸을 덮는다 (.bottom 주석 참고). */
+#hud .bottom .row { display:flex; align-items:center; gap:16px; margin-top:2px; }
+#hud .focus { display:flex; gap:7px; align-items:center; }
+#hud .focus b { --k:0; width:15px; height:15px; position:relative; display:block;
+  transform:rotate(45deg);
+  background:linear-gradient(180deg,#1a1510,#0c0908);
+  box-shadow:inset 0 0 0 1px rgba(127,230,255,.22), 0 2px 6px rgba(0,0,0,.7); }
+#hud .focus b::after { content:''; position:absolute; inset:2px; display:block;
+  opacity:var(--k);
+  background:linear-gradient(180deg,#d8faff,#39b8d8 55%,#1b6d88);
+  box-shadow:0 0 12px rgba(127,230,255,.75); transition:opacity .12s linear; }
+#hud .focus.max b { box-shadow:inset 0 0 0 1px rgba(200,250,255,.7), 0 0 16px rgba(127,230,255,.5); }
+/* 함성 — 남은 사람이 힘이다. 다 차면 테가 살아난다 */
+#hud .focus .rally { --r:1; width:auto; height:15px; transform:none; padding:0 8px;
+  display:grid; place-items:center; position:relative; overflow:hidden;
+  font-family:var(--serif); font-size:10px; letter-spacing:.08em; color:#6f6559;
+  background:linear-gradient(180deg,#171b18,#0b0d0c);
+  box-shadow:inset 0 0 0 1px rgba(159,240,192,.16), 0 2px 6px rgba(0,0,0,.7); }
+#hud .focus .rally i { position:absolute; left:0; top:0; bottom:0; right:0;
+  transform-origin:left center; transform:scaleX(var(--r));
+  background:rgba(159,240,192,.16); }
+#hud .focus .rally span { position:relative; }
+#hud .focus .rally.ready { color:#9ff0c0;
+  box-shadow:inset 0 0 0 1px rgba(159,240,192,.55), 0 0 14px rgba(159,240,192,.3); }
+#hud .focus .rally.none { opacity:.3; }
 
 #hud .keys { position:absolute; left:22px; bottom:20px; font-size:11.5px; line-height:1.9;
   color:#7d7264; letter-spacing:.02em; }
@@ -194,6 +223,15 @@ const CSS = `
   font-size:15px; letter-spacing:.03em; color:#ffd980; opacity:0; transition:opacity .3s;
   text-shadow:0 1px 2px rgba(0,0,0,.95), 0 0 16px rgba(255,190,60,.5); }
 #hud .boss.down .weak { opacity:1; }
+/* 무력화 — 체력 바로 밑의 얇은 청록 줄. 체력과 색이 갈려야 둘을 따로 읽는다 */
+#hud .boss .poise { height:5px; margin-top:3px; background:#0c1113; border-radius:1px;
+  overflow:hidden; position:relative; box-shadow:inset 0 1px 3px rgba(0,0,0,.9),
+  0 0 0 1px rgba(127,230,255,.16); }
+#hud .boss .poise i { position:absolute; inset:0; transform-origin:left center; display:block;
+  transform:scaleX(0);
+  background:linear-gradient(90deg,#1b6d88,#7fe6ff); transition:transform .12s linear; }
+#hud .boss.groggy .poise { box-shadow:inset 0 1px 3px rgba(0,0,0,.9), 0 0 18px rgba(127,230,255,.6); }
+#hud .boss.groggy .poise i { background:#ffd166; transform:scaleX(1) !important; }
 #hud .boss .phases { position:absolute; inset:0; display:flex; pointer-events:none; }
 #hud .boss .phases s { flex:1; border-right:1px solid rgba(0,0,0,.6); }
 #hud .boss .phases s:last-child { border:0; }
@@ -249,11 +287,12 @@ export class Hud {
         </div>
         <div class="xpwrap"><b class="lvchip">1</b><div class="xp"><i></i></div></div>
         <span class="lv"></span>
-        <div class="pips"></div>
+        <div class="row"><div class="pips"></div><div class="focus"></div></div>
       </div>
       <div class="keys">
         <div><b class="k wasd"></b> 이동 &nbsp; <b class="k mouse"></b> 조준</div>
         <div><b class="k lmb"></b> 칼 (3타) &nbsp; <b class="k rmb"></b> 활 (꾹 눌러 차징) &nbsp; <b class="k space"></b> 구르기</div>
+        <div><kbd>Shift</kbd> 중격 — 기세를 태운다 &nbsp; <kbd>E</kbd> 함성 — 동료를 부른다</div>
         <div class="grown"></div>
         <div class="dev"><kbd>Tab</kbd> 판 고르기 · <kbd>L</kbd> 화면 톤 · <kbd>M</kbd> 음소거 · <kbd>]</kbd> 다음 판 · <kbd>R</kbd> 처음부터</div>
       </div>
@@ -264,6 +303,7 @@ export class Hud {
       <div class="wave"></div>
       <div class="boss"><div class="who"><b></b><span></span></div>
         <div class="bar"><u></u><i></i><div class="phases"></div></div>
+        <div class="poise"><i></i></div>
         <div class="weak"></div></div>
       <div class="credits"><div class="in">
         <div class="band"></div>
@@ -283,6 +323,9 @@ export class Hud {
     this.hpGhost = el.querySelector('.hp b')
     this.hpText = el.querySelector('.hp span')
     this.pips = el.querySelector('.pips')
+    this.focusEl = el.querySelector('.focus')
+    this.focusEls = []
+    this.rallyEl = null
     this.dmgEl = el.querySelector('.dmg')
     this.xpFill = el.querySelector('.xp i')
     this.lvChip = el.querySelector('.lvchip')
@@ -296,6 +339,7 @@ export class Hud {
     this.bossEl = el.querySelector('.boss')
     this.bossFill = el.querySelector('.boss .bar i')
     this.bossGhost = el.querySelector('.boss .bar u')
+    this.bossPoise = el.querySelector('.boss .poise i')
     this.creditsEl = el.querySelector('.credits')
     this.boss = null
 
@@ -392,6 +436,43 @@ export class Hud {
     }
   }
 
+  /**
+   * 기세 구슬과 함성.
+   *
+   * 구르기 방패(원형)와 **다른 모양**으로 둔다. 둘 다 동그라미면 "충전되는
+   * 것 두 줄" 로 보여서 어느 쪽이 무엇인지 눈이 구분을 못 한다. 기세는
+   * 마름모, 구르기는 방패다.
+   */
+  #focus(player) {
+    const max = player.maxFocus ?? 0
+    if (!this.focusEl || !max) return
+    if (this.focusEls.length !== max) {
+      this.focusEl.innerHTML =
+        Array.from({ length: max }, () => '<b></b>').join('')
+        + '<b class="rally"><i></i><span>함성</span></b>'
+      this.focusEls = [...this.focusEl.querySelectorAll('b:not(.rally)')]
+      this.rallyEl = this.focusEl.querySelector('.rally')
+    }
+    const n = player.focus ?? 0
+    for (let i = 0; i < this.focusEls.length; i++) {
+      this.focusEls[i].style.setProperty('--k', i < n ? '1' : '0')
+    }
+    this.focusEl.classList.toggle('max', n >= max)
+    if (this.rallyEl) {
+      const cd = player.rallyCd ?? 0
+      const allies = player.world?.allies?.filter(a => !a.dead && a.down <= 0).length ?? 0
+      const ready = cd <= 0 && allies > 0
+      this.rallyEl.style.setProperty('--r', ready ? '1' : (1 - cd / (player.rallyMax || 20)).toFixed(3))
+      this.rallyEl.classList.toggle('ready', ready)
+      this.rallyEl.classList.toggle('none', allies === 0)
+      const label = allies === 0 ? '함성' : ready ? `함성 ${allies}` : `함성 ${Math.ceil(cd)}`
+      if (label !== this._rallyLabel) {
+        this.rallyEl.querySelector('span').textContent = label
+        this._rallyLabel = label
+      }
+    }
+  }
+
   update(player, { totalDamage, dt, kills = 0, kit = null, level = null, stage = null, index = 0, count = 9 }) {
     const k = clamp(player.hp / player.maxHp, 0, 1)
     this.hpFill.style.transform = `scaleX(${k})`
@@ -409,6 +490,9 @@ export class Hud {
       const k2 = filled ? 1 : charging ? clamp(player.rollTimer / TUNING.roll.regen, 0, 1) : 0
       this.pipEls[i].style.setProperty('--k', k2.toFixed(3))
     }
+
+    // 기세 구슬 · 함성. 구르기 방패 아래 한 줄로 붙는다.
+    this.#focus(player)
 
     // 막대는 경험치다. 전에는 차림(장비) 진행도를 그렸는데, 그건 처치 수로
     // 한 번씩 열리는 것이라 막대가 필요하지 않다 — 숫자 한 줄로 충분하다.
@@ -451,6 +535,12 @@ export class Hud {
       const k = clamp(this.boss.hp / this.boss.maxHp, 0, 1)
       this.bossFill.style.transform = `scaleX(${k})`
       this.bossGhost.style.transform = `scaleX(${k})`
+      // 무력화 — 다 차면 무릎을 꿇는다 (enemy/boss.js 의 breakPoise)
+      if (this.bossPoise && this.boss.poiseMax) {
+        const g = this.boss.groggy > 0
+        this.bossEl.classList.toggle('groggy', g)
+        if (!g) this.bossPoise.style.transform = `scaleX(${clamp(this.boss.poise / this.boss.poiseMax, 0, 1)})`
+      }
     } else if (this.boss?.dead) {
       this.bossFill.style.transform = 'scaleX(0)'
       this.bossGhost.style.transform = 'scaleX(0)'

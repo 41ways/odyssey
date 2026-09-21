@@ -65,6 +65,21 @@ const base = (cfg, shape, onFire) => ({
   },
 })
 
+/**
+ * 같은 판정에 동료도 건다.
+ *
+ * 적은 동료를 **노리지** 않는다 (player/companion.js 의 규칙). 그건 그대로
+ * 둔다 — 노리기 시작하면 동료 지키기가 판의 일이 되어 버린다. 대신 보스가
+ * 휘두른 자리에 서 있으면 걸린다. 그래야 동료가 '있고 없고' 가 아니라
+ * **지금 어디 서 있는가** 가 되고, 함성으로 달려들게 한 뒤가 위험해진다.
+ */
+const sweepAllies = (b, test) => {
+  for (const a of b.world.allies ?? []) {
+    if (!a || a.dead || a.down > 0) continue
+    if (test(a)) a.knockDown(b.pos)
+  }
+}
+
 const landed = (b, run, cfg, x, z) => {
   const p = b.world.player
   if (p.dead || run.hitSet.has(p)) return
@@ -83,6 +98,7 @@ export const slam = cfg => base(cfg,
     if (sectorHit(run.origin, run.lockFacing, cfg.range, cfg.halfAngle, b.world.player)) {
       landed(b, run, cfg, run.origin.x, run.origin.z)
     }
+    sweepAllies(b, a => sectorHit(run.origin, run.lockFacing, cfg.range, cfg.halfAngle, a))
   })
 
 /** 원형 내려찍기. 발밑이 위험하다. */
@@ -93,6 +109,7 @@ export const stomp = cfg => base({ at: 'point', ...cfg },
     if (circleHit(run.origin.x, run.origin.z, cfg.radius, b.world.player)) {
       landed(b, run, cfg, run.origin.x, run.origin.z)
     }
+    sweepAllies(b, a => circleHit(run.origin.x, run.origin.z, cfg.radius, a))
   })
 
 /** 도넛. 붙어 있으면 안 맞는다 — 물러서는 습관을 깨는 패턴.
@@ -105,6 +122,7 @@ export const ring = cfg => base({ at: 'point', ...cfg },
     if (ringHit(run.origin.x, run.origin.z, cfg.inner, cfg.outer, b.world.player)) {
       landed(b, run, cfg, run.origin.x, run.origin.z)
     }
+    sweepAllies(b, a => ringHit(run.origin.x, run.origin.z, cfg.inner, cfg.outer, a))
   })
 
 /**
@@ -336,6 +354,15 @@ export class Boss extends Actor {
     this.isBoss = true
     this.phaseIndex = -1
     this.groggy = 0
+    /* 무력화 — 큰 것을 맞을 때마다 차는 게이지. 다 차면 무릎을 꿇는다.
+       체력과 따로 두는 이유: 체력만 있으면 보스전이 '오래 때리기' 가 된다.
+       무력화가 있으면 **언제 큰 걸 쓰느냐** 가 따로 물어진다 — 기세를 모아
+       중격을 박고, 동료를 불러 한꺼번에 밀고, 그 창에서 몰아친다.
+       한 번 무너뜨릴 때마다 다음 벽이 높아진다 (poiseMax). 안 그러면
+       중격만 돌려 써서 보스가 계속 꿇어앉아 있는다. */
+    this.poise = 0
+    this.poiseMax = cfg.poise ?? 100
+    this._poiseIdle = 0
     this.cooldowns = new Map()
     this.gap = cfg.gap ?? [3, 6]
     this.animT = rand(0, 4)
@@ -401,6 +428,30 @@ export class Boss extends Actor {
   }
 
   get phase() { return this.cfg.phases[Math.max(0, this.phaseIndex)] }
+
+  /**
+   * 무력화를 쌓는다. 다 차면 무너진다.
+   *
+   * @param n    쌓는 양
+   * @param who  누가 밀었는지 — 알림 문구가 갈린다
+   * @returns 이 타격으로 무너뜨렸는가
+   */
+  breakPoise(n, who = null) {
+    if (this.dead || n <= 0) return false
+    this._poiseIdle = 0
+    // 이미 꿇어앉은 것을 또 밀 수는 없다
+    if (this.groggy > 0) return false
+    this.poise = Math.min(this.poiseMax, this.poise + n)
+    if (this.poise < this.poiseMax) return false
+    this.poise = 0
+    this.poiseMax = Math.round(this.poiseMax * 1.3)
+    this.setGroggy(this.cfg.poiseGroggy ?? 3.2)
+    this.fx.shake(0.6)
+    this.fx.ring(this.pos.x, this.pos.z, { color: '#7fe6ff', radius: this.radius * 4.5, life: 0.8 })
+    this.world.sfx?.crit?.()
+    this.world.onBossSay?.(who === 'rally' ? '동료들이 한꺼번에 밀어붙였다 — 무릎을 꿇었다' : '무력화 — 지금이다')
+    return true
+  }
 
   /** 그로기 — 큰 기술 뒤의 반격 창. 여기서 몰아쳐야 보스가 넘어간다. */
   setGroggy(sec) {
@@ -641,6 +692,11 @@ export class Boss extends Actor {
         }
       } else this._eyeT = 0
     }
+
+    // 안 맞고 지나가면 무력화가 도로 풀린다. 한 판 내내 조금씩 쌓아
+    // 언젠가 터뜨리는 게 아니라 **짧은 사이에 몰아쳐야** 넘어가야 한다.
+    this._poiseIdle += dt
+    if (this._poiseIdle > 2.5 && this.poise > 0) this.poise = Math.max(0, this.poise - 16 * dt)
 
     if (this.groggy > 0) { this.groggy -= dt; return }
     if (this.action.active) return

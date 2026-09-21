@@ -70,6 +70,7 @@ const SLASH = {
   swing: 'Sword_A', stab: 'Sword_C',                          // 적 — 베기 · 찌르기
   shot: 'Bow_Shoot',                                          // 적 궁수
   ally_spear: 'Sword_C', ally_sword: 'Sword_B',               // 동료 — 창은 찌르고 칼은 벤다
+  heavy: 'Sword_A',                                           // 중격 — 크게 내려찍는다
 }
 
 const ONE_SHOT = new Set([CLIP.attack, CLIP.roll, CLIP.hurt, CLIP.die, CLIP.shoot,

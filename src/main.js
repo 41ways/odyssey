@@ -38,11 +38,11 @@ import { rollBlessings } from './player/blessings.js'
 import { models } from './render/models.js'
 import { preloadCharacter } from './render/character.js'
 import { preloadRealHelmet } from './player/gear.js'
-import { rand } from './core/math.js'
+import { rand, dist2d } from './core/math.js'
 import { Voyage, LOSSES, FATES } from './stage/voyage.js'
 import { FateScreen } from './ui/fate.js'
 import { VoyageHud } from './ui/voyagehud.js'
-import { Companion, companionsFor } from './player/companion.js'
+import { Companion, companionsFor, rallyPower } from './player/companion.js'
 import { SailLeg } from './stage/sailleg.js'
 
 const MINIONS = { warrior: kikonesWarrior, archer: kikonesArcher, shield: kikonesShield,
@@ -841,6 +841,70 @@ class Game {
       this.allies.push(a)
       this.render3d.scene.add(a.group)
     }
+  }
+
+  /**
+   * 함성 — 동료를 한꺼번에 몰아붙인다 (E).
+   *
+   * ── 육백 명이 무슨 뜻인가 ──
+   * 전에는 남은 사람 수가 화면 구석의 글씨였다. 줄어도 아무 일이 없으니
+   * 세는 이유가 없었다. 이제 이 숫자가 두 군데서 힘이 된다.
+   *
+   *   1. **몇이 곁에 서는가** — 400 이상이면 셋, 120 이상이면 둘, 그 아래는
+   *      하나 (companionsFor). 키코네스에서 일흔둘을 잃으면 곁이 빈다.
+   *   2. **함성이 얼마나 미는가** — 남은 수에 비례해 무력화를 민다
+   *      (rallyPower). 육백이면 한 번에 보스의 무력화를 크게 깎고, 마흔다섯이
+   *      남으면 긁는 시늉밖에 못 한다.
+   *
+   * 동료가 보스를 치는 건 이때뿐이다. 파훼는 여전히 오디세우스의 몫이고,
+   * 동료는 **넘어뜨릴 뿐** 눕히지 못한다.
+   */
+  rally() {
+    const p = this.player
+    if (p.dead || p.rallyCd > 0) return
+    const ready = this.allies.filter(a => !a.dead && a.down <= 0)
+    if (!ready.length) {
+      this.hud.toast(this.voyage.crew > 0 ? '부를 사람이 곁에 없다' : '이제 아무도 남지 않았다', 1.6)
+      return
+    }
+    // 표적 — 보스가 있으면 보스, 없으면 가장 가까운 놈
+    let target = this.enemies.find(e => e.isBoss && !e.dead) ?? null
+    if (!target) {
+      let bd = Infinity
+      for (const e of this.enemies) {
+        if (e.dead || e.isDummy) continue
+        const d = dist2d(e.pos, p.pos)
+        if (d < bd) { bd = d; target = e }
+      }
+    }
+    if (!target) { this.hud.toast('부를 데가 없다', 1.4); return }
+
+    const power = rallyPower(this.voyage.crew)
+    let n = 0
+    for (const a of ready) if (a.callTo(target, power)) n++
+    if (!n) return
+    p.rallyCd = p.rallyMax
+    this.sfx?.ready?.()
+    this.fx.ring(p.pos.x, p.pos.z, { color: '#9ff0c0', radius: 3.6, life: 0.5 })
+    this.fx.shake(0.2)
+    this.hud.toast(`「노를 놓고 창을 들어라」 — ${this.voyage.crew}명이 남았다`, 2.0)
+  }
+
+  /** 동료가 장판에 걸려 주저앉았다 */
+  onAllyDown(a) { this.hud.toast(`${a.name}이(가) 쓰러졌다 — 곁에 서면 일으킨다`, 2.2) }
+
+  /**
+   * 못 일으켰다. 그 사람만 잃는 게 아니다 — 그를 따르던 노 젓는 자리가
+   * 통째로 빈다. 육백이라는 숫자가 **내가 한 일로** 줄어드는 유일한 자리다.
+   */
+  onAllyLost(a) {
+    const i = this.allies.indexOf(a)
+    if (i >= 0) this.allies.splice(i, 1)
+    this.render3d.scene.remove(a.group)
+    const lost = this.voyage.lose(40, `${a.name}의 자리`)
+    this.notice.milestone('일으키지 못했다', `${a.name}`,
+      lost ? `그를 따르던 ${lost}명이 배에 돌아오지 못했다.` : '아무도 남지 않았다.', '#c0453a')
+    this.sfx?.thud?.()
   }
 
   /**

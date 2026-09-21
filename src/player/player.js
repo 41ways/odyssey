@@ -56,7 +56,11 @@ function slash(cfg) {
     cancelAt: cfg.cancelAt,
     next: cfg.next,
     move: { distance: cfg.move, curve: CURVE.front },
-    onActive(p) {
+    onActive(p, run) {
+      // 기세는 **한 번 휘두를 때 한 칸**이다. 판정이 여러 프레임 열려 있고
+      // 적도 여럿이라, 여기서 안 접어 두면 한 번에 네 칸이 찬다.
+      // ActionRunner 는 한 사람당 하나뿐이라 켠 자리에서 끄지 않으면 영영 켜져 있다.
+      run.gaveFocus = false
       const range = cfg.range * p.stats.meleeRange
       // 허공을 가르는 소리. 맞은 소리는 아래 onHitWindow 에서 따로 낸다 —
       // 이 둘이 같으면 맞았는지 빗맞았는지를 귀로 모른다.
@@ -91,6 +95,11 @@ function slash(cfg) {
         if (e.dead || run.hitSet.has(e)) continue
         if (!sectorHit(p.pos, p.facing, range, cfg.halfAngle, e)) continue
         run.hitSet.add(e)
+        // 칼이 닿으면 기세가 한 칸 쌓인다 (Wukong 의 棍势). 한 번 휘둘러
+        // 여럿을 맞혀도 한 칸이다 — 기세는 '맞힌 횟수' 가 아니라 '박자' 다.
+        if (!run.gaveFocus) { run.gaveFocus = true; p.gainFocus(1) }
+        // 3타는 무력화도 민다. 묶이는 값이 여기 있다.
+        if (cfg.id === 'slash3') e.breakPoise?.(10)
         // 그로기 중인 적은 다르게 들려야 한다. 같은 타격인데 값이 다르다.
         if (e.groggy > 0 || cfg.id === 'slash3') p.world.sfx?.crit()
         else p.world.sfx?.hit(false)
@@ -131,6 +140,57 @@ export const SLASH = {
   slash2: slash({ id: 'slash2', startup: 0.18, active: 0.08, recovery: 0.44, cancelAt: 0.38, next: 'slash3', move: 1.1, range: 3.1, halfAngle: 1.25, damage: 16, knockback: 4.0, hitstop: 0.075, stagger: 0.14 }),
   // 3타가 보상이다. 크게 묶이는 대신 크게 아프고 크게 흔든다.
   slash3: slash({ id: 'slash3', startup: 0.34, active: 0.13, recovery: 0.78, cancelAt: 0.70, next: null, move: 2.1, range: 3.9, halfAngle: 1.95, damage: 36, knockback: 13, hitstop: 0.14, stagger: 0.48 }),
+}
+
+/**
+ * 중격 — 기세를 태우는 한 방.
+ *
+ * ── 왜 필요했나 ──
+ * 칼 3타와 활 차징은 둘 다 '기다렸다가 크게' 지만, 둘 다 **공짜로** 쓸 수
+ * 있다. 그래서 보스전이 3타를 계속 돌리는 일이 된다. 쌓아야만 쓸 수 있는
+ * 한 방이 하나 있어야 근접전에 계좌가 생긴다.
+ *
+ * 기세는 칼이 닿을 때마다 한 칸, 구르기로 아슬아슬하게 흘렸을 때 한 칸씩
+ * 쌓인다(최대 4). 중격은 **쌓인 걸 전부 태운다** — 칸마다 피해와 무력화가
+ * 같이 오른다. 4 칸이면 3타의 두 배를 넘고, 무력화가 절반 가까이 찬다.
+ *
+ * 대신 느리다. 선딜 0.44 는 보스가 한 번 휘두를 시간이다 — 언제 지를지를
+ * 읽어야 하고, 그 자리가 곧 그로기 창이다.
+ */
+export const HEAVY = {
+  id: 'heavy',
+  startup: 0.44, active: 0.14, recovery: 0.66, cancelAt: 0.60, next: null,
+  move: { distance: 2.4, curve: CURVE.front },
+  onActive(p) {
+    const n = p.spentFocus ?? 0
+    p.world.sfx?.swing(true)
+    p.fx.slash(p.pos.x, p.pos.z, p.facing, (3.6 + n * 0.22) * p.stats.meleeRange, 1.5, '#7fe6ff')
+    p.fx.shake(0.26 + n * 0.05)
+    p.fx.ring(p.pos.x, p.pos.z, { color: '#7fe6ff', radius: 2.2 + n * 0.5, life: 0.4 })
+  },
+  onHitWindow(p, run) {
+    const n = p.spentFocus ?? 0
+    const range = (3.6 + n * 0.22) * p.stats.meleeRange
+    p.world.maelstrom?.hitAt(
+      p.pos.x + Math.sin(p.facing) * range * 0.6,
+      p.pos.z + Math.cos(p.facing) * range * 0.6,
+      range * 0.8, (22 + n * 14) * p.stats.meleeDamage,
+    )
+    for (const e of p.world.enemies) {
+      if (e.dead || run.hitSet.has(e)) continue
+      if (!sectorHit(p.pos, p.facing, range, 1.5, e)) continue
+      run.hitSet.add(e)
+      p.world.sfx?.crit()
+      e.hurt((22 + n * 14) * p.stats.meleeDamage, {
+        from: p.pos, knockback: 9 + n * 2, hitstop: 0.1 + n * 0.02,
+        stagger: 0.5, crit: true, color: '#9ff0ff',
+      })
+      // 무력화는 기세를 태운 만큼 들어간다. 한 번에 반쯤 미는 값이라
+      // '모아서 지른다' 가 보스를 넘기는 길이 된다.
+      e.breakPoise?.(16 + n * 9)
+      if (p.stats.burn > 0) e.ignite({ dps: 9 * p.stats.meleeDamage, seconds: 4, level: p.stats.burn, from: p })
+    }
+  },
 }
 
 /**
@@ -374,6 +434,13 @@ export class Player extends Actor {
     this.rollDir = new THREE.Vector3()
     this.drawing = 0          // 활 당긴 시간. 0 이면 안 당기는 중
     this.releaseLock = 0
+    // 기세 — 칼이 닿을 때마다, 아슬아슬하게 흘렸을 때마다 한 칸 (위 HEAVY 주석)
+    this.focus = 0
+    this.maxFocus = 4
+    this.spentFocus = 0       // 중격이 태운 칸 수. 그 한 판 동안만 쓴다
+    this._focusIdle = 0
+    this.rallyCd = 0          // 함성 재사용 대기 (main.js 의 rally)
+    this.rallyMax = 20
     this.comboNext = null
     this._move = new THREE.Vector3()
 
@@ -389,6 +456,18 @@ export class Player extends Actor {
 
   get canAct() { return !this.dead && this.rolling <= 0 && this.stagger <= 0 && this.releaseLock <= 0 }
 
+  /** 기세 한 칸. 꽉 차면 칼자루에 불이 든다 (HUD 의 구슬). */
+  gainFocus(n = 1) {
+    if (this.dead || n <= 0) return
+    const was = this.focus
+    this.focus = Math.min(this.maxFocus, this.focus + n)
+    this._focusIdle = 0
+    if (this.focus > was && this.focus === this.maxFocus) {
+      this.world.sfx?.ready?.()
+      this.fx?.number(this.pos.clone().setY(2.3), '기세 가득', { color: '#7fe6ff', size: 20 })
+    }
+  }
+
   /** 선택지를 먹은 뒤 부른다. 공격속도는 액션 시계에, 체력은 최대치에 바로 반영된다. */
   applyStats() {
     this.actionRate = this.stats.actionRate
@@ -402,6 +481,14 @@ export class Player extends Actor {
   update(dt, aim) {
     if (this._echo && this.rolling <= 0) this.#updateEcho(dt)
     if (this.dead) { this.step(dt, this.world.arenaRadius); return }
+
+    // 기세는 가만히 있으면 샌다. 판 하나를 통째로 모아 뒀다가 보스방에서
+    // 터뜨리는 게 아니라, 붙어 있는 동안에만 쌓이는 것이어야 한다.
+    if (this.focus > 0) {
+      this._focusIdle += dt
+      if (this._focusIdle > 5) { this.focus--; this._focusIdle = 2.2 }
+    }
+    if (this.rallyCd > 0) this.rallyCd -= dt
 
     // 구르기 충전 회복 — 하나씩 순서대로 찬다
     if (this.rollCharges < (this.maxRollCharges ?? TUNING.roll.charges)) {
@@ -447,7 +534,12 @@ export class Player extends Actor {
       // 후딜 중 캔슬 창이 열리면 버퍼에 든 다음 입력을 꺼낸다
       if (this.action.cancelable) {
         const def = this.action.def
-        if (this.input.peek('slash') && def.next) {
+        if (this.input.peek('heavy')) {
+          // 3타까지 가지 않고 중격으로 끊는 길. 여기가 있어야 '언제 태울까' 가 판단이 된다
+          this.input.consume('heavy')
+          this.action.stop()
+          this.#heavy()
+        } else if (this.input.peek('slash') && def.next) {
           this.input.consume('slash')
           this.action.stop()
           this.action.play(SLASH[def.next])
@@ -480,7 +572,9 @@ export class Player extends Actor {
       this.#visual(dt, false)
       return
     }
+    if (this.input.consume('rally')) this.world.rally?.()
     if (this.input.consume('bow')) { this.drawing = 0.0001; this.#visual(dt, false); this.step(dt, this.world.arenaRadius); return }
+    if (this.input.consume('heavy')) { this.faceTo(aim.x, aim.z); this.#heavy(); this.step(dt, this.world.arenaRadius); this.#visual(dt, false); return }
     if (this.input.consume('slash')) { this.faceTo(aim.x, aim.z); this.action.play(SLASH.slash1); this.step(dt, this.world.arenaRadius); this.#visual(dt, false); return }
 
     this.facing = dampAngle(this.facing, Math.atan2(aim.x - this.pos.x, aim.z - this.pos.z), TUNING.turnHalf, dt)
@@ -586,8 +680,29 @@ export class Player extends Actor {
     const before = this.invuln > 0 || this.rolling > 0 || this.god
     const out = super.hurt(amount, opts)
     if (out === 'hit') this.world.sfx?.thud()
-    else if (out === 'iframe' && before) this.world.sfx?.clang()
+    else if (out === 'iframe' && before) {
+      this.world.sfx?.clang()
+      /* 완벽 회피. 구르기 무적으로 실제 공격을 흘린 순간에만 준다 —
+         아무 데나 구르는 것과 **맞을 것을 보고 구르는 것**을 값으로 가른다.
+         한 박자 멈춰 주는 건 그게 눈에 보여야 다시 하고 싶어지기 때문이다. */
+      if (this.rolling > 0 && !this.god) {
+        this.gainFocus(1)
+        this.fx?.freeze(0.07)
+        this.fx?.ring(this.pos.x, this.pos.z, { color: '#7fe6ff', radius: 1.9, life: 0.34 })
+      }
+    }
     return out
+  }
+
+  /** 기세를 전부 태워 한 번 내리친다. 빈손이어도 나가되, 값은 칸 수가 정한다. */
+  #heavy() {
+    this.spentFocus = this.focus
+    this.focus = 0
+    this._focusIdle = 0
+    if (this.spentFocus > 0) {
+      this.fx?.ring(this.pos.x, this.pos.z, { color: '#7fe6ff', radius: 1.4 + this.spentFocus * 0.3, life: 0.3 })
+    }
+    this.action.play(HEAVY)
   }
 
   #startRoll() {
