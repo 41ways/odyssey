@@ -45,7 +45,17 @@ const CSS = `
 #pause .keys { font-size:11.5px; line-height:2; color:#7d7264; letter-spacing:.02em;
   margin-bottom:20px; }
 #pause .keys b { color:var(--gold-dim); font-weight:700; }
+#pause .credits { text-align:left; font-size:12px; line-height:1.7; color:#bda87f; margin-bottom:20px; }
+#pause .credits .row { margin-bottom:10px; }
+#pause .credits .who { color:var(--ivory); }
+#pause .credits .lic { color:#8a7548; font-size:11px; }
 `
+
+/** CC-BY 는 표기가 의무다 (CREDITS.md 참고). 게임 안에서 닿는 자리가 이 메뉴뿐이라 여기 둔다. */
+const CC_BY = [
+  { name: 'Agamemnon’s Helmet', who: 'Quesho', where: '오디세우스의 투구' },
+  { name: 'Cyclops Rig', who: 'DM-913', where: '폴리페모스' },
+]
 
 export class PauseMenu {
   /** @param game 멈춤·소리·재시작을 실제로 하는 주체 */
@@ -76,6 +86,7 @@ export class PauseMenu {
     // 이미 멈춰 있었는지 기억해 둔다. 연출 중이었다면 닫아도 풀면 안 된다.
     this._wasPaused = !!this.game.paused
     this.game.paused = true
+    this._showingCredits = false
     this.render()
     this.el.classList.add('on')
     document.body.style.cursor = 'default'
@@ -83,12 +94,16 @@ export class PauseMenu {
 
   close() {
     if (!this.open) return
+    // 출처를 보던 중이면 Esc 한 번은 멈춤 메뉴로 돌아가는 데 쓴다 —
+    // 화면에 적힌 "Esc 돌아가기" 와 어긋나면 안 된다
+    if (this._showingCredits) { this._showingCredits = false; this.render(); return }
     this.el.classList.remove('on')
     document.body.style.cursor = ''
     if (!this._wasPaused) this.game.paused = false
   }
 
   render() {
+    if (this._showingCredits) return this.#renderCredits()
     const g = this.game
     const muted = !!g.music?.muted
     const where = g.run?.view?.name ?? g.run?.stage?.name ?? ''
@@ -101,6 +116,7 @@ export class PauseMenu {
           <li data-do="resume"><span class="k">Esc</span><span class="t">이어하기</span></li>
           <li data-do="mute"><span class="k">♪</span><span class="t">소리</span>
             <span class="v">${muted ? '꺼짐' : '켜짐'}</span></li>
+          <li data-do="credits"><span class="k">?</span><span class="t">출처</span></li>
           <li data-do="restart"><span class="k">R</span><span class="t">처음부터</span></li>
         </ul>
         <div class="keys">
@@ -114,8 +130,29 @@ export class PauseMenu {
         const what = li.dataset.do
         if (what === 'resume') this.close()
         else if (what === 'mute') this.toggleMute()
+        else if (what === 'credits') { this._showingCredits = true; this.render() }
         else if (what === 'restart') { this.close(); g.restart() }
       })
     }
+  }
+
+  /** 빌려 쓴 것들 — CC-BY 는 표기가 조건이라 여기서 밝힌다. */
+  #renderCredits() {
+    const rows = CC_BY.map(c => `<div class="row">
+      <div class="who">${c.name} <span class="lic">— ${c.who}</span></div>
+      <div class="lic">${c.where} · CC BY 4.0</div>
+    </div>`).join('')
+    this.el.innerHTML = `
+      <div class="box">
+        <div class="band"></div>
+        <h3>출처</h3>
+        <div class="credits">${rows}</div>
+        <ul><li data-do="back"><span class="k">Esc</span><span class="t">돌아가기</span></li></ul>
+        <div class="band"></div>
+      </div>`
+    this.el.querySelector('li').addEventListener('click', () => {
+      this._showingCredits = false
+      this.render()
+    })
   }
 }

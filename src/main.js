@@ -37,6 +37,7 @@ import { CUT_TROY, CUT_CAVE, CUT_UNDER, CUT_WHIRL, CUT_ITHACA, CUT_BOW, ALL_CUTS
 import { rollBlessings } from './player/blessings.js'
 import { models } from './render/models.js'
 import { preloadCharacter } from './render/character.js'
+import { preloadRealHelmet } from './player/gear.js'
 import { rand } from './core/math.js'
 import { Voyage, LOSSES, FATES } from './stage/voyage.js'
 import { FateScreen } from './ui/fate.js'
@@ -1260,7 +1261,7 @@ class Game {
 }
 
 // 시작할 때는 어느 판에나 나오는 것만 받는다. 보스는 그 판에 들어갈 때.
-await Promise.all([models.preload(models.baseKeys()), preloadCharacter()])
+await Promise.all([models.preload(models.baseKeys()), preloadCharacter(), preloadRealHelmet()])
 const game = new Game(document.getElementById('app'), document.getElementById('ui'))
 window.__game = game
 

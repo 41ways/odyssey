@@ -6,7 +6,7 @@ import { dist2d } from '../core/math.js'
 import { clamp, damp, dampAngle, angleDelta } from '../core/math.js'
 import { newStats } from './stats.js'
 import { buildFigure, wrapFigure } from '../render/figure.js'
-import { buildGear, buildWeapons, KIT, buildSwordProp, buildBowProp, buildHelmetProp, buildCapeProp, buildSkirtProp } from './gear.js'
+import { buildGear, buildWeapons, KIT, buildSwordProp, buildBowProp, buildHelmetProp, buildRealHelmetProp, buildCapeProp, buildSkirtProp } from './gear.js'
 import { createCharacter } from '../render/character.js'
 import { models } from '../render/models.js'
 
@@ -174,6 +174,15 @@ const MOUNT = {
   bow: { bone: 'hand_l', rotation: [Math.PI / 2, 0, 0], position: [0, -0.02, 0.02] },
   // 투구는 머리보다 크면 냄비가 된다. 모델 머리에 맞춰 줄이고 중심을 맞춘다.
   helmet: { bone: 'Head', rotation: [0, 0, 0], position: [0.075, 0.07, 0.02], scale: 0.55 },
+  /* 받아 온 진짜 투구(Sketchfab, CC-BY) — 원본 좌표계가 코드 투구와 전혀
+     달라서 따로 잰다.
+     원본 실측 세로 3754.15(단위 불명 — cm 로 보임) → 목표 0.42 로 잡으면
+     비(比)로는 0.00011188 인데, 실제로 넣어 보면 딱 100 배 작게 들어간다.
+     attachTo() 의 holder 가 본의 월드 스케일을 지우는데, 첫 포즈가 돌기
+     전(생성자 시점)에는 Head 본의 bind 스케일이 실제와 달라서(다른 FBX
+     계통 캐릭터에서도 본 적 있는 cm/m 단위 문제) 보정이 어긋난다.
+     원인을 캐는 대신 실측한 배수(×100)를 그대로 곱해 둔다. */
+  helmetReal: { bone: 'Head', rotation: [0, 0, 0], position: [0, 0, 0], scale: 0.01119 },
   // 망토는 본이 아니라 몸통에 단다 — 전투 자세의 상체 비틀림까지 따라가면 옆으로 뻗는다.
   cape: { body: true, position: [0, 1.42, -0.08], scale: 0.95 },
   // 키톤 자락 — 망토처럼 몸통에 단다. 엉덩이 뼈에 달았더니 전투 자세에서
@@ -189,13 +198,16 @@ function buildFromModel() {
 
   const sword = buildSwordProp()
   const bow = buildBowProp()
-  const helmet = buildHelmetProp()
+  // 받아 온 투구가 있으면 그걸 쓴다. 없으면(파일이 안 실렸으면) 코드 투구로.
+  const realHelmet = buildRealHelmetProp()
+  const helmet = realHelmet ?? buildHelmetProp()
+  const helmetMount = realHelmet ? MOUNT.helmetReal : MOUNT.helmet
   const cape = buildCapeProp()
   const skirt = buildSkirtProp()
 
   rig.attachTo(MOUNT.sword.bone, sword.group, MOUNT.sword)
   rig.attachTo(MOUNT.bow.bone, bow.group, MOUNT.bow)
-  rig.attachTo(MOUNT.helmet.bone, helmet.group, MOUNT.helmet)
+  rig.attachTo(helmetMount.bone, helmet.group, helmetMount)
   rig.attachToBody(cape.group, MOUNT.cape)
   const skirtMount = rig.attachToBody(skirt.group, MOUNT.skirt)
   const pelvis = rig.bone?.('pelvis')

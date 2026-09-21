@@ -40,6 +40,7 @@ Sketchfab "Free Standard" 는 표기 의무는 없지만 모델 단독 재배포
 |---|---|---|---|
 | Cyclops Rig | DM-913 | 폴리페모스 | https://sketchfab.com/3d-models/cyclops-rig-e5cc86878c314f5bae6d7268bb7541d9 |
 | Yamata no Orochi | tran95 | ~~스킬라~~ **지금은 안 쓴다** (아래 참고) | https://sketchfab.com/3d-models/yamata-no-orochi-8f4c0e2c632e401eb5c5381acc3ce789 |
+| Agamemnon's Helmet | Quesho | 오디세우스의 투구 (킬 15 해금) | https://sketchfab.com/3d-models/agamemnons-helmet-538a010347644530a56a20a511313f9a |
 
 > 오로치는 스킬라의 몸이었다가 빠졌다. 정적 메시라 목이 안 움직였고
 > (내려찍는 보스인데 몸이 안 움직이면 언제 때릴지를 못 읽는다), 머리가

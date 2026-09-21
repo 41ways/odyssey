@@ -1,5 +1,7 @@
 import * as THREE from 'three'
 import { buildClothCape } from './cloth.js'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
 import { clamp } from '../core/math.js'
 
 /**
@@ -470,4 +472,63 @@ export function dressRig(rig, dress) {
     }
   }
   return { mats, follow }
+}
+
+
+/**
+ * 받아 온 코린토스 투구 — Sketchfab 'Agamemnon's Helmet' (Quesho, CC-BY).
+ *
+ * 코드로 만든 투구(buildHelmetProp)는 라스로 뽑은 돔이라 실루엣이 매끈한
+ * 만큼 밋밋했다. 조각가가 만든 진짜 투구로 바꾼다 — 원본은 삼각형 52만
+ * 대부분이 말총 볏의 낱개 털이었는데(tools/prep-helmet.mjs), 그 볏이
+ * 안 보이면 코린토스 투구가 아니라 그냥 냄비다. 볏은 남기고 5% 로 줄였다.
+ *
+ * 실패하면(파일이 없거나 못 받으면) null 을 돌려주고, 부르는 쪽이
+ * buildHelmetProp() 의 코드 투구로 돌아간다 — 그림 하나 없다고 오디세우스가
+ * 맨머리로 다닐 수는 없다.
+ */
+let helmetGltf
+export async function preloadRealHelmet() {
+  if (helmetGltf !== undefined) return !!helmetGltf
+  const loader = new GLTFLoader()
+  const draco = new DRACOLoader()
+  draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.7/')
+  loader.setDRACOLoader(draco)
+  try {
+    const head = await fetch('/models/helmet.glb', { method: 'HEAD' })
+    if (!head.ok) throw new Error(String(head.status))
+    helmetGltf = await loader.loadAsync('/models/helmet.glb')
+  } catch (err) {
+    helmetGltf = null
+    console.info('[gear] 받아 온 투구 없음 — 코드 투구로 간다:', err.message)
+  }
+  return !!helmetGltf
+}
+
+export function buildRealHelmetProp() {
+  if (!helmetGltf) return null
+  const root = helmetGltf.scene.clone(true)
+  const mats = []
+  root.traverse(o => {
+    if (!o.isMesh) return
+    o.castShadow = true
+    // 원본 그대로 쓰면 두 가지가 어긋난다 — metalness 1·roughness 1 은
+    // 반사 환경맵이 없는 이 씬에서 그냥 새까맣고, 압축 과정을 거친 색
+    // 텍스처는 평균이 거의 순검정이라(3,4,3) 재질과 상관없이 검다.
+    // 텍스처는 버리고 이 게임의 다른 청동(투구·흉갑)과 같은 값으로 칠한다
+    // (buildHelmetProp 의 deep 참고) — 조명만으로 청동빛이 나야 한다
+    if (o.material) {
+      o.material.map = null
+      o.material.color.set('#8a5f26')
+      o.material.metalness = 0.8
+      o.material.roughness = 0.42
+      o.material.needsUpdate = true
+    }
+    if (o.material && !mats.includes(o.material)) mats.push(o.material)
+  })
+  // 원본 좌표계 그대로 둔다 — 자리·방향·크기는 player.js 의 MOUNT.helmet 이
+  // (실측으로 맞춘) 하나로 잡는다. 여기서 또 만지면 두 군데서 어긋난다.
+  const g = new THREE.Group()
+  g.add(root)
+  return { group: g, mats }
 }
