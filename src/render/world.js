@@ -3,6 +3,7 @@ import { makeArena } from '../stage/arena.js'
 import { damp, rand } from '../core/math.js'
 import { LOOKS } from './looks.js'
 import { models } from './models.js'
+import { PROP_BUILDERS } from './props.js'
 
 /** 로스트아크식 쿼터뷰 리그. 스테이지마다 값만 갈아끼우면 된다. */
 /**
@@ -556,24 +557,36 @@ export class World {
       this.propGroup.traverse(o => { if (o.isMesh) o.geometry?.dispose?.() })
       this.propGroup = null
     }
+    this._ticking = null
     if (!list?.length) return
     const g = new THREE.Group()
     const R = this.arenaRadius
     for (const spec of list) {
       for (let i = 0; i < (spec.count ?? 1); i++) {
-        const made = models.create(spec.key)
+        // 받아 온 모델이거나(models), 코드로 짠 것이거나(props.js)
+        const build = PROP_BUILDERS[spec.key]
+        const made = build ? { root: build(), mats: [] } : models.create(spec.key)
         if (!made) break                       // 파일이 없으면 그냥 소품이 없는 무대다
         const o = made.root
+        if (o.userData.tick) (this._ticking ??= []).push(o)
         const [r0, r1] = spec.ring ?? [1.03, 1.12]
+        /* 각도를 통째로 뽑으면 뭉친다.
+           갑판 판의 배 세 척이 한쪽에 겹쳐 서서 한 척처럼 보였다 — 세 번
+           굴린 난수가 가까이 나오면 그렇게 된다. 자리를 수만큼 나눠 하나씩
+           맡기고, 제 칸 안에서만 흔든다. 고르게 서면서도 줄 맞춘 티는 안 난다. */
+        const n = spec.count ?? 1
+        const slot = (Math.PI * 2) / n
         const a = spec.spread === false
-          ? (i / (spec.count ?? 1)) * Math.PI * 2 + (spec.offset ?? 0)
-          : rand(0, Math.PI * 2)
+          ? (i / n) * Math.PI * 2 + (spec.offset ?? 0)
+          : i * slot + rand(0, slot * 0.7) + (spec.offset ?? 0)
         // 벽을 따라 세운다. 원 반지름으로 두면 네모난 홀에서 기둥이
         // 벽을 뚫고 나가거나 방 한가운데 둥글게 모여 선다.
         const rr = this.arena ? this.arena.radiusAt(a) : R
         const r = rr * rand(r0, r1)
         o.position.set(Math.sin(a) * r, spec.y ?? 0, Math.cos(a) * r)
-        o.rotation.y = rand(0, Math.PI * 2)
+        // 벽을 두르는 물건(연회상)은 벽을 등지고 방 안을 본다. 아무 쪽이나
+        // 보게 두면 상이 벽을 향해 돌아앉는다
+        o.rotation.y = spec.faceIn ? a + Math.PI + rand(-0.12, 0.12) : rand(0, Math.PI * 2)
         const sc = spec.scale ? rand(spec.scale[0], spec.scale[1]) : 1
         o.scale.multiplyScalar(sc)
         // 받아 온 소품은 제 색이 따로 있다. 그대로 두면 판의 색과 따로 논다.
@@ -882,6 +895,11 @@ export class World {
   }
 
   render() {
+    // 코드로 짠 소품 중 스스로 움직이는 것들 (화로의 불)
+    if (this._ticking) {
+      const t = performance.now() / 1000
+      for (const o of this._ticking) o.userData.tick(t)
+    }
     if (this.composer) this.composer.render()
     else this.renderer.render(this.scene, this.camera)
   }

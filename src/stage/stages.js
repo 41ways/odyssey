@@ -123,7 +123,11 @@ const HALL = {
     shape: 'hall',       // 홀은 사람이 지은 방이고, 정사각이 아니라 안으로 긴 방이다
     // 구혼자들이 스무 해를 먹어 치운 홀
     props: [{ key: 'column', count: 10, ring: [1.06, 1.06], scale: [1.2, 1.2], spread: false, tint: '#e3d8be' },
-            { key: 'jar', count: 7, ring: [1.04, 1.12], scale: [0.9, 1.3], tint: '#8a5f3c' }] },
+            // 구혼자들이 먹던 자리. 벽을 두르고 가운데는 비운다 — 그리스의
+            // 연회방(안드론)이 그렇게 생겼고, 소품에 충돌이 없어서이기도 하다
+            { key: 'feastTable', count: 12, ring: [0.9, 0.96], offset: 0.3, scale: [1.15, 1.4], faceIn: true },
+            { key: 'brazier', count: 6, ring: [0.99, 1.02], offset: 0.8 },
+            { key: 'jar', count: 9, ring: [1.04, 1.12], scale: [0.9, 1.3], tint: '#8a5f3c' }] },
   env: { bg: '#0f0a06', fog: 0.024, fogColor: '#160f08', exposure: 1.1, camDistance: 20.5,
     key: '#ffc888', keyIntensity: 2.6, rim: '#8a6fd0', rimIntensity: 0.9,
     hemiSky: '#4a3f5a', hemiGround: '#1a1208', hemiIntensity: 0.5 },
