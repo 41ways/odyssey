@@ -83,14 +83,25 @@ export class SailLeg {
       this.crew.push(c)
     }
 
-    // 카메라는 배를 따라간다. 판보다 멀리서, 바다가 보이게
-    this._rig = { distance: CAMERA_RIG.distance, follow: CAMERA_RIG.follow, lead: CAMERA_RIG.lead }
-    CAMERA_RIG.distance = 30
+    /* 카메라는 배를 따라간다.
+       처음에는 판보다 멀리(30) 위에서(40°) 잡았다 — 바다를 넓게 보여 주려고
+       했는데, 그 높이에서는 파고 1.3m 짜리 물결이 아예 안 보였다. 회색 안개
+       덮인 판때기 위에 배가 얹혀 있는 그림이 나왔다. 내려앉아서 낮게 보면
+       같은 바다가 물결친다 — 파도는 옆에서 봐야 파도다. */
+    this._rig = { distance: CAMERA_RIG.distance, pitch: CAMERA_RIG.pitch, follow: CAMERA_RIG.follow, lead: CAMERA_RIG.lead }
+    CAMERA_RIG.distance = 17
+    CAMERA_RIG.pitch = THREE.MathUtils.degToRad(26)
     CAMERA_RIG.follow = 0.35
     CAMERA_RIG.lead = 0
     this.focus = new THREE.Vector3()
     g.camFocus = this.focus
+    /* 땅에 서 있던 사람들을 치운다.
+       오디세우스만 감추고 동료를 두었더니 에우릴로코스와 폴리테스가 배에서
+       열 걸음 떨어진 **물 위에 서서** 같이 건넜다. 갑판 위 사람은 이 구간이
+       따로 세운다 (아래 crew). */
     g.player.group.visible = false
+    this._hidden = (g.allies ?? []).filter(a => a.group.visible)
+    for (const a of this._hidden) a.group.visible = false
 
     // 어디로 가는지·분위기는 막간 액자가 이미 말했다 (녹아서 여기로 넘어왔다).
     // 조작법 한 줄만 짧게 띄운다.
@@ -157,5 +168,6 @@ export class SailLeg {
     Object.assign(CAMERA_RIG, this._rig)
     g.camFocus = null
     g.player.group.visible = true
+    for (const a of this._hidden ?? []) a.group.visible = true
   }
 }
