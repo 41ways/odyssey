@@ -1054,6 +1054,40 @@ Sketchfab CC-BY 두 건(Cyclops Rig / DM-913, Yamata no Orochi / tran95)은
    impact-sounds/87b4ddecda-1677589768/kenney_impact-sounds.zip`).
 2. 보스마다 다른 곡. 지금 보스 곡이 하나라 일곱 보스가 같은 결이다.
    이것도 곡을 "찾아서 까는" 일이라, 결을 사람이 골라야 한다.
+
+   `music.js` 는 이미 배선해 뒀다 — `BOSS_TRACKS` 에 보스 id 로 파일
+   경로를 채우면 `run.js` 의 `g.music.playBoss(cfg.id)` 가 자동으로
+   그 곡을 쓰고, 비워 둔 보스는 지금처럼 공용 `boss-bell-warden.mp3`
+   로 돈다. 후보(전부 CC0, freesound.org — kenney.nl 은 뒤져 봤는데
+   RPG Audio 는 foley/SFX 뿐이고 Music Jingles 는 2~4초 스팅어라
+   보스전 루프감이 안 남):
+
+   - **Boss Battle Loop 1 (155 BPM)** kanaizo, 1:17 — 살짝 음 나간
+     피아노 위주라 음산·불안정. 키르케·세이렌 쪽.
+     https://freesound.org/people/kanaizo/sounds/739177/
+   - **Fight Music Synth Tense Loop** SnowFightStudios, 1:37 — 신스
+     긴박함, 추격전 느낌. 안티파테스(항구 습격) 쪽.
+     https://freesound.org/people/SnowFightStudios/sounds/676998/
+   - **Witch house theme** Projecteur, 1:01 — 다크신스, 8, 90년대
+     신스팝 결. 키르케(마녀) 쪽.
+     https://freesound.org/people/Projecteur/sounds/745934/
+   - **Hard Rock Loop** BaDoink, 1:49 — 묵직한 기타·드럼, 힘으로
+     미는 느낌. 폴리페모스(거인)나 스킬라 쪽.
+     https://freesound.org/people/BaDoink/sounds/524240/
+   - **Battle Music (Village)** Migfus20, 2:45 — 오케스트라, 웅장·
+     영웅적. 안티노오스(홀 결투) 쪽. 단, 루프점이 매끈하지 않다는
+     댓글 있음 — 붙일 때 페이드로 감아야 할 수도.
+     https://freesound.org/people/Migfus20/sounds/683261/
+   - **Intense Battle Loop** furbyguy, 0:21 — 스피드 메탈, 짧고
+     빠름. 텔레고노스(마지막, 다급함)나 카리브디스(소용돌이) 쪽.
+     https://freesound.org/people/furbyguy/sounds/331869/
+   - **Dark Orchestral Piece** furbyguy, 0:32 — 어둡고 구슬픈 현.
+     텔레고노스(아버지를 죽이는 비극) 쪽.
+     https://freesound.org/people/furbyguy/sounds/365188/
+
+   다운로드는 freesound 로그인이 있어야 한다 — 계정을 대신 만들 수
+   없어서 파일 자체는 못 받아 왔다. 마음에 드는 것부터 받아서
+   `public/audio/boss-<보스id>.mp3` 로 넣고 `BOSS_TRACKS` 채우면 끝.
 3. 짧은 **스팅어** — 판 시작, 보스 등장, 토벌. 2~4초짜리.
    레벨업 스팅어는 합성으로 들어가 있다.
 ~~4. 발소리~~ → **13차 갱신에서 연결했다.** `Player.#visual` 에
