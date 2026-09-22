@@ -194,7 +194,8 @@ const STORM = {
     props: [{ key: 'ship', count: 2, ring: [1.2, 1.55], scale: [0.9, 1.2], y: -1.4 }] },
   env: { bg: '#04080e', fog: 0.034, fogColor: '#070d16', exposure: 1.0, camDistance: 24,
     key: '#9fc0e8', keyIntensity: 1.7, rim: '#4a7fd0', rimIntensity: 1.5,
-    hemiSky: '#223349', hemiGround: '#060a10', hemiIntensity: 0.45 },
+    hemiSky: '#223349', hemiGround: '#060a10', hemiIntensity: 0.45,
+    rain: true },   // "폭풍 속 갑판" 이라고 적어만 놓고 비가 안 왔다
   ambience: 'sea',
 }
 const HALL = {

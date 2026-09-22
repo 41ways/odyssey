@@ -542,6 +542,7 @@ export class World {
 
     this.#setProps(a.props)
     this.#setSnow(!!e.snow)
+    this.#setRain(!!e.rain)
     this.#setPost(e)
     /* 바닥 결 반복수는 **판이 넓어져도 그대로 둔다.**
        판에 비례해 올려 봤다 (9 → 20). 그랬더니 같은 무늬가 스무 번 반복되는
@@ -762,6 +763,58 @@ export class World {
     for (let i = 0; i < spd.length; i++) {
       let y = p.array[i * 3 + 1] - spd[i] * dt
       p.array[i * 3] += Math.sin((y + i) * 0.5) * dt * 0.25
+      if (y < 0) {
+        y = 22
+        p.array[i * 3] = focus.x + rand(-30, 30)
+        p.array[i * 3 + 2] = focus.z + rand(-30, 30)
+      }
+      p.array[i * 3 + 1] = y
+    }
+    p.needsUpdate = true
+  }
+
+  /**
+   * 비. 메시나 해협은 이름부터 "폭풍" 인데(STORM), 정작 화면에는 안개색만
+   * 바뀔 뿐 비가 안 왔다 — 폭풍이라는 말을 그림이 안 지키고 있었다.
+   * 눈과 같은 방식(Points, 따로 예산)인데, 떨어지는 속도를 훨씬 빠르고
+   * 굵기를 가늘게 잡아 눈과 실루엣이 갈리게 한다.
+   */
+  #setRain(on) {
+    if (!on) { if (this.rain) this.rain.visible = false; return }
+    if (!this.rain) {
+      const N = 1600
+      const pos = new Float32Array(N * 3)
+      const spd = new Float32Array(N)
+      for (let i = 0; i < N; i++) {
+        pos[i * 3] = rand(-30, 30)
+        pos[i * 3 + 1] = rand(0, 22)
+        pos[i * 3 + 2] = rand(-30, 30)
+        spd[i] = rand(16, 24)
+      }
+      const geo = new THREE.BufferGeometry()
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
+      const mat = new THREE.PointsMaterial({
+        color: '#dceaf5', size: 0.1, transparent: true, opacity: 0.8,
+        depthWrite: false, sizeAttenuation: true,
+      })
+      const pts = new THREE.Points(geo, mat)
+      pts.frustumCulled = false
+      pts.userData.spd = spd
+      this.scene.add(pts)
+      this.rain = pts
+    }
+    this.rain.visible = true
+  }
+
+  /** draw() 가 매 프레임 부른다. 눈보다 빠르게, 옆으로는 거의 안 흔들리게 — 떨어진다기보다 꽂힌다. */
+  updateRain(dt, focus) {
+    const s = this.rain
+    if (!s || !s.visible) return
+    const p = s.geometry.attributes.position
+    const spd = s.userData.spd
+    for (let i = 0; i < spd.length; i++) {
+      let y = p.array[i * 3 + 1] - spd[i] * dt
+      p.array[i * 3] += 0.6 * dt   // 바람에 살짝 쏠린다. 눈처럼 좌우로 흔들리진 않는다
       if (y < 0) {
         y = 22
         p.array[i * 3] = focus.x + rand(-30, 30)

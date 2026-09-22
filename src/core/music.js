@@ -27,19 +27,20 @@ const TRACKS = {
 }
 
 /**
- * 보스 id → 전용 곡. 일곱 보스가 지금은 전부 TRACKS.boss 하나를 같이 쓴다
- * (HANDOFF.md 5절). 곡을 골랐으면 파일을 public/audio/ 에 넣고 여기 경로만
- * 채우면 된다 — 비워 둔 보스는 자동으로 공용 곡으로 돈다.
+ * 보스 id → 전용 곡 (전부 CC0, freesound.org — 후보와 링크는 HANDOFF.md 5절).
+ * 스킬라·카리브디스는 메시나 갈림길의 양쪽이라 한 판에 하나만 들리므로
+ * 곡을 같이 썼다. 기존 판 음악들과 결을 맞추려고 평균 음량을 -17dB
+ * 안팎으로 맞춰서 넣었다(ffmpeg volumedetect 로 재서 volume 필터로 보정).
  */
 const BOSS_TRACKS = {
-  polyphemos: null,
-  antiphates: null,
-  kirke: null,
-  siren: null,
-  skylla: null,
-  charybdis: null,
-  antinoos: null,
-  telegonos: null,
+  polyphemos: '/audio/boss-polyphemos-cave-iron.mp3',      // 묵직한 기타·드럼 — 동굴의 거인
+  antiphates: '/audio/boss-antiphates-quay-chase.mp3',      // 신스 긴박함 — 항구의 추격
+  kirke: '/audio/boss-kirke-witchlight.mp3',                // 다크신스 — 마녀의 결
+  siren: '/audio/boss-siren-drowned-hymn.mp3',              // 음 나간 피아노 — 홀리는 노래
+  skylla: '/audio/boss-skylla-charybdis-maw.mp3',           // 스피드 메탈 — 여섯 머리의 습격
+  charybdis: '/audio/boss-skylla-charybdis-maw.mp3',        // (스킬라와 같은 곡)
+  antinoos: '/audio/boss-antinoos-suitors-hall.mp3',        // 오케스트라 — 홀의 결투
+  telegonos: '/audio/boss-telegonos-unknowing-blade.mp3',   // 어둡고 구슬픈 현 — 모르고 겨눈 창
 }
 
 export class Music {
