@@ -4,6 +4,7 @@ import { makeStorm } from '../render/storm.js'
 import { models } from '../render/models.js'
 import { buildIsle } from '../render/props.js'
 import { CAMERA_RIG } from '../render/world.js'
+import { installTheme, meanderURI, PALETTE } from '../ui/theme.js'
 
 /**
  * 뱃길 한 구간 — 판과 판 사이를 **직접 몰고** 건넌다.
@@ -20,11 +21,53 @@ import { CAMERA_RIG } from '../render/world.js'
  *
  * 조작은 판에서 쓰던 것을 그대로 쓴다 — W/S 돛, A/D 키.
  * 싸움이 없는 구간이라 칼과 활은 쉰다.
+ *
+ * ── 훑어보다 찾은 것 (실제로 항해해 보고서야 보였다) ──
+ * 목적지 섬(`buildIsle`)의 바위 색이 안개·하늘색과 명도가 거의 같았다 —
+ * 화면을 실제로 캡처해서 확인하기 전까지는 "실루엣으로 보인다" 는 주석만
+ * 믿고 있었는데, 실제로는 **섬이 안 보였다.** 색 대비를 키우고 밑동에
+ * 흰 파도띠를 둘렀다 (props.js 참고). 그리고 "W/S 돛, A/D 키" 안내가
+ * 3.2초 뜨고 사라진 뒤로는 빗나갔을 때만 말해 줘서, 맞게 가고 있어도
+ * 그걸 확인할 길이 없었다 — 늘 떠 있는 작은 나침반(`COMPASS_CSS`)을
+ * 더해 방향과 남은 거리를 계속 보여 준다.
  */
 
 const GOAL = 250          // 갈 섬이 이만큼 앞에 선다
 const ARRIVE = 46         // 섬 밑동이 이 안에 들면 닿은 것으로 친다
 const LEN = 3.2, BEAM = 1.1
+
+/**
+ * 나침반 — 뱃머리를 돌려도 섬은 늘 어느 쪽인가.
+ *
+ * 처음엔 "빗나갔을 때만" 방향을 말해 줬다 (토스트). 그런데 섬이 화면에
+ * 안 보이는 구간(다가갈수록 봉우리가 위로 잘려 나가거나, 뒤를 돌아봤을
+ * 때)에서는 맞게 가고 있어도 그걸 확인할 길이 없어서 불안하다 — 조용한
+ * 게 "잘 가고 있다" 가 아니라 "화면이 멈췄다" 로 읽힌다.
+ *
+ * 그래서 작게, 늘 떠 있는 바늘 하나를 둔다. 배가 도는 방향(heading)
+ * 기준으로 섬이 상대적으로 어느 쪽인지만 돌려 보여 준다 — 화살표가
+ * 위를 가리키면 똑바로 가고 있는 것이다. 아래 남은 거리는 도착이
+ * 가까워지는 걸로도 "얼마나 더 가야 하는가" 를 알린다.
+ */
+const COMPASS_CSS = `
+#sailcomp { position:absolute; left:50%; top:22px; transform:translateX(-50%);
+  z-index:20; pointer-events:none; text-align:center; opacity:0;
+  transition:opacity .8s ease; }
+#sailcomp.on { opacity:1; }
+#sailcomp .disc { position:relative; width:62px; height:62px; border-radius:50%;
+  background:radial-gradient(circle at 42% 34%, #241f16, #0d0b08 72%);
+  box-shadow:inset 0 2px 0 rgba(255,225,165,.22), inset 0 0 0 2px rgba(232,200,132,.3),
+    inset 0 0 24px rgba(0,0,0,.85), 0 8px 20px rgba(0,0,0,.5);
+  margin:0 auto; }
+#sailcomp .needle { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  transition:transform .3s ease-out; }
+#sailcomp .needle svg { width:30px; height:30px; filter:drop-shadow(0 0 4px rgba(232,200,132,.5)); }
+#sailcomp .dist { margin-top:6px; font-family:var(--serif); font-size:12.5px; letter-spacing:.08em;
+  color:${PALETTE.ivory}; text-shadow:0 1px 3px rgba(0,0,0,.9), 0 0 10px rgba(0,0,0,.7);
+  font-variant-numeric:tabular-nums; }
+#sailcomp .where { font-family:var(--serif); font-size:10.5px; letter-spacing:.2em;
+  color:${PALETTE.goldDim}; margin-top:1px; }
+`
 
 export class SailLeg {
   /**
@@ -77,11 +120,14 @@ export class SailLeg {
        바다만 있을 때는 어디로 가는지도, 뱃머리가 어디를 보는지도 알 수 없었다 —
        물은 사방이 같아서 배를 돌려도 화면이 똑같다. 섬을 둘 세우면 그제야
        방향이 생기고, 물이 흐르는 게 아니라 내가 나아가는 것으로 읽힌다.
-       가려던 섬이 커지고 떠나온 섬이 작아지는 것이 곧 남은 거리다. */
-    this.isle = buildIsle({ h: 58, r: 52, color: this.storm ? '#3b444c' : '#5c646a' })
+       가려던 섬이 커지고 떠나온 섬이 작아지는 것이 곧 남은 거리다.
+       색은 안개(this.storm 여부에 따라 render3d.setSeaMode 의 fogColor)보다
+       뚜렷이 어둡게 — 실루엣이 실제로 보이려면 배경보다 밝기 차가 커야 한다
+       (buildIsle 주석 참고. 전에는 이 값이 안개랑 거의 같아서 섬이 안 보였다). */
+    this.isle = buildIsle({ h: 58, r: 52, color: this.storm ? '#171b20' : '#252c33' })
     this.isle.position.set(0, -4, GOAL)
     w.scene.add(this.isle)
-    this.behind = buildIsle({ h: 40, r: 44, color: this.storm ? '#333b42' : '#565e64', seed: 2.2 })
+    this.behind = buildIsle({ h: 40, r: 44, color: this.storm ? '#141821' : '#20262d', seed: 2.2 })
     this.behind.position.set(-18, -5, -95)
     w.scene.add(this.behind)
     // 섬이 안개에 먹히지 않게, 그리고 먼 수평선까지 보이게
@@ -132,6 +178,26 @@ export class SailLeg {
     // 어디로 가는지·분위기는 막간 액자가 이미 말했다 (녹아서 여기로 넘어왔다).
     // 조작법 한 줄만 짧게 띄운다.
     g.hud.toast(this.storm ? '비바람이 몰아친다 — W/S 돛, A/D 키' : 'W/S 돛, A/D 키', 3.2)
+
+    // 나침반 — 조작법 토스트가 사라진 뒤에도 계속 방향을 말해 준다
+    installTheme()
+    if (!this._compStyle) {
+      this._compStyle = document.createElement('style')
+      this._compStyle.textContent = COMPASS_CSS
+      document.head.appendChild(this._compStyle)
+    }
+    this.compEl = document.createElement('div')
+    this.compEl.id = 'sailcomp'
+    this.compEl.innerHTML = `
+      <div class="disc"><div class="needle"><svg viewBox="0 0 24 24" fill="none">
+        <path d="M12 2 L17 20 L12 16 L7 20 Z" fill="${PALETTE.gold}" stroke="#1a1408" stroke-width="1"/>
+      </svg></div></div>
+      <div class="dist"></div>
+      <div class="where">${this.where}</div>`
+    g.uiRoot.appendChild(this.compEl)
+    this.needleEl = this.compEl.querySelector('.needle')
+    this.distEl = this.compEl.querySelector('.dist')
+    requestAnimationFrame(() => this.compEl.classList.add('on'))
   }
 
   /** 뱃머리·고물·좌우현의 수면을 재서 배가 파도를 탄다 */
@@ -210,6 +276,10 @@ export class SailLeg {
       this._say = 3.2
       g.hud.toast(off > 0 ? '섬은 오른쪽 — D 로 돌려라' : '섬은 왼쪽 — A 로 돌려라', 2)
     }
+
+    // 나침반 — off 는 뱃머리 기준 섬의 상대각이라, 그대로 바늘 회전값이 된다
+    if (this.needleEl) this.needleEl.style.transform = `rotate(${off}rad)`
+    if (this.distEl) this.distEl.textContent = `${Math.max(0, Math.round(left - ARRIVE))}m`
   }
 
   leave() {
@@ -230,5 +300,6 @@ export class SailLeg {
     g.camFocus = null
     g.player.group.visible = true
     for (const a of this._hidden ?? []) a.group.visible = true
+    this.compEl?.remove()
   }
 }

@@ -120,11 +120,21 @@ export function buildBrazier() {
  * 멀리서 실루엣으로만 보이므로 안은 비워도 된다 — 능선 하나와 그 앞의
  * 낮은 곶 몇. 다가갈수록 커지는 것만으로 남은 거리가 읽힌다.
  *
+ * ── 실루엣이 실제로 실루엣이 되게 ──
+ * 처음 만들었을 때는 바위 색(#5a5f62)이 안개·하늘색(#6d7f8c 대·#7d8f9c 안개)과
+ * 명도가 거의 같았다 — 그러면 "실루엣으로 보인다" 가 아니라 그냥 **안 보인다**
+ * 가 된다. 실제로 항해 중 화면을 캡처해서 확인해 보니 목적지 섬이 통째로
+ * 안 보이고 있었다. 그래서 두 가지를 더한다 —
+ *   1. 바위 색을 하늘보다 확실히 어둡게 낸다 (기본값을 훨씬 짙게 바꿨다).
+ *   2. 밑동에 **흰 파도띠**를 두른다 — 색이 아무리 어두워도 물과 맞닿는
+ *      선 하나는 밝게 남아야, 섬 전체가 화면 위로 잘려 나가 봉우리가
+ *      안 보이는 거리에서도 "저기 뭍이 있다" 는 한 줄이 남는다.
+ *
  * @param o.h     봉우리 높이 (m)
  * @param o.r     밑동 반지름 (m)
- * @param o.color 바위 색 — 멀리 있을수록 하늘에 가깝게
+ * @param o.color 바위 색 — 하늘·안개보다 뚜렷이 어두워야 실루엣으로 읽힌다
  */
-export function buildIsle({ h = 52, r = 46, color = '#5a5f62', seed = 0 } = {}) {
+export function buildIsle({ h = 52, r = 46, color = '#252c33', seed = 0 } = {}) {
   const g = new THREE.Group()
   const rock = new THREE.MeshStandardMaterial({ color, roughness: 1, flatShading: true })
   const add = (geo, x, y, z, ry = 0) => {
@@ -140,6 +150,20 @@ export function buildIsle({ h = 52, r = 46, color = '#5a5f62', seed = 0 } = {}) 
   add(new THREE.ConeGeometry(r * 0.62, h * 0.52, 7, 1), r * 0.62, h * 0.26 - 2, -r * 0.34, seed + 1.1)
   add(new THREE.ConeGeometry(r * 0.48, h * 0.34, 6, 1), -r * 0.7, h * 0.17 - 2, r * 0.3, seed + 2.3)
   add(new THREE.ConeGeometry(r * 0.34, h * 0.2, 6, 1), r * 0.15, h * 0.1 - 2, r * 0.78, seed + 3.7)
+
+  /* 흰 파도띠 — 산자락 네 개 밑동을 따로따로 두른다. 색과 무관하게(안개
+     낀 밤이든 폭풍이든) 밝기 하나로 "뭍의 가장자리" 를 읽게 하려는 것이라
+     발광(emissive)로 낸다 — 조명 방향에 기대면 역광일 때 죽는다. */
+  const foam = new THREE.MeshBasicMaterial({ color: '#dce8ec', transparent: true, opacity: 0.55 })
+  const ring = (rr, x, y, z) => {
+    const m = new THREE.Mesh(new THREE.TorusGeometry(rr, rr * 0.05, 6, 24), foam)
+    m.position.set(x, y, z)
+    m.rotation.x = Math.PI / 2
+    g.add(m)
+  }
+  ring(r * 0.98, 0, -1.6, 0)
+  ring(r * 0.6, r * 0.62, 0.26 * h * 0.06 - 1.7, -r * 0.34)
+  ring(r * 0.46, -r * 0.7, 0.17 * h * 0.06 - 1.7, r * 0.3)
   return g
 }
 
