@@ -35,6 +35,12 @@
  * 위 세 자리(동굴 문 막기·저승 내부·스킬라 절벽) 모두 전용 그림으로
  * 갈았다 (`cut-cave-1/2`, `cut-underworld`, `cut-skylla`, 제미나이로
  * 직접 만듦). 더 이상 다른 장면의 그림을 빌려 쓰지 않는다.
+ *
+ * ── 10차 갱신 (2026-09-22) ──
+ * `CUT_AIAIA`, `CUT_SIRENS` 를 새로 더했다 — 키르케와 세이렌은 컷신
+ * 자체가 없어서, 이미 있던 `boss/kirke.webp`·`boss/siren.webp` 초상이
+ * 아무 데도 안 쓰이고 있었다. 두 판 다 여덟 판 중 유일하게 등장 장면이
+ * 빠져 있던 자리다.
  */
 
 /**
@@ -138,6 +144,33 @@ export const CUT_TELEPYLOS = {
   ],
 }
 
+/**
+ * 안개 낀 숲 속의 집 — 키르케.
+ *
+ * 이 판에도 컷신이 없었다. 다른 보스(폴리페모스·안티파테스·스킬라·
+ * 안티노오스)는 다 등장하는 장면이 있는데, 사람을 짐승으로 바꾸는
+ * 『오디세이아』에서 제일 유명한 장면 중 하나가 현판 한 줄
+ * ("술잔을 든 여자가 웃는다")로만 지나갔다.
+ *
+ * 네 컷이 (집을 본다 → 다가간다 → 우리 안을 본다 → 그를 만난다) 로
+ * 좁혀 들어간다. 셋째 컷 — 사람이었던 것들이 짐승 우리에 있는 장면 —
+ * 이 이 컷신의 이유다. 그게 있어야 마지막 초상의 웃음이 무서워진다.
+ */
+export const CUT_AIAIA = {
+  mood: 'under',
+  where: '아이아이에섬 — 키르케의 숲',
+  shots: [
+    { art: '/img/cut-aiaia-1.webp', hold: 1800, focus: [50, 50, 1.0],
+      text: '연기가 오르는 집 하나.' },
+    { art: '/img/cut-aiaia-1.webp', hold: 1700, focus: [68, 40, 1.9],
+      text: '먼저 간 자들은 <em>돌아오지 않았다.</em>' },
+    { art: '/img/cut-aiaia-2.webp', hold: 2000, focus: [50, 55, 1.25],
+      text: '짐승이 사람 소리를 낸다.' },
+    { art: '/img/boss/kirke.webp', hold: 2300,
+      text: '술잔을 든 여자가 웃는다.' },
+  ],
+}
+
 /** 저승 — 피를 붓기 전. 손이 올라오는 것은 이 다음이다 (ui/reach.js). */
 export const CUT_UNDER = {
   mood: 'under',
@@ -154,6 +187,30 @@ export const CUT_UNDER = {
       text: '그러면 망자가 말을 한다고.' },
     { art: '/img/rise/rise-agamemnon-1.webp', hold: 2100, focus: [50, 22, 2.8],
       text: '흙이 움직였다.' },
+  ],
+}
+
+/**
+ * 돛대에 몸을 묶는다 — 세이렌.
+ *
+ * 이 판도 컷신이 없었다. 『오디세이아』에서 가장 널리 그려진 장면인데
+ * (밀랍으로 귀를 막은 동료, 돛대에 묶인 오디세우스 혼자만 노래를 듣는다)
+ * 게임에는 현판 한 줄뿐이었다.
+ *
+ * 세 컷 — 묶는다 → 안개 속을 본다 → 그것을 만난다 — 로 짧게 간다.
+ * 세이렌은 노래로 홀리는 것이라 소용돌이(메시나)처럼 긴 준비가 필요
+ * 없다. 짧고 조용한 편이 더 불안하다.
+ */
+export const CUT_SIRENS = {
+  mood: 'water',
+  where: '세이렌의 바다',
+  shots: [
+    { art: '/img/cut-sirens-1.webp', hold: 1900, focus: [50, 50, 1.0],
+      text: '돛대에 몸을 묶었다. 그래도 귀는 열려 있다.' },
+    { art: '/img/cut-sirens-1.webp', hold: 1700, focus: [22, 40, 1.9],
+      text: '동료들은 <em>밀랍으로 귀를 막았다.</em>' },
+    { art: '/img/boss/siren.webp', hold: 2200,
+      text: '노래가 들린다. 귀를 막을 수 없다.' },
   ],
 }
 
@@ -245,6 +302,6 @@ export const CUT_BOW = {
 }
 
 /** 컷신마다 쓰는 그림. 미리 받아 두려고 한 군데 모아 둔다. */
-export const ALL_CUTS = [CUT_TROY, CUT_TELEPYLOS, CUT_CAVE, CUT_UNDER, CUT_WHIRL, CUT_ITHACA, CUT_BOW]
+export const ALL_CUTS = [CUT_TROY, CUT_TELEPYLOS, CUT_CAVE, CUT_AIAIA, CUT_UNDER, CUT_SIRENS, CUT_WHIRL, CUT_ITHACA, CUT_BOW]
 
 export const cutArt = cut => (cut?.shots ?? []).map(s => s.art).filter(Boolean)

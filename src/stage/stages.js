@@ -1,4 +1,4 @@
-import { CUT_CAVE, CUT_WHIRL, CUT_ITHACA, CUT_TELEPYLOS, CUT_BOW } from './cuts.js'
+import { CUT_CAVE, CUT_WHIRL, CUT_ITHACA, CUT_TELEPYLOS, CUT_BOW, CUT_AIAIA, CUT_SIRENS } from './cuts.js'
 
 /**
  * 여덟 개의 판.
@@ -281,7 +281,7 @@ export const STAGES = [
       ],
       clear: '집 문이 열렸다.',
     },
-    boss: { ...FOREST, camDistance: 27, name: '키르케의 집', id: 'kirke',
+    boss: { ...FOREST, camDistance: 27, cut: CUT_AIAIA, name: '키르케의 집', id: 'kirke',
       intro: '술잔을 든 여자가 웃는다.' },
     clear: '돼지가 다시 사람이 되었다.',
   },
@@ -307,7 +307,7 @@ export const STAGES = [
       ],
       clear: '갑판이 비었다. 그때 노래가 시작된다.',
     },
-    boss: { ...DECK(26, 24), name: '세이렌의 바위', id: 'siren',
+    boss: { ...DECK(26, 24), cut: CUT_SIRENS, name: '세이렌의 바위', id: 'siren',
       intro: '노래가 들린다. 귀를 막을 수 없다.' },
     clear: '노래가 멎었다.',
   },
