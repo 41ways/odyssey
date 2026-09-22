@@ -275,8 +275,16 @@ export function buildBowProp() {
 export function buildShieldProp() {
   const M = propMaterials()
   const g = new THREE.Group()
-  const add = (m, parent = g) => { m.castShadow = true; parent.add(m); return m }
+  /* 방패 몸 전체를 담는 속 그룹. 판과 테는 원점(=방패 한가운데)을 기준으로
+     짜는 게 자연스럽지만, **손이 쥐는 자리는 손잡이(안틸라베)지 한가운데가
+     아니다.** 마운트는 g 의 원점을 손목에 놓으므로, g 의 원점이 손잡이와
+     겹치지 않으면 방패가 손목에서 반지름만큼 어긋난 자리에 뜬다 — 처음엔
+     그래서 방패가 무릎까지 늘어져 보였다. 속 그룹을 손잡이만큼 반대로
+     밀어서, **g 의 원점 자체가 손잡이 자리**가 되게 한다. */
+  const disc = new THREE.Group()
+  const add = (m, parent = disc) => { m.castShadow = true; parent.add(m); return m }
   const R = 0.46
+  const gripX = R * 0.52, gripZ = -0.08     // 손잡이 자리 (아래에서 다시 쓴다)
 
   // 접시처럼 굽은 판 — 구를 잘라 쓴다. 원기둥으로 하면 뚜껑이 된다
   const face = add(new THREE.Mesh(
@@ -306,8 +314,11 @@ export function buildShieldProp() {
   strap.position.z = -0.1
   strap.rotation.y = Math.PI / 2
   const grip = add(new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, R * 0.5, 6), M.wood))
-  grip.position.set(R * 0.52, 0, -0.08)
+  grip.position.set(gripX, 0, gripZ)
   grip.rotation.z = Math.PI / 2
+
+  disc.position.set(-gripX, 0, -gripZ)      // 손잡이를 g 의 원점으로 되돌린다
+  g.add(disc)
 
   return { group: g, mats: [...M.mats, dark] }
 }

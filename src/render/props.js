@@ -248,10 +248,59 @@ export function buildDoorStone() {
   return g
 }
 
+/**
+ * 횃불 — 벽에 꽂힌 것처럼 세운다.
+ *
+ * 화로(brazier)는 방 가운데를 밝히는 서 있는 불이고, 이것은 **벽을 따라
+ * 죽 박힌** 것이다. 동굴처럼 화로 두 개로는 다 못 덮는 넓은 방에서, 벽선을
+ * 따라 여러 개 세우면 그 자체로 '벽이 있다' 는 걸 불빛으로 그린다 —
+ * 어두운 동굴에서 벽의 굴곡이 안 보여도 횃불이 죽 늘어선 줄이 그 자리를
+ * 대신 말해 준다.
+ *
+ * 자루는 가늘고 길게, 불은 화로보다 작게 — 여러 개를 세울 것이므로
+ * 하나하나가 시선을 끌면 안 된다. 벽에 박힌 모양이라 밑동에 받침이 없다.
+ */
+export function buildTorch() {
+  const g = new THREE.Group()
+  const wood = WOOD()
+  const dark = new THREE.MeshStandardMaterial({ color: '#241a10', roughness: 0.9 })
+  const add = (geo, mat, y) => {
+    const m = new THREE.Mesh(geo, mat)
+    m.position.y = y
+    m.castShadow = true
+    g.add(m)
+    return m
+  }
+  add(new THREE.CylinderGeometry(0.035, 0.045, 1.5, 6), wood, 0.75)
+  // 기름 먹인 천 머리 — 자루보다 살짝 굵게, 거뭇하게
+  add(new THREE.CylinderGeometry(0.075, 0.06, 0.26, 8), dark, 1.52)
+
+  const fire = new THREE.Mesh(
+    new THREE.SphereGeometry(0.13, 8, 7),
+    new THREE.MeshBasicMaterial({ color: '#ff8a3a', transparent: true, opacity: 0.88 }),
+  )
+  fire.position.y = 1.72
+  fire.scale.y = 1.5
+  g.add(fire)
+
+  const light = new THREE.PointLight('#ff9a4a', 1.7, 5.5, 2)
+  light.position.y = 1.8
+  g.add(light)
+
+  const seed = rand(0, 10)
+  g.userData.tick = t => {
+    const f = 0.8 + Math.sin(t * 8.7 + seed) * 0.12 + Math.sin(t * 15.4 + seed * 2) * 0.07
+    fire.scale.set(f, f * 1.5, f)
+    light.intensity = 1.3 + f * 0.7
+  }
+  return g
+}
+
 export const PROP_BUILDERS = {
   feastTable: buildFeastTable,
   brazier: buildBrazier,
   stalactite: buildStalactite,
   stalagmite: buildStalagmite,
   doorStone: buildDoorStone,
+  torch: buildTorch,
 }

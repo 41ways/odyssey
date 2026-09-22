@@ -78,8 +78,11 @@ const CAVE = {
       { key: 'stalagmite', count: 18, ring: [0.26, 1.0], scale: [0.8, 1.6] },
       { key: 'cliffRock', count: 14, ring: [0.3, 0.98], scale: [0.3, 0.7], tint: '#4a423a' },
       { key: 'jar', count: 4, ring: [0.88, 1.05], scale: [0.7, 1.0], tint: '#5a4a38' },
-      // 불 둘. 동굴의 빛은 하늘이 아니라 불에서 온다
+      // 불 둘 — 방 가운데를 밝히는 화로. 그리고 그 사이를 잇는 벽 횃불 열 개.
+      // 화로만으로는 넓은 방 가장자리가 죽은 어둠이라, 벽선을 따라 불빛이
+      // 죽 늘어서야 벽이 있다는 게 (안 보여도) 읽힌다.
       { key: 'brazier', count: 2, ring: [0.62, 0.72], scale: [1.2, 1.5], offset: 1.9 },
+      { key: 'torch', count: 10, ring: [1.0, 1.1], scale: [0.9, 1.2] },
       // 그리고 저 바위 때문에 못 나간다. 들어온 쪽(남쪽, a=0)에 하나
       { key: 'doorStone', count: 1, ring: [1.0, 1.0], spread: false, offset: 0 },
     ],
