@@ -34,11 +34,27 @@
   #ui { position:fixed; inset:0; pointer-events:none; overflow:hidden; }
   .dmg { position:absolute; font-weight:800; font-variant-numeric:tabular-nums;
          text-shadow:0 2px 6px rgba(0,0,0,.9); will-change:transform,opacity; }
+
+  /* 첫 그림 — 모델·텍스처를 다 받을 때까지 게임은 아무것도 안 그린다
+     (main.js 의 Promise.all preload). 그동안 화면이 그냥 까맣기만 하면
+     멈춘 페이지처럼 보인다. 자바스크립트를 기다릴 필요 없이 이 HTML만
+     으로 바로 뜨도록 <head> 안에 인라인으로 둔다. */
+  #boot { position:fixed; inset:0; z-index:999; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:18px; background:#05060a;
+    transition:opacity .5s ease; }
+  #boot.gone { opacity:0; pointer-events:none; }
+  #boot .ring { width:46px; height:46px; border-radius:50%;
+    border:2px solid rgba(232,200,132,.18); border-top-color:#e8c884;
+    animation:boot-spin 1s linear infinite; }
+  #boot .word { font-family:"Apple SD Gothic Neo", serif; font-size:13px;
+    letter-spacing:.4em; color:#a08549; padding-left:.4em; }
+  @keyframes boot-spin { to { transform:rotate(360deg); } }
 </style>
 </head>
 <body>
   <div id="app"></div>
   <div id="ui"></div>
+  <div id="boot"><div class="ring"></div><div class="word">오디세이</div></div>
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>

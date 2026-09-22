@@ -1413,6 +1413,9 @@ class Game {
 // 시작할 때는 어느 판에나 나오는 것만 받는다. 보스는 그 판에 들어갈 때.
 await Promise.all([models.preload(models.baseKeys()), preloadCharacter(), preloadRealHelmet()])
 const game = new Game(document.getElementById('app'), document.getElementById('ui'))
+// index.html 의 부팅 화면(#boot) — 다 받았으니 이제 지운다
+const boot = document.getElementById('boot')
+if (boot) { boot.classList.add('gone'); setTimeout(() => boot.remove(), 550) }
 
 /**
  * 개발용 콘솔 도구. `window.__game` 하나만 있어도 god·jumpTo·enemies 를
