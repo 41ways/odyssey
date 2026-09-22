@@ -591,10 +591,20 @@ export class World {
        제곱이 아니라 1차로만 늘린다: 제곱으로 맞추면 드로우콜이 300 을 넘는다.
        줄 맞춰 세우는 것(기둥 여덟)은 개수가 곧 모양이라 건드리지 않는다. */
     const dense = Math.min(2.4, Math.max(1, R / 18))
+    /* 풀·덤불처럼 **바닥을 덮는** 것들은 따로 취급한다.
+       기둥·항아리 같은 '눈에 띄는 물건'은 늘어난 반지름에 맞춰 1차로만
+       늘려도 된다 — 적당히 서 있는 정도면 충분하고, 너무 많으면 그 자체가
+       장애물처럼 붐빈다. 그런데 바닥을 까는 풀은 **넓이만큼** 안 늘리면
+       늘어난 밭 한가운데가 맨흙으로 빈다 (위 ring 고침으로 고르게는
+       뿌리지만, 뿌릴 개수 자체가 넓이를 못 따라가면 성긴 건 그대로다).
+       spec.fill 이 있는 것만 넓이(반지름의 제곱)로 늘린다 — 폴리곤이
+       가벼운 것들(풀 7KB, 덤불 40~80KB)이라 드로우콜 값을 치를 만하다. */
+    const denseArea = Math.min(4.5, Math.max(1, (R / 18) ** 2))
     for (const spec of list) {
+      const k = spec.fill ? denseArea : dense
       const count = spec.spread === false
         ? (spec.count ?? 1)
-        : Math.round((spec.count ?? 1) * dense)
+        : Math.round((spec.count ?? 1) * k)
       for (let i = 0; i < count; i++) {
         // 받아 온 모델이거나(models), 코드로 짠 것이거나(props.js)
         const build = PROP_BUILDERS[spec.key]
@@ -615,7 +625,14 @@ export class World {
         // 벽을 따라 세운다. 원 반지름으로 두면 네모난 홀에서 기둥이
         // 벽을 뚫고 나가거나 방 한가운데 둥글게 모여 선다.
         const rr = this.arena ? this.arena.radiusAt(a) : R
-        const r = rr * rand(r0, r1)
+        /* ring 구간 안에서 반지름을 고르게(uniform) 뽑으면 안쪽이 빽빽하고
+           바깥쪽이 성글다 — 같은 폭이라도 넓이는 반지름의 제곱으로 늘기
+           때문이다. 폭이 좁은 ring(기둥·항아리, 0.9~1.1 정도)은 티가 안
+           났는데, 풀·덤불처럼 **폭이 넓은** ring([0.2, 1.0] 같은)을 쓰는
+           판을 36 으로 넓히자 중간 거리가 휑해졌다 — 클럼프 태반이
+           안쪽 절반에 몰려 있었다. 넓이에 고르게 뿌리려면 제곱에서 뽑는다
+           (#scatterRocks 의 잡석과 같은 수법). 개수를 안 늘려도 되는 고침이다. */
+        const r = rr * Math.sqrt(rand(r0 * r0, r1 * r1))
         o.position.set(Math.sin(a) * r, spec.y ?? 0, Math.cos(a) * r)
         // 벽을 두르는 물건(연회상)은 벽을 등지고 방 안을 본다. 아무 쪽이나
         // 보게 두면 상이 벽을 향해 돌아앉는다

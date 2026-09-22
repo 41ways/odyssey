@@ -24,8 +24,8 @@ const SHORE = {
                (숲 판이 먼저 겪고 고친 것이다 — FOREST 의 grass·bush 참고).
                불탄 마을이라 마른 풀과 덤불로, 색은 타고 남은 쪽으로 끌어온다.
                키는 허리 아래. 가운데는 비운다 — 보스가 서고 장판이 깔린다. */
-            { key: 'grass', count: 34, ring: [0.24, 1.0], scale: [0.7, 1.3], tint: '#7d6b3f' },
-            { key: 'bush', count: 11, ring: [0.36, 0.98], scale: [0.6, 0.95], tint: '#5a4a2c' },
+            { key: 'grass', count: 34, ring: [0.24, 1.0], scale: [0.7, 1.3], tint: '#7d6b3f', fill: true },
+            { key: 'bush', count: 11, ring: [0.36, 0.98], scale: [0.6, 0.95], tint: '#5a4a2c', fill: true },
             { key: 'jar', count: 5, ring: [0.4, 0.92], scale: [0.6, 0.9], tint: '#6f4c2e' }] },
   env: { bg: '#150c08', fog: 0.019, fogColor: '#1a0e08', exposure: 1.05, camDistance: 27,
     key: '#ffb478', keyIntensity: 2.4, rim: '#6f8cff', rimIntensity: 1.1,
@@ -106,7 +106,7 @@ const CLIFF = {
     props: [{ key: 'columnRound', count: 5, ring: [1.03, 1.12], scale: [0.9, 1.4], tint: '#9aa0a6' },
             // 발밑은 눈 맞은 돌밭. 북쪽 끝이라 풀은 성기고 돌이 많다
             { key: 'cliffRock', count: 14, ring: [0.26, 1.0], scale: [0.3, 0.6], tint: '#6b7079' },
-            { key: 'grass', count: 16, ring: [0.3, 0.98], scale: [0.6, 1.0], tint: '#6a7060' }] },
+            { key: 'grass', count: 16, ring: [0.3, 0.98], scale: [0.6, 1.0], tint: '#6a7060', fill: true }] },
   env: { bg: '#0c1014', fog: 0.024, fogColor: '#151c26', exposure: 1.06, camDistance: 28,
     snow: true,          // 북쪽 끝이다. 눈이 온다
     key: '#cfd8e8', keyIntensity: 2.0, rim: '#5f7fa8', rimIntensity: 1.2,
@@ -121,9 +121,9 @@ const FOREST = {
             // 나무는 가장자리라 싸우는 화면에는 흙바닥만 남았다. 발밑을 채운다.
             // 가운데(0.2 안쪽)는 비운다 — 보스가 서는 자리고, 장판이 가려진다.
             // 키는 허리 아래로만 둔다. 쿼터뷰에서 그보다 크면 발을 가린다.
-            { key: 'bush', count: 14, ring: [0.35, 0.98], scale: [0.7, 1.1] },
-            { key: 'flowerbush', count: 12, ring: [0.25, 0.95], scale: [0.8, 1.2] },
-            { key: 'grass', count: 40, ring: [0.2, 1.0], scale: [0.8, 1.5] }] },
+            { key: 'bush', count: 14, ring: [0.35, 0.98], scale: [0.7, 1.1], fill: true },
+            { key: 'flowerbush', count: 12, ring: [0.25, 0.95], scale: [0.8, 1.2], fill: true },
+            { key: 'grass', count: 40, ring: [0.2, 1.0], scale: [0.8, 1.5], fill: true }] },
   env: { bg: '#0a1208', fog: 0.022, fogColor: '#101a10', exposure: 1.08, camDistance: 27,
     key: '#e8d08a', keyIntensity: 2.1, rim: '#a06fd0', rimIntensity: 1.3,
     hemiSky: '#54704a', hemiGround: '#141a10', hemiIntensity: 0.55 },
