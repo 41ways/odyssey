@@ -61,6 +61,8 @@ export class Actor {
     this.takeMul = 1       // 받는 피해 배수. 난이도가 여기를 건드린다
     this.god = false       // 시험용 무적. 배포 전에 끈다 (main.js 의 GOD 주석 참고)
     this.lastStand = 0     // 치명상을 대신 버티는 횟수 (메두사의 방패 — player.js 가 채운다)
+    this.curseT = 0        // 카산드라의 저주 — 남은 시간. 있는 동안 받는 피해가 curseMul 배
+    this.curseMul = 1
     this.hurtFlash = 0
     this.burn = null       // { left, dps, tick, level, from }
     this.action = new ActionRunner(this)
@@ -107,6 +109,7 @@ export class Actor {
       return 'iframe'
     }
     amount *= this.takeMul
+    if (this.curseT > 0) amount *= this.curseMul
     const dealt = Math.min(amount, this.hp)
     this.hp = Math.max(0, this.hp - amount)
     this.onHurt?.(dealt, this)
@@ -163,6 +166,7 @@ export class Actor {
   step(dt, arenaRadius) {
     if (this.invuln > 0) this.invuln -= dt
     if (this.stagger > 0) this.stagger -= dt
+    if (this.curseT > 0) this.curseT -= dt
     if (this.hurtFlash > 0) this.hurtFlash -= dt
 
     this.action.update(dt)

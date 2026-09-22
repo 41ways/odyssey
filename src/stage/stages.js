@@ -468,7 +468,7 @@ export const UNDERWORLD_CUT = {
 }
 
 /* ── 저승의 유물 ─────────────────────────────────────────
-   딱 하나만 고른다. 셋 다 특수공격(E)을 여는데, 여는 방식이 다르다. */
+   딱 하나만 고른다. 넷 다 특수공격(F)을 여는데, 여는 방식이 다르다. */
 export const RELICS = [
   {
     id: 'wax', name: '귀를 막는 밀랍', tag: '아가멤논',
@@ -487,5 +487,11 @@ export const RELICS = [
     desc: '특수공격으로 창을 던진다 · 높은 피해 · 짧은 쿨',
     flavor: '그는 자기 집 문턱에서 이걸 맞았다',
     apply: s => { s.relic = 'spear'; s.meleeDamage *= 1.08 },
+  },
+  {
+    id: 'curse', name: '카산드라의 저주', tag: '아가멤논',
+    desc: '특수공격으로 가장 가까운 적을 저주한다 · 저주 걸린 적은 받는 피해 +35% (6초)',
+    flavor: '아무도 그녀의 말을 믿지 않았다. 그래도 전부 맞았다',
+    apply: s => { s.relic = 'curse'; s.rangedDamage *= 1.06 },
   },
 ]

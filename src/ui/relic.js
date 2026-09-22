@@ -117,6 +117,12 @@ const SIGILS = {
   spear: `<svg viewBox="0 0 64 64" fill="none" stroke="#c8973e" stroke-width="2.2">
     <path d="M32 4 41 22 32 30 23 22z" fill="#c8973e" fill-opacity=".25"/>
     <path d="M32 30v28"/><path d="M26 34h12"/><path d="M28 58h8"/></svg>`,
+  // 카산드라 — 아무도 안 믿은 예언. 뜬 눈 하나와, 그래도 맞은 말이 떨어지는 자국.
+  curse: `<svg viewBox="0 0 64 64" fill="none" stroke="#c8973e" stroke-width="2.2">
+    <path d="M6 32c6-11 16-17 26-17s20 6 26 17c-6 11-16 17-26 17S12 43 6 32z"/>
+    <circle cx="32" cy="32" r="9" fill="#c8973e" fill-opacity=".25"/>
+    <circle cx="32" cy="32" r="3.4" fill="#c8973e"/>
+    <path d="M32 49v6M23 47l-3 5M41 47l3 5" stroke-linecap="round"/></svg>`,
 }
 
 export class RelicScreen {

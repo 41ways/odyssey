@@ -84,6 +84,7 @@ export const TUNING = {
     wax: { duration: 3, cooldown: 8 },              // 밀랍 — 경직 무시 3초
     aegis: { radius: 4.6, freeze: 2.2, cooldown: 11 },  // 메두사 — 주위를 굳힌다
     spear: { damage: 70, speed: 30, cooldown: 3.6 },    // 청동 창 — 높은 피해, 짧은 쿨
+    curse: { radius: 11, mul: 1.35, duration: 6, cooldown: 9 },  // 카산드라 — 표적의 약점을 짚어 준다
   },
 }
 
@@ -993,6 +994,24 @@ export class Player extends Actor {
       })
       this.world.sfx?.shoot?.(true)
       this.fx.shake(0.18)
+    } else if (relic === 'curse') {
+      const cfg = T.curse
+      let target = null, bd = Infinity
+      for (const e of this.world.enemies) {
+        if (e.dead) continue
+        const d = dist2d(e.pos, this.pos)
+        if (d < bd && d <= cfg.radius) { bd = d; target = e }
+      }
+      if (!target) {
+        this.world.hud?.toast('저주할 것이 곁에 없다', 1.4)
+        return
+      }
+      this.specialCd = cfg.cooldown
+      target.curseT = cfg.duration
+      target.curseMul = cfg.mul
+      this.world.sfx?.chime?.()
+      this.fx.ring(target.pos.x, target.pos.z, { color: '#c77dff', radius: target.radius * 2.6, life: 0.5 })
+      this.fx.number(target.pos.clone().setY(2.1), '저주', { color: '#c77dff', size: 22, crit: true })
     }
   }
 

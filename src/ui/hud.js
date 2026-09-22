@@ -407,6 +407,7 @@ export class Hud {
       wax: '특수공격 — 3초간 경직 무시',
       aegis: '특수공격 — 주위를 굳힌다',
       spear: '특수공격 — 창을 던진다',
+      curse: '특수공격 — 가장 가까운 적을 저주한다',
     }
     const t = TEXT[relicId]
     if (!t) { this.specialEl.hidden = true; return }
