@@ -31,19 +31,18 @@ const SETS = {
       pauldron: '/models/gear-pauldron.glb',
     },
   },
-  // 키르케. 받아 올 수 있는 CC0 마녀는 전부 정적 모델이라 보스가 서 있기만 한다.
-  // 후드 쓴 여자 몸으로 만들면 오디세우스와 같은 클립을 그대로 쓴다.
-  witch: {
-    body: '/models/witch-body.glb',
-    gear: {
-      legs: '/models/witch-legs.glb',
-      feet: '/models/witch-feet.glb',
-      body: '/models/witch-body-cloth.glb',
-      arms: '/models/witch-arms.glb',
-      pauldron: '/models/witch-pauldron.glb',
-      hood: '/models/witch-hood.glb',
-    },
-  },
+  /**
+   * 키르케 — 진짜 여자 몸 (Quaternius Ultimate Modular Women Pack, CC0).
+   * 전에는 오디세우스 몸에 후드만 씌운 'witch' 벌을 썼다(받아 올 수
+   * 있는 CC0 마녀가 전부 정적 모델이라 그랬다). 이젠 진짜 여자 몸이
+   * 있으니 그건 지웠다 — 쓰는 곳이 키르케 하나뿐이었다.
+   *
+   * 이 몸은 뼈 이름이 완전히 다른 뼈대(Wrist.L 식)라 hero 클립을 못
+   * 빌려 쓴다 — 대신 자기 클립을 그대로 쓴다 (`ownClips`,
+   * tools/prep-circe.mjs 가 CLIP 상수와 같은 이름으로 미리 바꿔 둔다).
+   * gear 가 없다 — 옷까지 한 메시다.
+   */
+  circe: { body: '/models/circe-body.glb', gear: {}, ownClips: true },
 }
 
 /** 게임 상태 → 클립. 이름은 원본 팩 것을 그대로 쓴다. */
@@ -201,7 +200,8 @@ export async function preloadCharacter() {
       ])
       const gear = {}
       Object.keys(spec.gear).forEach((k, i) => { gear[k] = gearList[i] })
-      cache[name] = { body, clips, gear }
+      // ownClips — 뼈대가 달라 hero 클립을 못 빌리는 몸. 제 파일에 든 클립을 쓴다.
+      cache[name] = { body, clips: spec.ownClips ? body.animations : clips, gear }
     } catch (err) {
       cache[name] = false
       console.info(`[character] '${name}' 벌 없음 — 코드 인체로 간다:`, err.message)
@@ -234,7 +234,7 @@ function rebind(scene, boneByName) {
  *   tint    몸·장비 색조. 적을 부족색으로 물들일 때 쓴다
  *   gear    처음부터 입고 시작할 조각들
  *   bulk    가로 비율. 1보다 크면 육중해 보인다
- *   set     몸 한 벌 — 'hero' 아니면 'witch'
+ *   set     몸 한 벌 — 'hero' 아니면 'circe'
  */
 export function createCharacter({ height = 1.82, facing = 0, tint = null, gear: initialGear = [], bulk = 1, set = 'hero' } = {}) {
   const kit = cache[set] || cache.hero

@@ -5,6 +5,9 @@
 - **Universal Base Characters** — Quaternius, https://quaternius.com/packs/universalbasecharacters.html — **CC0**
 - **Universal Animation Library** — Quaternius, https://quaternius.com/packs/universalanimationlibrary.html — **CC0**
 - **Modular Character Outfits – Fantasy** — Quaternius, https://quaternius.com/packs/modularcharacteroutfitsfantasy.html — **CC0**
+- **Ultimate Modular Women Pack** (Witch) — Quaternius, https://quaternius.com/packs/ultimatemodularwomen.html — **CC0**
+  키르케의 몸. `tools/prep-circe.mjs` 가 클립 이름만 게임 것에 맞게 바꾼다
+  (뼈대가 달라 hero 클립을 못 빌려 쓴다 — 제 클립을 그대로 쓴다).
 
 ## 동작 (애니메이션)
 

@@ -45,6 +45,57 @@ URL 인자: `?god=0` 무적 끔, `?stage=N` 그 판부터, `?boss=1` 보스방 �
 
 ---
 
+## 0.8 13차 갱신 (2026-09-22) — 키르케에게 진짜 여자 몸을
+
+### 사자를 실제로 찾아봤다 — 없다
+이 문서 5절에 "poly.pizza 정적 사자뿐, Quaternius Ultimate Animated
+Animals 에 움직이는 사자가 있다" 고 적혀 있었다. 크롬을 열어 그 팩을
+실제로 받아서 열어 보니 **거짓이었다** — 12종은 알파카·소·사슴·당나귀·
+여우·말(×2)·허스키·시바견·수사슴·늑대뿐, 사자가 없다. Quaternius
+전체 카탈로그(80여 팩)를 훑고, poly.pizza·Sketchfab 도 뒤졌지만
+쓸 만한 무료 리깅 사자가 없었다(유료였거나, 스타일이 안 맞거나,
+애니메이션이 한 종류뿐). 그래서 늑대+금색 대역을 그대로 둔다 —
+바꿀 이유가 없어서가 아니라, **바꿀 게 없어서.**
+
+### 키르케 — 오디세우스 몸에 후드 대신 진짜 여자 몸
+같은 크롬 세션에서 Quaternius *Ultimate Modular Women Pack*(CC0)은
+실제로 있었다. `Witch.gltf` 하나를 받아 왔다 — 몸+옷+머리카락이 한
+메시고, 클립 24종이 다 들어 있다(Idle·Walk·Run·Sword_Slash·Roll·
+Death·HitRecieve 등).
+
+**hero 클립을 못 빌려 쓴다.** hero 뼈대는 UE 식(`lowerarm_l` 등)인데
+이 팩은 다른 이름(`Wrist.L`·`Shoulder.L` 등)을 쓴다 — 이름이 다르면
+retarget(EXTRA_MAP 방식)으로 옮겨야 하는데, 그러려면 매핑 표를 새로
+짜야 한다. 대신 **거꾸로** 했다 — `tools/prep-circe.mjs` 가 이 팩
+자체의 클립 이름을 게임이 찾는 이름으로 바꿔치기한다
+(Idle→Sword_Idle, Run→Jog_Fwd_Loop, Sword_Slash→Sword_Attack,
+HitRecieve→Hit_Chest, Death→Death01, Roll 은 이미 같음). Sprint_Loop
+은 없어서 Run 클립을 복제해 이름만 새로 붙였다 — 달리기 속도를
+올리면 재생 속도도 같이 올라가므로(`pose()` 의 `speed`) 몸짓이
+그대로 빨라져 보인다. 안 쓰는 클립(총·주먹·발차기 등 17종)은
+지웠다 — 3.2MB → 1.3MB.
+
+`character.js` 쪽은 `SETS.circe = { body, gear:{}, ownClips:true }`
+한 줄과, `preloadCharacter()` 에서 `ownClips` 인 벌은 공용 `clips`
+대신 **제 파일에 든 클립**(`body.animations`)을 쓰게 하는 한 줄만
+고쳤다. `createCharacter()`·`pose()` 는 이미 `kit.clips` 를 통해서만
+클립을 찾으므로 손대지 않았다 — hero/자기클립 벌을 구분하는 조건
+분기가 그 두 줄에만 있다.
+
+`bosses.js` 의 KIRKE `look` 을 `set:'witch'` → `set:'circe'` 로
+바꿨다. **`witch` 벌(오디세우스 몸+후드)은 통째로 지웠다** — 쓰는
+곳이 키르케 하나였는데 이제 안 쓴다. `public/models/witch-*.glb`
+일곱 파일(984KB)도 지웠다. 세이렌은 애초에 이 벌을 쓴 적이 없다
+(코드로 만든 인어, `look.model:'siren'`) — 예전에 이 문서와 코드
+주석에 "세이렌도 후드 쓴 몸을 쓴다" 는 잘못된 서술이 있었는데
+같이 바로잡았다.
+
+카메라를 억지로 보스 쪽에 붙여(`player.pos` 를 보스 자리로 텔레포트
++ `zoom` 조절) 실제로 서 있는 자세·달리는 자세·죽는 순간까지 확인
+했다 — 몸이 눕거나 T포즈로 굳는 일 없이 다 돈다.
+
+---
+
 ## 0.9 12차 갱신 (2026-09-22) — 칼질 겹침 고치고, 동굴·텔레필로스도 스톱모션
 
 ### 칼 휘두를 때 자세 두 장이 겹쳐 보이던 것
@@ -788,7 +839,9 @@ Sketchfab CC-BY 두 건(Cyclops Rig / DM-913, Yamata no Orochi / tran95)은
   카리브디스는 팔만 받아 온 촉수로 갈았고, 깔때기·물살·눈은 그대로
   코드다 — 그건 모양이 아니라 움직임이라 코드가 맞다.
 - **사자 모델이 없다.** 늑대 몸에 황금 색조(`#d8a850`)로 대역을 쓴다 —
-  크기와 색이 달라 실루엣으로는 구분되지만 사자는 아니다.
+  크기와 색이 달라 실루엣으로는 구분되지만 사자는 아니다. CC0/무료로
+  구할 수 있는 리깅된 사자를 12차 갱신에서 직접 찾아봤는데 없었다
+  (아래 5절 참고) — 지금은 대역이 최선이다.
 - 빌드 산출물 16MB (그림 2.5 / 모델 4.1 / 텍스처 4.1 / 음원 3.5).
   노멀·거칠기 16 장으로 3MB 늘었다. README 에 한때 "1.3MB" 라고
   적혀 있었는데 그건 근거 없는 숫자였고, 지금 숫자는 목표가 아니라
@@ -810,15 +863,21 @@ Sketchfab CC-BY 두 건(Cyclops Rig / DM-913, Yamata no Orochi / tran95)은
    돌바닥이 돌처럼 읽힌다.
 
 ### 3D 모델 — 있으면 판이 달라진다
-1. **사자** (rigged, Attack/Walk/Idle). 지금 늑대에 금색을 칠한 대역이다.
-   poly.pizza 에는 정적 사자만 있었다 (Poly by Google, CC-BY). 움직이는
-   사자는 Quaternius 의 *Ultimate Animated Animals* 팩(CC0, 12종 ×12클립)
-   에 있는데 **배포가 구글 드라이브 폴더**라 자동으로 받기가 어려웠다.
-   사람이 한 번 받아서 `art/gen/` 에 넣어 주면 그 뒤는 자동이다:
-   https://quaternius.com/packs/ultimateanimatedanimals.html
-2. **여자 몸 rigged** (키르케·세이렌). 지금은 남자 몸에 후드를 씌운다.
-   Quaternius *Ultimate Modular Women* (CC0) — 같은 드라이브 문제.
-3. **하피 / 새사람** — 세이렌. 지금 코드 날개다.
+1. ~~**사자** (rigged, Attack/Walk/Idle)~~ → **직접 뒤져 봤다, 없다.**
+   *Ultimate Animated Animals* 팩(CC0, 구글 드라이브)을 실제로 열어
+   보니 12종은 Alpaca·Bull·Cow·Deer·Donkey·Fox·Horse(×2)·Husky·
+   ShibaInu·Stag·Wolf 뿐이고 **사자가 없다** — 예전에 이 문서에 적힌
+   추측이 틀렸다. Quaternius 전체 카탈로그(80여 팩)를 훑어도 사자
+   단독 팩이 없다. poly.pizza·Sketchfab 의 "무료" 태그가 붙은
+   후보들도 실제로는 유료거나(다운로드 버튼이 없음), 스타일이 안
+   맞거나(고폴리 리얼리스틱), 애니메이션이 한 종류뿐이었다. **지금
+   늑대+금색 대역을 유지하는 게 맞다** — 바꿀 가치가 있는 걸 못 찾았다.
+2. ~~**여자 몸 rigged** (키르케)~~ → **받아서 끼웠다** (12차 갱신,
+   `SETS.circe`, `tools/prep-circe.mjs`). 세이렌은 원래부터 몸이 아니라
+   코드로 만든 인어라 이 항목과 상관없다 — 아래 3번 참고.
+3. **하피 / 새사람** — 세이렌. 지금 코드 날개다 (사람 몸이 아니라
+   `look: { model: 'siren' }` 코드 인어라서, 위 2번 사자 자리와는
+   별개로 필요한 항목).
 4. ~~거인 — 안티파테스~~ → 받았다 (Quaternius Giant, CC0).
    더 정교한 게 있으면 좋지만 급하지 않다 — 지금 것은 각진 저폴리라
    사람 캐릭터와 결이 조금 다르다.

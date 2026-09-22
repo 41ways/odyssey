@@ -181,9 +181,8 @@ export const KIRKE = {
   hp: 620, radius: 0.6, mass: 24, speed: 4.4, keepRange: [7, 11], gap: [0.8, 1.4],
   barHeight: 2.4, groggyMult: 1.6, turnHalf: 0.1,
   breakGroggy: 3.2,        // 끊었을 때 열리는 반격 창. 들어간 값을 돌려준다
-  // 후드를 눌러쓴 여자 몸. 얼굴이 보이지 않아야 '마녀'로 읽힌다.
-  look: { set: 'witch', height: 1.76, bulk: 0.96, tint: '#b58ad8',
-    gear: ['legs', 'feet', 'body', 'arms', 'hood'] },
+  // 진짜 여자 몸 (render/character.js SETS.circe). 옷까지 한 메시라 gear 가 없다.
+  look: { set: 'circe', height: 1.76, bulk: 0.96, tint: '#b58ad8' },
   phases: [
     {
       below: 1,
