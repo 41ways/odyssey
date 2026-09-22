@@ -45,6 +45,47 @@ URL 인자: `?god=0` 무적 끔, `?stage=N` 그 판부터, `?boss=1` 보스방 �
 
 ---
 
+## 0.5 16차 갱신 (2026-09-22) — 보스 음악을 보스마다 다르게
+
+5절에 "보스마다 다른 곡, 결을 사람이 골라야 한다" 고 적혀 있던 항목.
+사용자가 kenney.nl·freesound.org 에서 CC0 후보를 찾아보라고 했고,
+찾은 뒤에는 "알아서 추가해" 라고 판단을 맡겼다.
+
+kenney.nl Audio 카테고리는 다 훑었는데 보스전에 쓸 만한 게 없었다
+— RPG Audio 는 발소리·검격 같은 foley/SFX 50개뿐이고, Music
+Jingles 는 승리/레벨업용 2~4초 스팅어 85개였다(이건 3번 항목의
+스팅어 후보로는 남겨 둘 만하다). freesound.org 에서 CC0 로 일곱
+개를 추려 보스 성격에 맞춰 배정했다 — 표와 링크는 5절.
+
+`music.js` 의 `TRACKS.boss` 한 곡을 일곱 보스가 같이 쓰던 구조를
+`BOSS_TRACKS`(보스 id → 파일)로 바꾸고 `playBoss(id)` 를 추가했다
+— 전용 곡이 없는 보스는 그대로 공용 곡으로 돈다. `run.js` 는
+`g.music.play('boss')` 한 줄만 `g.music.playBoss(cfg.id)` 로.
+
+freesound 는 원본 파일 다운로드에 로그인이 있어야 하는데, 계정을
+대신 만들 수는 없어서 대신 CDN 프리뷰(`cdn.freesound.org/previews/
+.../<id>-hq.mp3`, 로그인 없이 받아진다 — CC0라 문제 없음)를 받았다.
+그대로 쓰면 곡마다 음량이 들쭉날쭉하고(가장 큰 것 2:44/4MB) 이
+저장소 판 곡들의 결(짧고 -17dB 안팎)과도 안 맞아서, ffmpeg 로
+① 평균 음량을 재서 전부 -17dB 근방으로 맞추고 ② 루프용으로 안
+만들어진 원곡(안티노오스·안티파테스·폴리페모스)은 앞 60초만 잘라
+80ms 페이드 인/아웃을 넣어 `el.loop=true` 로 돌 때 딸깍거리지
+않게 했다. 일곱 개 다 합쳐 4.3MB — 원래 프리뷰 그대로 받았으면
+15MB가 넘었을 거다.
+
+`?stage=N&boss=1&sail=story` 로 여덟 판 중 여섯(1·2·3·5·7·8)과
+메시나 갈림길(6, 스킬라 쪽) 보스방까지 실제로 들어가서 매번
+`cdn` 이 아니라 `/audio/boss-<이름>.mp3` 가 206 로 걸리는 걸
+네트워크 탭으로 확인했다. 콘솔 에러 없음. 카리브디스(메시나의
+다른 갈래)는 스킬라와 같은 파일이라 안 눌러 봤다 — 코드 경로가
+같아서 위험이 낮다고 판단.
+
+**남은 것:** 루프점이 진짜 매끈하진 않다(그냥 60초에서 자른 것 —
+음악적으로 맞물리는 지점을 찾은 게 아니다). 특히 안티노오스 쪽은
+다시 들어 보고 더 나은 루프점으로 다듬으면 좋다.
+
+---
+
 ## 0.6 15차 갱신 (2026-09-22) — "신화 속에 들어온 느낌을 받고 싶다"
 
 14차의 연장 — 이번엔 사용자가 직접 "레전더리 확률은 네가 판단해서
@@ -1147,42 +1188,24 @@ Sketchfab CC-BY 두 건(Cyclops Rig / DM-913, Yamata no Orochi / tran95)은
    정하면 그때 이 zip 을 다시 받으면 된다(`tools/fetch-ground.mjs`
    처럼 URL 하나로 됨: `https://kenney.nl/media/pages/assets/
    impact-sounds/87b4ddecda-1677589768/kenney_impact-sounds.zip`).
-2. 보스마다 다른 곡. 지금 보스 곡이 하나라 일곱 보스가 같은 결이다.
-   이것도 곡을 "찾아서 까는" 일이라, 결을 사람이 골라야 한다.
+~~2. 보스마다 다른 곡.~~ → **16차 갱신에서 채웠다** (자세한 경위는
+   위 0.5절). CC0(freesound.org) 일곱 개를 보스 성격에 맞춰 붙였다
+   — 스킬라·카리브디스는 메시나 갈림길의 두 갈래라 한 판에 하나만
+   들리므로 같이 썼다:
 
-   `music.js` 는 이미 배선해 뒀다 — `BOSS_TRACKS` 에 보스 id 로 파일
-   경로를 채우면 `run.js` 의 `g.music.playBoss(cfg.id)` 가 자동으로
-   그 곡을 쓰고, 비워 둔 보스는 지금처럼 공용 `boss-bell-warden.mp3`
-   로 돈다. 후보(전부 CC0, freesound.org — kenney.nl 은 뒤져 봤는데
-   RPG Audio 는 foley/SFX 뿐이고 Music Jingles 는 2~4초 스팅어라
-   보스전 루프감이 안 남):
+   | 보스 | 곡 | 원곡 |
+   |---|---|---|
+   | 폴리페모스(동굴 거인) | `boss-polyphemos-cave-iron.mp3` | Hard Rock Loop (BaDoink) |
+   | 안티파테스(항구 습격) | `boss-antiphates-quay-chase.mp3` | Fight Music Synth Tense Loop (SnowFightStudios) |
+   | 키르케(마녀) | `boss-kirke-witchlight.mp3` | Witch house theme (Projecteur) |
+   | 세이렌(홀리는 노래) | `boss-siren-drowned-hymn.mp3` | Boss Battle Loop 1 (kanaizo) |
+   | 스킬라/카리브디스 | `boss-skylla-charybdis-maw.mp3` | Intense Battle Loop (furbyguy) |
+   | 안티노오스(홀 결투) | `boss-antinoos-suitors-hall.mp3` | Battle Music, Village (Migfus20) |
+   | 텔레고노스(비극) | `boss-telegonos-unknowing-blade.mp3` | Dark Orchestral Piece (furbyguy) |
 
-   - **Boss Battle Loop 1 (155 BPM)** kanaizo, 1:17 — 살짝 음 나간
-     피아노 위주라 음산·불안정. 키르케·세이렌 쪽.
-     https://freesound.org/people/kanaizo/sounds/739177/
-   - **Fight Music Synth Tense Loop** SnowFightStudios, 1:37 — 신스
-     긴박함, 추격전 느낌. 안티파테스(항구 습격) 쪽.
-     https://freesound.org/people/SnowFightStudios/sounds/676998/
-   - **Witch house theme** Projecteur, 1:01 — 다크신스, 8, 90년대
-     신스팝 결. 키르케(마녀) 쪽.
-     https://freesound.org/people/Projecteur/sounds/745934/
-   - **Hard Rock Loop** BaDoink, 1:49 — 묵직한 기타·드럼, 힘으로
-     미는 느낌. 폴리페모스(거인)나 스킬라 쪽.
-     https://freesound.org/people/BaDoink/sounds/524240/
-   - **Battle Music (Village)** Migfus20, 2:45 — 오케스트라, 웅장·
-     영웅적. 안티노오스(홀 결투) 쪽. 단, 루프점이 매끈하지 않다는
-     댓글 있음 — 붙일 때 페이드로 감아야 할 수도.
-     https://freesound.org/people/Migfus20/sounds/683261/
-   - **Intense Battle Loop** furbyguy, 0:21 — 스피드 메탈, 짧고
-     빠름. 텔레고노스(마지막, 다급함)나 카리브디스(소용돌이) 쪽.
-     https://freesound.org/people/furbyguy/sounds/331869/
-   - **Dark Orchestral Piece** furbyguy, 0:32 — 어둡고 구슬픈 현.
-     텔레고노스(아버지를 죽이는 비극) 쪽.
-     https://freesound.org/people/furbyguy/sounds/365188/
-
-   다운로드는 freesound 로그인이 있어야 한다 — 계정을 대신 만들 수
-   없어서 파일 자체는 못 받아 왔다. 마음에 드는 것부터 받아서
-   `public/audio/boss-<보스id>.mp3` 로 넣고 `BOSS_TRACKS` 채우면 끝.
+   **남은 것:** 루프점이 진짜 매끈하진 않다(안티노오스·안티파테스·
+   폴리페모스는 그냥 앞 60초에서 잘랐다 — 음악적으로 맞물리는
+   지점을 찾은 게 아니다). 다시 들어 보고 다듬으면 좋다.
 3. 짧은 **스팅어** — 판 시작, 보스 등장, 토벌. 2~4초짜리.
    레벨업 스팅어는 합성으로 들어가 있다.
 ~~4. 발소리~~ → **13차 갱신에서 연결했다.** `Player.#visual` 에
