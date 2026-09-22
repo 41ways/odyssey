@@ -45,6 +45,36 @@ URL 인자: `?god=0` 무적 끔, `?stage=N` 그 판부터, `?boss=1` 보스방 �
 
 ---
 
+## -0.7 28차 갱신 (2026-09-22) — 서체·카드 아이콘까지 실제 에셋으로
+
+27차의 "css 그리는 일 줄이자" 지시를 UI 전체로 넓혔다. 시안을
+먼저 보여주고 고른 것만 코드에 넣었다(`Artifact` 로 비교 페이지
+두 장 — 한글 서체 후보 8개, 아이콘 손그림 vs 실제).
+
+**한글 서체 — Hahmlet.** 송명(붓글씨체)이 제목의 Cinzel·Cormorant
+Garamond(비문체, 획 대비가 굵다)와 안 어울렸다. 구글폰트 후보
+8개(Noto Serif KR·Nanum Myeongjo·Gowun Batang·Hahmlet·Gasoek One·
+무게 변형 둘, 외부는 네이버 마루 부리)를 시안으로 보여주고 Hahmlet
+으로 정함 — `--serif`·`--display`·`--body` 세 변수와
+`companion.js` 의 캔버스 이름표 폰트까지 같이 바꿨다.
+
+**카드 아이콘 19곳 — game-icons.net.** 유물(relic.js)·성장
+(levelup.js)·은총(blessing.js)·장비(equipcard.js)의 문장을 손으로
+그린 선 그림에서 실제 아이콘(CC BY 3.0)으로 바꿨다. 작가 넷
+(Lorc·Delapouite·Skoll·sbed)이고 멈춤메뉴 출처 화면에 `lic: '3.0'`
+으로 따로 표기(기존 CC-BY 항목은 전부 4.0이라 값을 안 주던 필드였다
+— 있는 필드에 그냥 3.0을 넣으면 틀린 표기가 될 뻔했다). 스킬라·
+카리브디스·밀랍(귀막이) 셋은 못 찾아서 손그림 그대로 뒀다.
+
+받는 절차: `https://game-icons.net/icons/ffffff/transparent/1x1/
+<작가>/<이름>.svg` 로 흰색·투명 배경 SVG를 바로 받는다(사이트를
+브라우저로 뒤져 낱장 URL을 확인한 다음, curl 로 한꺼번에 받아
+파이썬으로 `viewBox="0 0 64 64"` → `"0 0 512 512"`, `stroke` →
+`fill` 로 바꿔 끼워 넣었다 — 다른 판형이지만 `.icon svg { width:
+100%; height:100% }` 라 스케일은 알아서 맞는다).
+
+---
+
 ## -0.6 27차 갱신 (2026-09-22) — 캔버스 그림 대신 진짜 에셋으로
 
 사용자 지시: "css 그리는 일 거의 없게, 어쩔 수 없는거 빼고는 외부
