@@ -20,6 +20,29 @@ export const CAM_PULL = 1.12
 const BOSS_LOOK = 0.36
 const BOSS_LOOK_MAX = 4.6
 
+/**
+ * 눈·비·불씨·부유물·물보라 — 이 판의 `THREE.Points` 들이 전부
+ * `map` 없이 써 왔다. 기본값은 네모난 스프라이트라, 확대해서 보면
+ * 각진 사각형이 흩뿌려진 것으로 보인다(가까이서 찍어 보고서야
+ * 알았다). 가운데가 밝고 가장자리가 부드럽게 죽는 원형 텍스처
+ * 하나를 만들어 모든 입자계가 같이 쓴다 — 파일 하나 없이, 캔버스로.
+ */
+let DOT_TEX = null
+function dotTexture() {
+  if (DOT_TEX) return DOT_TEX
+  const cv = document.createElement('canvas')
+  cv.width = cv.height = 64
+  const ctx = cv.getContext('2d')
+  const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32)
+  g.addColorStop(0, 'rgba(255,255,255,1)')
+  g.addColorStop(0.4, 'rgba(255,255,255,.9)')
+  g.addColorStop(1, 'rgba(255,255,255,0)')
+  ctx.fillStyle = g
+  ctx.fillRect(0, 0, 64, 64)
+  DOT_TEX = new THREE.CanvasTexture(cv)
+  return DOT_TEX
+}
+
 export const CAMERA_RIG = {
   pitch: THREE.MathUtils.degToRad(40),  // 수평에서 올려다본 각
   yaw: 0,                                // 고정. 방향키 축이 화면 축과 그대로 맞는다
@@ -746,7 +769,7 @@ export class World {
       const geo = new THREE.BufferGeometry()
       geo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
       const mat = new THREE.PointsMaterial({
-        color: '#dfe8f2', size: 0.13, transparent: true, opacity: 0.75,
+        map: dotTexture(), color: '#dfe8f2', size: 0.13, transparent: true, opacity: 0.75,
         depthWrite: false, sizeAttenuation: true,
       })
       const pts = new THREE.Points(geo, mat)
@@ -798,7 +821,7 @@ export class World {
       const geo = new THREE.BufferGeometry()
       geo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
       const mat = new THREE.PointsMaterial({
-        color: '#dceaf5', size: 0.1, transparent: true, opacity: 0.8,
+        map: dotTexture(), color: '#dceaf5', size: 0.1, transparent: true, opacity: 0.8,
         depthWrite: false, sizeAttenuation: true,
       })
       const pts = new THREE.Points(geo, mat)
@@ -853,7 +876,7 @@ export class World {
       const geo = new THREE.BufferGeometry()
       geo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
       const mat = new THREE.PointsMaterial({
-        color: '#ffa04e', size: 0.24, transparent: true, opacity: 0.95,
+        map: dotTexture(), color: '#ffa04e', size: 0.24, transparent: true, opacity: 0.95,
         depthWrite: false, sizeAttenuation: true, blending: THREE.AdditiveBlending,
       })
       const pts = new THREE.Points(geo, mat)
@@ -911,7 +934,7 @@ export class World {
       const geo = new THREE.BufferGeometry()
       geo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
       const mat = new THREE.PointsMaterial({
-        color: '#dcb4ff', size: 0.26, transparent: true, opacity: 0.95,
+        map: dotTexture(), color: '#dcb4ff', size: 0.26, transparent: true, opacity: 0.95,
         depthWrite: false, sizeAttenuation: true, blending: THREE.AdditiveBlending,
       })
       const pts = new THREE.Points(geo, mat)
@@ -1036,7 +1059,7 @@ export class World {
     const geo = new THREE.BufferGeometry()
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
     const mat = new THREE.PointsMaterial({
-      color: '#f4fbff', size: 0.34, transparent: true, opacity: 0.95,
+      map: dotTexture(), color: '#f4fbff', size: 0.34, transparent: true, opacity: 0.95,
       depthWrite: false, sizeAttenuation: true, blending: THREE.AdditiveBlending,
     })
     const pts = new THREE.Points(geo, mat)
@@ -1103,7 +1126,7 @@ export class World {
       const geo = new THREE.BufferGeometry()
       geo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
       const mat = new THREE.PointsMaterial({
-        color: '#ffb454', size: 0.2, transparent: true, opacity: 0.95,
+        map: dotTexture(), color: '#ffb454', size: 0.2, transparent: true, opacity: 0.95,
         depthWrite: false, sizeAttenuation: true, blending: THREE.AdditiveBlending,
       })
       const pts = new THREE.Points(geo, mat)
