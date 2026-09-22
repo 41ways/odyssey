@@ -29,7 +29,8 @@ const SHORE = {
             { key: 'jar', count: 5, ring: [0.4, 0.92], scale: [0.6, 0.9], tint: '#6f4c2e' }] },
   env: { bg: '#150c08', fog: 0.019, fogColor: '#1a0e08', exposure: 1.05, camDistance: 27,
     key: '#ffb478', keyIntensity: 2.4, rim: '#6f8cff', rimIntensity: 1.1,
-    hemiSky: '#3a4a74', hemiGround: '#140f0a', hemiIntensity: 0.55 },
+    hemiSky: '#3a4a74', hemiGround: '#140f0a', hemiIntensity: 0.55,
+    embers: true },   // 약탈해서 불탄 마을 — 색만 따뜻하고 정작 타는 게 없었다
   ambience: 'sea',
 }
 /**

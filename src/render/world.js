@@ -543,6 +543,7 @@ export class World {
     this.#setProps(a.props)
     this.#setSnow(!!e.snow)
     this.#setRain(!!e.rain)
+    this.#setEmbers(!!e.embers)
     this.#setPost(e)
     /* 바닥 결 반복수는 **판이 넓어져도 그대로 둔다.**
        판에 비례해 올려 봤다 (9 → 20). 그랬더니 같은 무늬가 스무 번 반복되는
@@ -819,6 +820,64 @@ export class World {
         y = 22
         p.array[i * 3] = focus.x + rand(-30, 30)
         p.array[i * 3 + 2] = focus.z + rand(-30, 30)
+      }
+      p.array[i * 3 + 1] = y
+    }
+    p.needsUpdate = true
+  }
+
+  /**
+   * 잉걸불. 이스마로스는 "약탈했다" 는 말대로 불탄 마을인데(env.key 가
+   * 이미 주황빛이다), 정작 그 불이 화면에서 움직이는 건 하나도 없었다
+   * — 색만 따뜻하고 실제로 타는 것은 없는 마을이었다. 눈·비와 같은
+   * 방식이지만 **위로** 뜬다. 바닥 가까이서 태어나 천천히 흔들리며
+   * 오르다 사라진다.
+   */
+  #setEmbers(on) {
+    if (!on) { if (this.embers) this.embers.visible = false; return }
+    if (!this.embers) {
+      const N = 260
+      const pos = new Float32Array(N * 3)
+      const spd = new Float32Array(N)
+      const ph = new Float32Array(N)
+      for (let i = 0; i < N; i++) {
+        pos[i * 3] = rand(-26, 26)
+        pos[i * 3 + 1] = rand(0, 6)
+        pos[i * 3 + 2] = rand(-26, 26)
+        spd[i] = rand(0.5, 1.3)
+        ph[i] = rand(0, Math.PI * 2)
+      }
+      const geo = new THREE.BufferGeometry()
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
+      const mat = new THREE.PointsMaterial({
+        color: '#ff8a3a', size: 0.09, transparent: true, opacity: 0.85,
+        depthWrite: false, sizeAttenuation: true, blending: THREE.AdditiveBlending,
+      })
+      const pts = new THREE.Points(geo, mat)
+      pts.frustumCulled = false
+      pts.userData.spd = spd
+      pts.userData.ph = ph
+      this.scene.add(pts)
+      this.embers = pts
+    }
+    this.embers.visible = true
+  }
+
+  /** draw() 가 매 프레임 부른다. 위로 뜨면서 좌우로 흔들린다 — 불에서 막 떨어져 나온 것처럼. */
+  updateEmbers(dt, focus, t) {
+    const s = this.embers
+    if (!s || !s.visible) return
+    const p = s.geometry.attributes.position
+    const spd = s.userData.spd
+    const ph = s.userData.ph
+    for (let i = 0; i < spd.length; i++) {
+      let y = p.array[i * 3 + 1] + spd[i] * dt
+      p.array[i * 3] += Math.sin(t * 0.8 + ph[i]) * dt * 0.5
+      p.array[i * 3 + 2] += Math.cos(t * 0.7 + ph[i]) * dt * 0.5
+      if (y > 7) {
+        y = 0
+        p.array[i * 3] = focus.x + rand(-26, 26)
+        p.array[i * 3 + 2] = focus.z + rand(-26, 26)
       }
       p.array[i * 3 + 1] = y
     }
