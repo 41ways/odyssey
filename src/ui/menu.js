@@ -55,6 +55,14 @@ const CSS = `
 const CC_BY = [
   { name: 'Agamemnon’s Helmet', who: 'Quesho', where: '오디세우스의 투구' },
   { name: 'Cyclops Rig', who: 'DM-913', where: '폴리페모스' },
+  // 아래 셋은 실제로 화면에 쓰는 모델인데 빠져 있었다 — CREDITS.md 에는
+  // 적어 뒀지만 게임 안 화면에는 없었다. CC-BY 는 표기가 라이선스 조건이라
+  // CREDITS.md 에 적는 것만으로는 부족하다 (읽는 사람이 그 파일을 안 본다).
+  { name: 'Kraken (Animation)', who: 'Yanez Designs', where: '스킬라의 촉수' },
+  { name: 'Mermaid', who: 'Danny Dugas', where: '세이렌' },
+  // 안티파테스 자신의 몸 — 부름꾼(맨몸 거인)은 이 파일이 아니라 CC0 라 표기가
+  // 없다. 왕과 부름꾼을 헷갈린 주석이 bosses.js 에 있었다 (CREDITS.md 참고).
+  { name: 'Fire-Branded Ogre', who: 'ribtibs', where: '안티파테스 · 라이스트리고네스' },
 ]
 
 export class PauseMenu {

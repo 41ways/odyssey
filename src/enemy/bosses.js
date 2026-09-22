@@ -100,9 +100,16 @@ export const ANTIPHATES = {
    * 청동을 두르긴 했지만 실루엣이 사람이라, '식인 거인의 왕' 이 몸에
    * 안 보였다. 키만 큰 사람과 거인은 다른 것이다.
    *
-   * 받아 온 거인으로 바꾼다. Attack · Idle · Run · Walk · HitRecieve ·
-   * Death 일곱 클립이 붙어 있어서 휘두를 때 휘두르는 동작을 한다
-   * (Quaternius, CC0 · CREDITS.md).
+   * 받아 온 거인(`antiphates.glb`)으로 바꾼다 — *Fire-Branded Ogre* by
+   * ribtibs (Sketchfab, CC-BY 4.0 · CREDITS.md). 뼈가 없는 정적 조각이라
+   * 오디세우스의 뼈대를 입히고(render/autoskin.js) 클립 다섯을 빌린다
+   * (models.js 의 antiphates 항목).
+   *
+   * 아래 onEnter 가 세우는 부름꾼(`spawnMinion('giant', …)`)은 **다른
+   * 파일**이다 — Quaternius 의 CC0 Giant(`giant.glb`, poly.pizza), 제 몸에
+   * Attack·Idle·Run·Walk·Jump·HitRecieve·Death 일곱 클립이 이미 붙어 있다.
+   * 왕과 부름꾼이 서로 다른 몸인 건 의도다 — 왕은 청동을 둘렀고 부름꾼은
+   * 맨몸이라, 한눈에 누가 지키는 자인지 갈린다.
    *
    * 제 몸이 붙은 보스는 코드 조각을 안 받는데 (buildBossBody), 이 보스는
    * 원래 조각이 없었으니 잃는 게 없다. 파훼는 부름꾼이고 그건 몸이
