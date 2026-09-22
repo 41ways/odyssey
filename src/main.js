@@ -35,7 +35,7 @@ import { Level, BOSS_XP } from './player/level.js'
 import { Sfx } from './core/sfx.js'
 import { Notice } from './ui/notice.js'
 import { promote, eliteChance } from './enemy/elite.js'
-import { CUT_TROY, CUT_TELEPYLOS, CUT_CAVE, CUT_AIAIA, CUT_UNDER, CUT_SIRENS, CUT_WHIRL, CUT_ITHACA, CUT_BOW, ALL_CUTS, cutArt } from './stage/cuts.js'
+import { CUT_TROY, CUT_TELEPYLOS, CUT_CAVE, CUT_AIAIA, CUT_UNDER, CUT_SIRENS, CUT_WHIRL, CUT_ITHACA, CUT_BOW, CUT_TELEGONOS, ALL_CUTS, cutArt } from './stage/cuts.js'
 import { rollBlessings } from './player/blessings.js'
 import { models } from './render/models.js'
 import { preloadCharacter } from './render/character.js'
@@ -459,6 +459,7 @@ class Game {
       { group: '컷신', name: '바다가 도는 자리', note: '메시나', run: () => this.playCut(CUT_WHIRL) },
       { group: '컷신', name: '이타카가 보였다', note: '스무 해 만에', run: () => this.playCut(CUT_ITHACA) },
       { group: '컷신', name: '활시위를 건다', note: '안티노오스 앞', run: () => this.playCut(CUT_BOW) },
+      { group: '컷신', name: '낯선 배 한 척', note: '텔레고노스', run: () => this.playCut(CUT_TELEGONOS) },
       { group: '시작', name: '시작 화면', note: '패럴랙스 · 물에 풀리는 퇴장', run: () => { location.href = '/' } },
       { group: '시작', name: '난이도 고르기', note: '어떤 바다를 건널 것인가', run: () => this.diffScreen.show() },
     )

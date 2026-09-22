@@ -320,7 +320,38 @@ export const CUT_BOW = {
   ],
 }
 
+/**
+ * 마지막 손님 — 텔레고노스.
+ *
+ * 여덟 보스 중 이 자리만 등장 컷신이 없었다. 다른 일곱은 다 있는데,
+ * 정작 제일 무거운 상대(오디세우스가 끝까지 못 알아보고 죽는 아들)가
+ * 초상 한 장으로 그냥 넘어갔다.
+ *
+ * 새 그림은 안 만들었다 — `boss/telegonos.webp` 한 장 안에 이미
+ * 해변 전경·창·얼굴이 다 있다. 넓게 → 사람 쪽으로 → 창끝으로 → 얼굴로,
+ * 점점 좁혀 들어가는 규칙을 그대로 쓴다.
+ *
+ * 글은 오디세우스가 아는 것만 말한다 — 이 판(`stages.js` 의 TELEGONOS
+ * 주석)에서 이미 "같은 무기, 같은 손" 이라고 짚었다. 누구인지는 안
+ * 밝힌다 — 그게 이 판이 이길 수 없는 이유고, 게임이 끝까지 지키는
+ * 시점이다. 마지막 줄("나는 그를 몰랐다")이 이 컷신의 이유다.
+ */
+export const CUT_TELEGONOS = {
+  mood: 'water',
+  where: '이타카의 해변',
+  shots: [
+    { art: '/img/boss/telegonos.webp', hold: 1900, focus: [50, 50, 1.0],
+      text: '해변에 낯선 사람 하나가 서 있었다.' },
+    { art: '/img/boss/telegonos.webp', hold: 1700, focus: [58, 52, 1.55],
+      text: '누군가 <em>내 것</em>을 가져가고 있었다.' },
+    { art: '/img/boss/telegonos.webp', hold: 1800, focus: [5, -5, 2.0],
+      text: '창이 낯익었다. <em>내 손이 쓰던 것과 같았다.</em>' },
+    { art: '/img/boss/telegonos.webp', hold: 2400, focus: [57, 18, 2.5],
+      text: '그가 얼굴을 들었다.<br><em>나는 그를 몰랐다.</em>' },
+  ],
+}
+
 /** 컷신마다 쓰는 그림. 미리 받아 두려고 한 군데 모아 둔다. */
-export const ALL_CUTS = [CUT_TROY, CUT_TELEPYLOS, CUT_CAVE, CUT_AIAIA, CUT_UNDER, CUT_SIRENS, CUT_WHIRL, CUT_ITHACA, CUT_BOW]
+export const ALL_CUTS = [CUT_TROY, CUT_TELEPYLOS, CUT_CAVE, CUT_AIAIA, CUT_UNDER, CUT_SIRENS, CUT_WHIRL, CUT_ITHACA, CUT_BOW, CUT_TELEGONOS]
 
 export const cutArt = cut => (cut?.shots ?? []).map(s => s.art).filter(Boolean)

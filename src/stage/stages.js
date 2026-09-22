@@ -1,4 +1,4 @@
-import { CUT_CAVE, CUT_WHIRL, CUT_ITHACA, CUT_TELEPYLOS, CUT_BOW, CUT_AIAIA, CUT_SIRENS } from './cuts.js'
+import { CUT_CAVE, CUT_WHIRL, CUT_ITHACA, CUT_TELEPYLOS, CUT_BOW, CUT_AIAIA, CUT_SIRENS, CUT_TELEGONOS } from './cuts.js'
 
 /**
  * 여덟 개의 판.
@@ -370,7 +370,7 @@ export const STAGES = [
 
   {
     id: 'death', name: '죽음', title: '텔레고노스',
-    boss: { ...BEACH, name: '이타카의 해변', id: 'telegonos',
+    boss: { ...BEACH, name: '이타카의 해변', id: 'telegonos', cut: CUT_TELEGONOS,
       intro: '해변에 선 젊은이가 같은 창을 들고 있다.' },
     endless: true,
     intro: '해변에 선 젊은이가 같은 창을 들고 있다.',
