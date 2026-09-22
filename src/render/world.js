@@ -545,6 +545,7 @@ export class World {
     this.#setRain(!!e.rain)
     this.#setEmbers(!!e.embers)
     this.#setMotes(!!e.motes)
+    this.#setSpray(!!e.spray)
     this.#setPost(e)
     /* 바닥 결 반복수는 **판이 넓어져도 그대로 둔다.**
        판에 비례해 올려 봤다 (9 → 20). 그랬더니 같은 무늬가 스무 번 반복되는
@@ -939,6 +940,66 @@ export class World {
         origin[i * 3] = focus.x + rand(-26, 26)
         origin[i * 3 + 2] = focus.z + rand(-26, 26)
       }
+    }
+    p.needsUpdate = true
+  }
+
+  /**
+   * 소용돌이 물보라. WHIRL(카리브디스)은 이름부터 "소용돌이" 인데,
+   * 실제로는 갑판결을 푸르게 물들인 것 말고는 도는 것이 하나도 없었다
+   * — 가만히 있는 물 위에 떠 있는 배와 다를 게 없었다. 판 중심(원점)을
+   * 축으로, 반지름이 줄수록 빨리 도는 나선으로 안쪽으로 빨려 들다가
+   * 중심 가까이서 다시 바깥으로 태어난다 — 소용돌이의 결.
+   */
+  #setSpray(on) {
+    if (!on) { if (this.spray) this.spray.visible = false; return }
+    if (!this.spray) {
+      const N = 420
+      const pos = new Float32Array(N * 3)
+      const ang = new Float32Array(N)
+      const rad = new Float32Array(N)
+      const y = new Float32Array(N)
+      for (let i = 0; i < N; i++) {
+        ang[i] = rand(0, Math.PI * 2)
+        rad[i] = rand(4, 29)
+        y[i] = rand(0.1, 1.6)
+        pos[i * 3] = Math.cos(ang[i]) * rad[i]
+        pos[i * 3 + 1] = y[i]
+        pos[i * 3 + 2] = Math.sin(ang[i]) * rad[i]
+      }
+      const geo = new THREE.BufferGeometry()
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
+      const mat = new THREE.PointsMaterial({
+        color: '#dff2ff', size: 0.13, transparent: true, opacity: 0.7,
+        depthWrite: false, sizeAttenuation: true, blending: THREE.AdditiveBlending,
+      })
+      const pts = new THREE.Points(geo, mat)
+      pts.frustumCulled = false
+      pts.userData.ang = ang
+      pts.userData.rad = rad
+      pts.userData.y = y
+      this.scene.add(pts)
+      this.spray = pts
+    }
+    this.spray.visible = true
+  }
+
+  /** draw() 가 매 프레임 부른다. 중심에 가까울수록 빨리 돈다 — 실제 소용돌이처럼. */
+  updateSpray(dt) {
+    const s = this.spray
+    if (!s || !s.visible) return
+    const p = s.geometry.attributes.position
+    const ang = s.userData.ang
+    const rad = s.userData.rad
+    const y = s.userData.y
+    for (let i = 0; i < ang.length; i++) {
+      const pull = 16 / Math.max(rad[i], 3)
+      rad[i] -= pull * 0.4 * dt
+      ang[i] += pull * dt
+      if (rad[i] < 3) { rad[i] = rand(24, 29); ang[i] = rand(0, Math.PI * 2) }
+      p.array[i * 3] = Math.cos(ang[i]) * rad[i]
+      p.array[i * 3 + 1] = y[i]
+      p.array[i * 3 + 2] = Math.sin(ang[i]) * rad[i]
     }
     p.needsUpdate = true
   }

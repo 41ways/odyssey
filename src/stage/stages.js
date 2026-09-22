@@ -187,7 +187,8 @@ const WHIRL = {
     props: [{ key: 'ship', count: 3, ring: [1.2, 1.5], scale: [0.8, 1.1], y: -2.6 }] },
   env: { bg: '#050c14', fog: 0.032, fogColor: '#08111c', exposure: 1.0, camDistance: 24,
     key: '#8fb8e0', keyIntensity: 1.6, rim: '#4a90d0', rimIntensity: 1.7,
-    hemiSky: '#1e3350', hemiGround: '#050a12', hemiIntensity: 0.5 },
+    hemiSky: '#1e3350', hemiGround: '#050a12', hemiIntensity: 0.5,
+    spray: true },   // "소용돌이" 라 적어만 놓고 도는 게 없었다
   ambience: 'sea',
 }
 const STORM = {
