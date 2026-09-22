@@ -310,14 +310,40 @@ export function createCharacter({ height = 1.82, facing = 0, tint = null, gear: 
   const FALLBACK = { Bow_Draw: 'Pistol_Aim_Neutral', Bow_Shoot: 'Pistol_Shoot' }
   const pick = name => (actions[name] ? name : (FALLBACK[name] ?? CLIP.attack))
 
+  /**
+   * 걷기·서기·뛰기 클립과 그 "팔 없는" 사본은 같은 원본에서 나온 같은
+   * 보행 주기다 — 이름만 다르지 다리가 도는 리듬은 똑같다. 그런데
+   * `reset()` 은 시간을 무조건 0 으로 되돌린다. 한쪽(메인)이 한참
+   * 돌아 보행 주기 중간(예: 다리가 크게 벌어진 순간)에 있을 때 다른
+   * 쪽(core) 을 0 부터 새로 틀면, 같은 다리인데 서로 다른 보행 위상을
+   * 두 켜가 동시에 그려서 "겹쳐 보인다." 공격을 시작할 때(메인이
+   * 로코모션에서 팔 동작으로 빠지며 core 가 대신 다리를 잇는 순간)와
+   * 공격이 끝날 때(반대로 core 가 빠지며 메인이 다시 로코모션을 잇는
+   * 순간) 둘 다 이 자리다. 그래서 같은 보행 주기를 잇는 전환에서는
+   * 시간을 0 이 아니라 **상대편이 지금 있는 시간**으로 맞춘다.
+   */
+  const COUNTERPART = {
+    [CLIP.sprint]: CORE.sprint, [CLIP.run]: CORE.run, [CLIP.idle]: CORE.idle,
+    [CORE.sprint]: CLIP.sprint, [CORE.run]: CLIP.run, [CORE.idle]: CLIP.idle,
+  }
+  const syncTime = name => {
+    const counterpart = COUNTERPART[name]
+    if (!counterpart) return null
+    if (current?.getClip().name === counterpart) return current.time
+    if (currentCore?.getClip().name === counterpart) return currentCore.time
+    return null
+  }
+
   let current = null
-  const play = (name, { fade = 0.14, speed = 1, restart = false } = {}) => {
+  const play = (name, { fade = 0.14, speed = 1, restart = false, time = undefined } = {}) => {
     const next = actions[name] ?? actions[CLIP.idle]
     if (!next) return
     next.setEffectiveTimeScale(speed)
     if (next === current && !restart) return
     if (next === current && restart) { next.reset().play(); return }
+    const t = time !== undefined ? time : syncTime(name)
     next.reset().setEffectiveWeight(1).fadeIn(fade).play()
+    if (t != null) next.time = t
     current?.fadeOut(fade)
     current = next
   }
@@ -329,21 +355,37 @@ export function createCharacter({ height = 1.82, facing = 0, tint = null, gear: 
    * 없게 한다 (stripArmTracks 주석 참고).
    */
   let currentCore = null
-  const playCore = (name, { fade = 0.14, speed = 1 } = {}) => {
+  const playCore = (name, { fade = 0.14, speed = 1, time = undefined } = {}) => {
     const next = actions[name]
     if (!next) return
     next.setEffectiveTimeScale(speed)
     if (next !== currentCore) {
+      const t = time !== undefined ? time : syncTime(name)
       next.reset().setEffectiveWeight(1).fadeIn(fade).play()
+      if (t != null) next.time = t
       currentCore?.fadeOut(fade)
       currentCore = next
     }
   }
+  /* stopCore() 는 currentCore 변수를 그 자리에서 바로 null 로 비운다 —
+     그런데 실제 그 클립의 가중치는 fade 초(기본 0.15) 동안 화면에서
+     서서히 빠질 뿐, 그동안에도 다리를 계속 움직이고 있다. 그 사이에
+     메인 켜가 다른 갈래(예: 구보)로 새로 틀면, 아직 화면에 남아 있는
+     이 클립(예: 질주)과 또 겹쳐 보인다 — currentCore 만 보고 "이미
+     꺼졌다" 고 착각해서 생기는 문제다. lastCoreName/coreFadeRemain 에
+     "방금까지 뭐였는지" 를 fade 시간만큼 남겨 둬서, 그 창 안에서는
+     여전히 그 갈래로 쳐 준다. */
+  let lastCoreName = null
+  let coreFadeRemain = 0
   const stopCore = (fade = 0.15) => {
     if (!currentCore) return
     currentCore.fadeOut(fade)
+    lastCoreName = currentCore.getClip().name
+    coreFadeRemain = fade
     currentCore = null
   }
+  /** 지금(또는 방금 fade 중인) core 가 담고 있는 클립 이름. 없으면 null. */
+  const coreTier = () => currentCore?.getClip().name ?? (coreFadeRemain > 0 ? lastCoreName : null)
   /** 한 번짜리 동작은 게임의 지속시간에 맞춰 재생 속도를 바꾼다. */
   const fitSpeed = (name, seconds) => {
     const d = actions[name]?.getClip().duration
@@ -352,6 +394,7 @@ export function createCharacter({ height = 1.82, facing = 0, tint = null, gear: 
 
   let lastOneShot = null
   let atkCore = CORE.idle
+  let atkCoreTime = 0
 
   return {
     root, mats, mixer, actions, boneByName,
@@ -412,6 +455,8 @@ export function createCharacter({ height = 1.82, facing = 0, tint = null, gear: 
     unequipAll() { for (const list of Object.values(gearMeshes)) for (const m of list) m.visible = false },
 
     pose(s, dt) {
+      if (coreFadeRemain > 0) coreFadeRemain = Math.max(0, coreFadeRemain - dt)
+
       // 쓰러져 있는 동안 — 죽는 동작을 쓰되 끝까지 가지 않는다.
       // 끝까지 가면 완전히 엎어져서 '죽었다'로 읽히고, 드러난 약점도 바닥에 묻힌다.
       const die = actions[CLIP.die]
@@ -463,10 +508,15 @@ export function createCharacter({ height = 1.82, facing = 0, tint = null, gear: 
           // 다른 빠르기의 다리 클립으로 갈아타 버려 두 다리가 같이 보였다.
           // 콤보 이어치기(2·3 타)는 방금 켜가 이미 팔 동작(Sword_A 등)이라
           // 여기 안 걸린다 — 그럴 땐 직전 타에서 정한 atkCore 를 그대로 둔다.
-          const prevName = current?.getClip().name
-          if (prevName === CLIP.sprint) atkCore = CORE.sprint
-          else if (prevName === CLIP.run) atkCore = CORE.run
-          else if (prevName === CLIP.idle) atkCore = CORE.idle
+          // play() 가 곧 current 를 팔 동작으로 바꿔치우므로, 지금(로코모션이
+          // 아직 current 인 순간)의 시간을 먼저 챙겨 둔다 — syncTime() 이
+          // playCore() 시점엔 이미 늦어서(current 가 Sword_A 로 바뀐 뒤라)
+          // 못 찾는다.
+          const prevAction = current
+          const prevName = prevAction?.getClip().name
+          if (prevName === CLIP.sprint) { atkCore = CORE.sprint; atkCoreTime = prevAction.time }
+          else if (prevName === CLIP.run) { atkCore = CORE.run; atkCoreTime = prevAction.time }
+          else if (prevName === CLIP.idle) { atkCore = CORE.idle; atkCoreTime = prevAction.time }
           // 타마다 다른 동작. 없으면 한 종류로 돌아간다
           const name = pick(SLASH[s.attackId] ?? CLIP.attack)
           play(name, { fade: 0.05, speed: fitSpeed(name, s.attackDuration ?? 0.4), restart: true })
@@ -474,7 +524,7 @@ export function createCharacter({ height = 1.82, facing = 0, tint = null, gear: 
         }
         // 대역(Sword_Attack)은 몸 전체 클립이라 밑에 깔 필요가 없다 — 팔만 도는 것일 때만
         if (EXTRA.includes(current?.getClip().name)) {
-          if (actions[atkCore]) playCore(atkCore, { fade: 0.05, speed: 0.85 + s.run * 0.35 })
+          if (actions[atkCore]) playCore(atkCore, { fade: 0.05, speed: 0.85 + s.run * 0.35, time: atkCoreTime })
           else stopCore()
         } else stopCore()
       } else if (s.draw != null) {
@@ -483,8 +533,31 @@ export function createCharacter({ height = 1.82, facing = 0, tint = null, gear: 
         lastOneShot = null
         if (EXTRA.includes(name)) layerCore(0.12); else stopCore()
       }
-      else if (s.run > 0.12) { play(s.run > 0.85 ? CLIP.sprint : CLIP.run, { fade: 0.16, speed: 0.85 + s.run * 0.35 }); lastOneShot = null; stopCore() }
-      else { play(CLIP.idle, { fade: 0.2 }); lastOneShot = null; stopCore() }
+      else if (s.run > 0.12) {
+        // 공격에서 막 빠져나온 순간엔 core 가 아직 안 꺼졌다(stopCore 는
+        // 몇 줄 아래에서 부른다 — 그때부터 0.15초 걸려 꺼진다). 공격 중엔
+        // s.run 이 빠르게 죽으므로, 여기서 "지금 s.run" 대로 고르면
+        // 십중팔구 core 가 담고 있던 갈래(예: 질주)와 다른 갈래(예: 구보)
+        // 를 메인이 새로 틀어 두 다리가 또 겹친다. core 가 아직 살아
+        // 있으면 그 갈래를 그대로 이어받는다 — core 가 다 꺼지고 나면
+        // (다음 프레임부터) 원래대로 지금 s.run 을 그대로 따른다.
+        // `stopCore()` 가 currentCore 를 바로 비워도 `coreTier()` 는
+        // fade 가 끝날 때까지 방금 갈래를 그대로 돌려준다 — 안 그러면
+        // 딱 한 프레임 뒤부터 다시 어긋난다 (겪어 본 문제, 위 stopCore
+        // 주석 참고).
+        const exitCore = coreTier()
+        const name = exitCore === CORE.sprint ? CLIP.sprint : exitCore === CORE.run ? CLIP.run
+          : (s.run > 0.85 ? CLIP.sprint : CLIP.run)
+        play(name, { fade: 0.16, speed: 0.85 + s.run * 0.35 })
+        lastOneShot = null
+        stopCore()
+      } else {
+        const exitCore = coreTier()
+        const name = exitCore === CORE.sprint ? CLIP.sprint : exitCore === CORE.run ? CLIP.run : CLIP.idle
+        play(name, { fade: 0.2 })
+        lastOneShot = null
+        stopCore()
+      }
 
       mixer.update(dt)
     },
