@@ -103,11 +103,13 @@ export const FATES = [
         id: 'shout', label: '“나는 이타카의 오디세우스다!”', hint: '이름을 남긴다',
         result: '거인이 아버지에게 빌었다. <em>포세이돈</em>이 그 이름을 들었다.<br>이름은 남았다. 바다는 그것을 잊지 않는다.',
         gods: { poseidon: +2 }, glory: true,
+        epilogue: '이름을 밝힌 값은 오래 갔다. <em>포세이돈</em>은 끝내 잊지 않았다.',
       },
       {
         id: 'silent', label: '말없이 노를 젓는다', hint: '아무도 아닌 채로',
         result: '아무도 아닌 자는 저주받을 수 없다.<br><em>아테나</em>가 그 지략을 보았다.',
         gods: { athena: +1 },
+        epilogue: '아무도 아닌 채로 있을 수는 없었다. 결국 이름이 그를 찾아냈다.',
       },
     ],
   },
@@ -170,12 +172,14 @@ export const FATES = [
         result: '내가 잠든 사이 그들이 소를 잡았다. 제우스의 벼락이 배를 쪼갰다.<br>'
           + '<em>나 혼자</em> 돛대에 매달려 살아남았다. <em>아테나</em>가 그 손을 놓지 않았다.',
         crewAll: true, gods: { athena: +1 },
+        epilogue: '신과의 맹세는 지켰다. 그래도 바다는 그를 놓아주지 않았다.',
       },
       {
         id: 'feast', label: '함께 먹는다', hint: '살아야 돌아간다',
         result: '배가 불렀다. 힘이 돌아왔다. 그리고 제우스의 벼락이 모두를 삼켰다.<br>'
           + '살아남았지만 <em>벼락이 몸에 남았다.</em>',
         crewAll: true, heal: true, bonusHp: -20, damage: 0.12, gods: { poseidon: +1 },
+        epilogue: '굶어 죽느니 신의 벌을 받겠다던 그 말대로 되었다.',
       },
     ],
   },

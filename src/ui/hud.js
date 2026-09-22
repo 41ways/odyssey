@@ -277,6 +277,8 @@ const CSS = `
 #hud .credits .voyage .row { display:flex; justify-content:space-between; gap:16px; }
 #hud .credits .voyage .row b { color:#e0584a; font-weight:700; }
 #hud .credits .voyage .pick { color:#e8d6ae; }
+/* 뒤안길 한 줄 — 여정에서 고른 것이 여기까지 왔다는 말을 남긴다 */
+#hud .credits .epilogue { font-size:13.5px; font-style:italic; color:#c8a16a; margin:2px 0 10px; }
 #hud .credits .band { height:14px; width:min(560px,80vw); margin:0 auto 26px;
   background-image:${MEANDER}; background-repeat:repeat-x; background-position:center; opacity:.45; }
 #hud .dead { position:absolute; inset:0; z-index:40; display:grid; place-items:center;
@@ -327,7 +329,7 @@ export class Hud {
         <div class="weak"></div></div>
       <div class="credits"><div class="in">
         <div class="band"></div>
-        <h1></h1><p class="sub2"></p>
+        <h1></h1><p class="epilogue"></p><p class="sub2"></p>
         <div class="score"><small>입힌 피해</small><em class="num"></em></div>
         <div class="voyage"></div>
         <div class="list"></div>
@@ -429,7 +431,16 @@ export class Hud {
       vEl.innerHTML = `<h3>열두 척, 육백 명이 트로이를 떠났다. ${voyage.crew > 0 ? `${voyage.crew}명이 남았다.` : '<em>한 사람</em>이 돌아왔다.'}</h3>
         ${lost}${picks ? `<h3 style="margin-top:12px">고른 것</h3>${picks}` : ''}`
       vEl.style.display = ''
-    } else vEl.style.display = 'none'
+      // 뒤안길 한 줄 — 가장 나중에 고른 갈림길이 죽음과 가장 가깝게 이어진다
+      let epilogue = ''
+      for (let i = fates.length - 1; i >= 0; i--) {
+        const f = fates[i]
+        const id = voyage.flags[`fate:${f.id}`]
+        const c = f.choices.find(x => x.id === id)
+        if (c?.epilogue) { epilogue = c.epilogue; break }
+      }
+      el.querySelector('.epilogue').innerHTML = epilogue
+    } else el.querySelector('.epilogue').textContent = ''
     el.querySelector('h1').textContent = '죽음'
     el.querySelector('.sub2').textContent = '창은 가오리 뼈로 만든 것이었다. 아들은 아버지를 몰랐다.'
     el.querySelector('.num').textContent = Math.round(damage).toLocaleString('ko-KR')
