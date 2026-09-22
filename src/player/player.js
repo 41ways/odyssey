@@ -464,6 +464,7 @@ export class Player extends Actor {
     this.kills = 0
     this.animT = 0
     this._run = 0
+    this._stridePhase = 0   // 발소리 — figure.js 의 걸음 주기(stride)와 같은 박자로 돈다
 
     this.stats = newStats()
     this.maxRollCharges = TUNING.roll.charges
@@ -926,6 +927,19 @@ export class Player extends Actor {
     // 달리는 정도. 갑자기 켜고 끄면 다리가 튄다.
     const moving = !rolling && !this.action.active && this.drawing === 0 && this._move.lengthSq() > 0
     this._run += ((moving ? 1 : 0) - this._run) * Math.min(1, dt * 14)
+
+    /* 발소리 — figure.js 의 코드 인체가 다리를 흔드는 것과 같은 박자
+       (`stride = t · (6.4 + run·3.4)`) 를 써서, 두 발이 번갈아 땅에
+       닿는 반 바퀴(π)마다 한 번 운다. 실려 있는 rig 몸도 걷는 속도가
+       거의 같게 맞춰져 있어서(character.js 의 `speed`) 크게 안 어긋난다.
+       구르는 동안·죽었을 때는 안 운다 — 그건 각자 제 소리가 있다. */
+    if (!rolling && !this.dead && this._run > 0.12) {
+      const prev = this._stridePhase
+      this._stridePhase += dt * (6.4 + this._run * 3.4)
+      if (Math.floor(this._stridePhase / Math.PI) !== Math.floor(prev / Math.PI)) {
+        this.world.sfx?.step?.()
+      }
+    }
 
     // 공격 스윙 — 치켜들었다(wind) 내려친다(swing)
     let attack = null
