@@ -546,6 +546,7 @@ export class World {
     this.#setEmbers(!!e.embers)
     this.#setMotes(!!e.motes)
     this.#setSpray(!!e.spray)
+    this.#setCaveEmbers(!!e.caveEmbers)
     this.#setPost(e)
     /* 바닥 결 반복수는 **판이 넓어져도 그대로 둔다.**
        판에 비례해 올려 봤다 (9 → 20). 그랬더니 같은 무늬가 스무 번 반복되는
@@ -1000,6 +1001,72 @@ export class World {
       p.array[i * 3] = Math.cos(ang[i]) * rad[i]
       p.array[i * 3 + 1] = y[i]
       p.array[i * 3 + 2] = Math.sin(ang[i]) * rad[i]
+    }
+    p.needsUpdate = true
+  }
+
+  /**
+   * 동굴 화로 불씨. 폴리페모스의 동굴에는 화로(brazier) 둘이 이미 깜빡이는데
+   * (props.js), 정작 그 불에서 떨어져 나오는 불씨는 없었다 — 이스마로스처럼
+   * 판 전체에 흩뿌리면 좁은 동굴(반지름 23)에서 벽·종유석을 뚫고 나가
+   * 부자연스럽다. 화로가 실제로 서는 자리(ring 0.62~0.72, offset 1.9,
+   * 소품 둘이 반원씩 나눠 서는 것 — #setProps 의 배치 규칙과 같다) 둘레에만
+   * 좁게 태어나게 한다.
+   */
+  #setCaveEmbers(on) {
+    if (!on) { if (this.caveEmbers) this.caveEmbers.visible = false; return }
+    if (!this.caveEmbers) {
+      const slot = Math.PI  // 화로 둘 = 반원씩
+      const anchors = [0, 1].map(i => {
+        const a = i * slot + slot * 0.35 + 1.9
+        const r = (this.arena ? this.arena.radiusAt(a) : this.arenaRadius) * 0.67
+        return [Math.sin(a) * r, Math.cos(a) * r]
+      })
+      const N = 90
+      const pos = new Float32Array(N * 3)
+      const spd = new Float32Array(N)
+      const ph = new Float32Array(N)
+      const home = new Float32Array(N * 2)
+      for (let i = 0; i < N; i++) {
+        const [ax, az] = anchors[i % 2]
+        home[i * 2] = ax; home[i * 2 + 1] = az
+        pos[i * 3] = ax + rand(-1.1, 1.1)
+        pos[i * 3 + 1] = rand(0, 3)
+        pos[i * 3 + 2] = az + rand(-1.1, 1.1)
+        spd[i] = rand(0.4, 1.0)
+        ph[i] = rand(0, Math.PI * 2)
+      }
+      const geo = new THREE.BufferGeometry()
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
+      const mat = new THREE.PointsMaterial({
+        color: '#ffa04a', size: 0.08, transparent: true, opacity: 0.85,
+        depthWrite: false, sizeAttenuation: true, blending: THREE.AdditiveBlending,
+      })
+      const pts = new THREE.Points(geo, mat)
+      pts.frustumCulled = false
+      pts.userData.spd = spd
+      pts.userData.ph = ph
+      pts.userData.home = home
+      this.scene.add(pts)
+      this.caveEmbers = pts
+    }
+    this.caveEmbers.visible = true
+  }
+
+  /** draw() 가 매 프레임 부른다. 화로 자리를 벗어나지 않고 그 자리에서만 위로 떴다 사라진다. */
+  updateCaveEmbers(dt, t) {
+    const s = this.caveEmbers
+    if (!s || !s.visible) return
+    const p = s.geometry.attributes.position
+    const spd = s.userData.spd
+    const ph = s.userData.ph
+    const home = s.userData.home
+    for (let i = 0; i < spd.length; i++) {
+      let y = p.array[i * 3 + 1] + spd[i] * dt
+      p.array[i * 3] = home[i * 2] + Math.sin(t * 1.1 + ph[i]) * 0.7
+      p.array[i * 3 + 2] = home[i * 2 + 1] + Math.cos(t * 0.9 + ph[i]) * 0.7
+      if (y > 3.4) y = 0
+      p.array[i * 3 + 1] = y
     }
     p.needsUpdate = true
   }

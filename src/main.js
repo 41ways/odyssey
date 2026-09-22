@@ -1391,6 +1391,7 @@ class Game {
     this.render3d.updateEmbers(real, this.player.pos, performance.now() * 0.001)
     this.render3d.updateMotes(real, this.player.pos, performance.now() * 0.001)
     this.render3d.updateSpray(real)
+    this.render3d.updateCaveEmbers(real, performance.now() * 0.001)
     this.render3d._mist?.userData.tick?.(real)
     // 카메라도 **그려진 자리**를 따라간다. 규칙상의 pos 를 따라가면
     // 몸은 사이를 채워 움직이는데 카메라만 60Hz 로 뛰어서 둘이 어긋난다.

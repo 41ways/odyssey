@@ -99,7 +99,8 @@ const CAVE = {
     key: '#ff9a52', keyIntensity: 2.0, rim: '#4a6ea8', rimIntensity: 0.6,
     // 동굴에는 하늘이 없다. 위에서 오는 빛을 거의 끄고 불빛에 맡긴다 —
     // 다만 0.18 은 발밑이 안 읽힐 만큼 어두웠다. 바닥의 결이 보이는 선까지만 올린다
-    hemiSky: '#182029', hemiGround: '#0a0806', hemiIntensity: 0.28 },
+    hemiSky: '#182029', hemiGround: '#0a0806', hemiIntensity: 0.28,
+    caveEmbers: true },   // 화로가 이미 깜빡이는데 정작 떨어져 나오는 불씨가 없었다
   ambience: 'cave',
 }
 const CLIFF = {
