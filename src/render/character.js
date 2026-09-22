@@ -434,10 +434,17 @@ export function createCharacter({ height = 1.82, facing = 0, tint = null, gear: 
       /* 팔만 도는 동작(EXTRA)을 골랐으면, 그 밑에 다리·몸통용 "팔 없는" 동작을
          같이 깐다 — 지금 움직이는 정도(s.run)에 맞춰 서기/걷기/뛰기 중 하나.
          몸 전체를 쓰는 동작(죽음·구르기·완전한 칼질 대역)일 때는 꺼 둔다 —
-         안 그러면 같은 뼈를 두 켜가 동시에 몰아서 되레 어긋난다. */
-      const layerCore = () => {
+         안 그러면 같은 뼈를 두 켜가 동시에 몰아서 되레 어긋난다.
+         `fade` 는 팔 쪽(`play()`)에 준 값과 맞춰서 받는다 — 처음 켜질 때
+         (currentCore 가 비어 있을 때) 팔은 0.05초 만에 확 바뀌는데 몸통이
+         기본값(0.16초)으로 천천히 따라오면, 그 사이 팔은 이미 새 동작인데
+         몸통은 아직 직전 자세에 걸려 있는 구간이 110ms 가까이 생긴다.
+         칼을 휘두르는 순간 몸이 두 자세로 겹쳐 보인 게 이것이었다 — 켜는
+         순간만 팔과 같은 속도로 맞추고, 이미 돌고 있는 core 끼리(서기→
+         걷기→뛰기) 바뀌는 자연스러운 전환은 원래 속도(0.16초)를 그대로 쓴다. */
+      const layerCore = (fade = 0.16) => {
         const name = s.run > 0.85 ? CORE.sprint : s.run > 0.12 ? CORE.run : CORE.idle
-        if (actions[name]) playCore(name, { fade: 0.16, speed: 0.85 + s.run * 0.35 })
+        if (actions[name]) playCore(name, { fade: currentCore ? fade : Math.min(fade, 0.05), speed: 0.85 + s.run * 0.35 })
         else stopCore()
       }
 
@@ -454,12 +461,12 @@ export function createCharacter({ height = 1.82, facing = 0, tint = null, gear: 
           lastOneShot = key
         }
         // 대역(Sword_Attack)은 몸 전체 클립이라 밑에 깔 필요가 없다 — 팔만 도는 것일 때만
-        if (EXTRA.includes(current?.getClip().name)) layerCore(); else stopCore()
+        if (EXTRA.includes(current?.getClip().name)) layerCore(0.05); else stopCore()
       } else if (s.draw != null) {
         const name = pick(CLIP.aim)
         play(name, { fade: 0.12 })
         lastOneShot = null
-        if (EXTRA.includes(name)) layerCore(); else stopCore()
+        if (EXTRA.includes(name)) layerCore(0.12); else stopCore()
       }
       else if (s.run > 0.12) { play(s.run > 0.85 ? CLIP.sprint : CLIP.run, { fade: 0.16, speed: 0.85 + s.run * 0.35 }); lastOneShot = null; stopCore() }
       else { play(CLIP.idle, { fade: 0.2 }); lastOneShot = null; stopCore() }
