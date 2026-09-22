@@ -58,6 +58,8 @@ const CLIP = {
   hurt: 'Hit_Chest',
   die: 'Death01',
 }
+/** 위 서기·걷기·뛰기의 "팔 없는" 사본 이름 (stripArmTracks 가 만든다) */
+const CORE = { idle: `${CLIP.idle}__core`, run: `${CLIP.run}__core`, sprint: `${CLIP.sprint}__core` }
 
 /* 치는 동작 → 클립.
    전에는 누가 뭘 하든 Sword_Attack 하나였다. 오디세우스의 3 타는 프레임
@@ -110,6 +112,29 @@ const EXTRA_MAP = {
   RightShoulder: 'clavicle_r', RightArm: 'upperarm_r', RightForeArm: 'lowerarm_r', RightHand: 'hand_r',
 }
 
+/** EXTRA_MAP 이 옮기는 목적지 뼈 — 팔 쪽. 이 이름들의 트랙만 빼면 "팔 없는" 클립이 된다. */
+const ARM_BONES = new Set(Object.values(EXTRA_MAP))
+
+/**
+ * 걷기·서기 클립에서 팔 트랙만 뺀 사본을 만든다.
+ *
+ * 활을 당기거나 칼을 휘두르는 동안 **다리와 몸통은 하던 동작을 계속해야**
+ * 자연스럽다(위 EXTRA 주석의 원래 뜻). 그런데 빌려 온 팔 동작(Sword_A 등)은
+ * 팔 여덟 뼈만 담고 있어서, 이걸 단독 재생하면 나머지 뼈(척추·골반·다리)는
+ * **아무도 안 돌본다** — Three.js 믹서는 가중치가 0 이 된 트랙의 뼈를 그
+ * 순간 값에 얼려 버린다. 방금 전 달리기 동작의 한 프레임(허리가 앞으로
+ * 굽은 순간일 수도 있다)에 몸이 그대로 굳는다. 칼을 휘두를 때마다 허리가
+ * 꺾여 보이던 게 이것이다.
+ *
+ * 그래서 **두 켜**로 돌린다 — 이 "팔 없는" 클립이 아래에서 계속 돌고,
+ * 빌려 온 팔 클립이 위에 얹힌다. 서로 다른 뼈를 담당하므로 안 겹친다.
+ */
+function stripArmTracks(clip) {
+  const tracks = clip.tracks.filter(t => !ARM_BONES.has(t.name.split('.')[0]))
+  if (tracks.length === clip.tracks.length) return null   // 팔 트랙이 없던 클립이면 만들 이유가 없다
+  return new THREE.AnimationClip(`${clip.name}__core`, clip.duration, tracks)
+}
+
 async function borrowExtra(get) {
   let body
   try { body = await get(SETS.hero.body) } catch { return [] }
@@ -153,7 +178,21 @@ export async function preloadCharacter() {
   }
 
   // 묶음에 없는 것을 밖에서 받아 와 상체에 얹는다 (위 EXTRA 참고)
-  clips = [...clips, ...await borrowExtra(get)]
+  const extra = await borrowExtra(get)
+  clips = [...clips, ...extra]
+
+  // 팔만 도는 동작이 하나라도 실렸으면, 그 밑에 깔 "팔 없는" 걷기·서기 사본을 만든다.
+  // 하나도 안 실렸으면(EXTRA 를 하나도 못 받았으면) 만들 이유가 없다 — 그때는
+  // 예전처럼 Sword_Attack 같은 완전한 몸 클립 하나로 돌아간다.
+  if (extra.length) {
+    const cores = []
+    for (const name of [CLIP.idle, CLIP.run, CLIP.sprint]) {
+      const base = clips.find(c => c.name === name)
+      const core = base && stripArmTracks(base)
+      if (core) cores.push(core)
+    }
+    clips = [...clips, ...cores]
+  }
 
   await Promise.all(Object.entries(SETS).map(async ([name, spec]) => {
     try {
@@ -282,6 +321,29 @@ export function createCharacter({ height = 1.82, facing = 0, tint = null, gear: 
     current?.fadeOut(fade)
     current = next
   }
+
+  /**
+   * 아래 켜 — 팔 없는 걷기·서기. `play()` 와 똑같이 생겼지만 독립된
+   * 슬롯(`currentCore`)을 쓴다. 팔 동작(EXTRA)이 도는 동안만 켜 두고,
+   * 몸 전체를 쓰는 동작으로 돌아가면 꺼서 같은 뼈를 두 번 모는 일이
+   * 없게 한다 (stripArmTracks 주석 참고).
+   */
+  let currentCore = null
+  const playCore = (name, { fade = 0.14, speed = 1 } = {}) => {
+    const next = actions[name]
+    if (!next) return
+    next.setEffectiveTimeScale(speed)
+    if (next !== currentCore) {
+      next.reset().setEffectiveWeight(1).fadeIn(fade).play()
+      currentCore?.fadeOut(fade)
+      currentCore = next
+    }
+  }
+  const stopCore = (fade = 0.15) => {
+    if (!currentCore) return
+    currentCore.fadeOut(fade)
+    currentCore = null
+  }
   /** 한 번짜리 동작은 게임의 지속시간에 맞춰 재생 속도를 바꾼다. */
   const fitSpeed = (name, seconds) => {
     const d = actions[name]?.getClip().duration
@@ -369,9 +431,20 @@ export function createCharacter({ height = 1.82, facing = 0, tint = null, gear: 
       }
       if (die?.paused) die.paused = false
 
-      if (s.dead) play(CLIP.die, { fade: 0.2, speed: 1 })
+      /* 팔만 도는 동작(EXTRA)을 골랐으면, 그 밑에 다리·몸통용 "팔 없는" 동작을
+         같이 깐다 — 지금 움직이는 정도(s.run)에 맞춰 서기/걷기/뛰기 중 하나.
+         몸 전체를 쓰는 동작(죽음·구르기·완전한 칼질 대역)일 때는 꺼 둔다 —
+         안 그러면 같은 뼈를 두 켜가 동시에 몰아서 되레 어긋난다. */
+      const layerCore = () => {
+        const name = s.run > 0.85 ? CORE.sprint : s.run > 0.12 ? CORE.run : CORE.idle
+        if (actions[name]) playCore(name, { fade: 0.16, speed: 0.85 + s.run * 0.35 })
+        else stopCore()
+      }
+
+      if (s.dead) { play(CLIP.die, { fade: 0.2, speed: 1 }); stopCore() }
       else if (s.roll > 0) {
         if (lastOneShot !== 'roll') { play(CLIP.roll, { fade: 0.06, speed: fitSpeed(CLIP.roll, s.rollDuration ?? 0.44), restart: true }); lastOneShot = 'roll' }
+        stopCore()
       } else if (s.attack) {
         const key = `atk${s.attackId ?? ''}`
         if (lastOneShot !== key) {
@@ -380,9 +453,16 @@ export function createCharacter({ height = 1.82, facing = 0, tint = null, gear: 
           play(name, { fade: 0.05, speed: fitSpeed(name, s.attackDuration ?? 0.4), restart: true })
           lastOneShot = key
         }
-      } else if (s.draw != null) { play(pick(CLIP.aim), { fade: 0.12 }); lastOneShot = null }
-      else if (s.run > 0.12) { play(s.run > 0.85 ? CLIP.sprint : CLIP.run, { fade: 0.16, speed: 0.85 + s.run * 0.35 }); lastOneShot = null }
-      else { play(CLIP.idle, { fade: 0.2 }); lastOneShot = null }
+        // 대역(Sword_Attack)은 몸 전체 클립이라 밑에 깔 필요가 없다 — 팔만 도는 것일 때만
+        if (EXTRA.includes(current?.getClip().name)) layerCore(); else stopCore()
+      } else if (s.draw != null) {
+        const name = pick(CLIP.aim)
+        play(name, { fade: 0.12 })
+        lastOneShot = null
+        if (EXTRA.includes(name)) layerCore(); else stopCore()
+      }
+      else if (s.run > 0.12) { play(s.run > 0.85 ? CLIP.sprint : CLIP.run, { fade: 0.16, speed: 0.85 + s.run * 0.35 }); lastOneShot = null; stopCore() }
+      else { play(CLIP.idle, { fade: 0.2 }); lastOneShot = null; stopCore() }
 
       mixer.update(dt)
     },
