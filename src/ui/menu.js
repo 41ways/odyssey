@@ -63,6 +63,13 @@ const CC_BY = [
   // 안티파테스 자신의 몸 — 부름꾼(맨몸 거인)은 이 파일이 아니라 CC0 라 표기가
   // 없다. 왕과 부름꾼을 헷갈린 주석이 bosses.js 에 있었다 (CREDITS.md 참고).
   { name: 'Fire-Branded Ogre', who: 'ribtibs', where: '안티파테스 · 라이스트리고네스' },
+  // 유물·성장·장비 카드의 문장 아이콘 — 손으로 그린 선 그림에서
+  // game-icons.net 으로 바꿨다. 거기는 CC BY 4.0 이 아니라 3.0 이라
+  // lic 을 따로 준다. 작가별로 묶는다.
+  { name: 'Game-icons.net 아이콘 (Lorc)', who: 'Lorc', where: '창·발·흉갑·바람·부엉이·가면·눈·잔', lic: '3.0' },
+  { name: 'Game-icons.net 아이콘 (Delapouite)', who: 'Delapouite', where: '투구·팔가리개·망토·화살', lic: '3.0' },
+  { name: 'Game-icons.net 아이콘 (Skoll)', who: 'Skoll', where: '견갑·칼', lic: '3.0' },
+  { name: 'Game-icons.net 아이콘 (sbed)', who: 'sbed', where: '방패', lic: '3.0' },
 ]
 
 export class PauseMenu {
@@ -149,7 +156,7 @@ export class PauseMenu {
   #renderCredits() {
     const rows = CC_BY.map(c => `<div class="row">
       <div class="who">${c.name} <span class="lic">— ${c.who}</span></div>
-      <div class="lic">${c.where} · CC BY 4.0</div>
+      <div class="lic">${c.where} · CC BY ${c.lic ?? '4.0'}</div>
     </div>`).join('')
     this.el.innerHTML = `
       <div class="box">

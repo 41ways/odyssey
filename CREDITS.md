@@ -126,3 +126,23 @@ CC0 라 표기 의무는 없지만 적어 둔다. 어디서 왔는지 모르는 
   > 오우거, 부름꾼은 맨몸의 CC0 거인 — 서로 다른 몸이라 한눈에 누가 지키는
   > 자인지 갈린다. `src/enemy/bosses.js` 에 한동안 이 둘을 헷갈린 주석이
   > 달려 있었다 (고쳤다).
+
+## Game-icons.net (CC BY 3.0)
+
+유물·성장·장비 카드의 문장(紋章) 아이콘. 손으로 그린 선 그림이던 걸
+실제 아이콘 세트로 바꿨다(2026-09-22). CC-BY 3.0 — 4.0 아니다,
+일시정지 메뉴의 '출처' 화면에도 `lic: '3.0'` 으로 따로 적어 둔다.
+https://game-icons.net
+
+- **Lorc** — 창(spear-hook), 날개 발(winged-leg), 흉갑(breastplate),
+  바람(windy-stripes), 부엉이(owl), 가면(drama-masks — 이름·아무도
+  아니다 둘 다), 눈(eyeball — 저주·눈 둘 다), 잔(chalice-drops)
+- **Delapouite** — 투구(spartan-helmet), 팔가리개(bracer),
+  망토(cape), 화살(bow-arrow)
+- **Skoll** — 견갑(pauldrons), 칼(gladius)
+- **sbed** — 방패(shield)
+
+받는 자리: `https://game-icons.net/icons/ffffff/transparent/1x1/<작가>/<이름>.svg`
+(흰색·투명 배경). `viewBox="0 0 512 512"` 그대로 두고 `fill` 만
+판마다 쓰는 금색(`#c8973e`/`#e8c98a`)으로 바꿔 쓴다 — 스케일은
+`.icon svg { width:100%; height:100% }` 가 알아서 한다.
