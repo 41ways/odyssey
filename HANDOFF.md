@@ -94,6 +94,17 @@ HitRecieve→Hit_Chest, Death→Death01, Roll 은 이미 같음). Sprint_Loop
 + `zoom` 조절) 실제로 서 있는 자세·달리는 자세·죽는 순간까지 확인
 했다 — 몸이 눕거나 T포즈로 굳는 일 없이 다 돈다.
 
+### 키클롭스도 실제로 켜서 확인했다 — 이미 다 되어 있었다
+사자·키르케를 찾는 김에 "5절에 남은 것" 을 다시 훑다가, 키클롭스
+공격 동작도 없다고 적혀 있길래 `models.js` 를 열어 봤다. **이미
+되어 있었다** — `cyclopsBody.borrow` 가 `Sword_Attack`·
+`Jog_Fwd_Loop`·`Death01`·`Hit_Chest` 를 뼈 이름으로 짝지어 진작에
+빌려 오고 있었다. 실제로 폴리페모스 방에 들어가 콘솔을 보니
+`[models] cyclopsBody: 빌려 온 동작 ...` 이 찍히고, 화면에서도
+걷고 후려친다. **이 문서(4·5절)에 낡은 채로 남아 있던 항목**이었다
+— 지웠다. 실제 코드/콘솔로 확인하지 않고 문서만 보고 다음 작업을
+골랐으면 이미 끝난 일을 또 했을 뻔했다.
+
 ---
 
 ## 0.9 12차 갱신 (2026-09-22) — 칼질 겹침 고치고, 동굴·텔레필로스도 스톱모션
@@ -833,8 +844,13 @@ Sketchfab CC-BY 두 건(Cyclops Rig / DM-913, Yamata no Orochi / tran95)은
 
 - ~~`orochi.glb`(스킬라)는 정적 메시다~~ → **해결.** 몸을 애니메이션 촉수
   여섯으로 바꿨다. 파일은 남겨 뒀지만 지금 아무도 안 쓴다.
-- **`cyclops.glb` 에 Idle 클립 하나뿐이다.** 걷기·공격 동작이 없어서
-  `anims.glb` 의 사람 동작을 빌려 쓰거나 코드로 흔든다.
+- ~~`cyclops.glb` 에 Idle 클립 하나뿐이다~~ → **해결. 이미 되어 있었다.**
+  `models.js` 의 `cyclopsBody.borrow` 가 오디세우스의 `Sword_Attack`·
+  `Jog_Fwd_Loop`·`Death01`·`Hit_Chest` 를 뼈 이름으로 짝지어 이미
+  빌려 오고 있다 (콘솔에 `[models] cyclopsBody: 빌려 온 동작 ...`
+  으로 찍힌다). 이 항목과 5절의 "키클롭스 공격 동작이 없다" 는
+  13차 갱신에서 실제로 켜서 확인할 때까지 이 문서에 낡은 채로
+  남아 있었다 — 코드가 문서보다 앞서 있었다.
 - **세이렌은 아직 코드 조각 몸이다** (사람 몸 + 코드 날개).
   카리브디스는 팔만 받아 온 촉수로 갈았고, 깔때기·물살·눈은 그대로
   코드다 — 그건 모양이 아니라 움직임이라 코드가 맞다.
@@ -881,32 +897,13 @@ Sketchfab CC-BY 두 건(Cyclops Rig / DM-913, Yamata no Orochi / tran95)은
 4. ~~거인 — 안티파테스~~ → 받았다 (Quaternius Giant, CC0).
    더 정교한 게 있으면 좋지만 급하지 않다 — 지금 것은 각진 저폴리라
    사람 캐릭터와 결이 조금 다르다.
-5. 키클롭스 **공격 동작** (Attack / Walk / Stagger). 모델은 있고 동작만 없다.
-   후보였던 Quaternius *Universal Animation Library* 는 **이미 받아서
-   `public/models/anims.glb` 로 쓰고 있는 바로 그 파일이다**(`art/
-   UniversalAnimationLibrary.zip`, 43 클립, `character.js` 의 CLIP
-   상수와 이름이 다 맞는다) — 새로 받을 것 없이 지금 있는 파일에서
-   바로 시작하면 된다.
-
-   **뼈대는 안 맞는다** — 직접 확인했다(13차 갱신). `cyclops.glb`
-   (Sketchfab "Cyclops Rig", DM-913, CC-BY)는 `Upperarm.L_32`·
-   `Forearm.L_22`·`Hand.L_20`·`Shoulder.L_33` 식으로, UAL 의
-   `upperarm_l`·`lowerarm_l`·`hand_l`·`clavicle_l` 과 이름도 다르고
-   숫자 꼬리표(`_32` 등)도 붙어 있다. `character.js` 의 `EXTRA_MAP`
-   과 같은 방식(팔 여덟 뼈만 이름으로 매핑해 `retargetClips` 에
-   넘기는 것)으로 될 걸로 보이는데, 아직 안 해봤다 — 몸통 전체를
-   옮기면 눕거나 접힌다는 게 이미 `EXTRA_MAP` 주석에 남은 교훈이라
-   **팔만** 옮겨야 한다. 매핑 표 초안:
-   ```js
-   { 'Shoulder.L_33': 'clavicle_l', 'Upperarm.L_32': 'upperarm_l',
-     'Forearm.L_22': 'lowerarm_l', 'Hand.L_20': 'hand_l',
-     'Shoulder.R_58': 'clavicle_r', 'Upperarm.R_57': 'upperarm_r',
-     'Forearm.R_56': 'lowerarm_r', 'Hand.R_45': 'hand_r' }
-   ```
-   (숫자 꼬리표는 파일마다 안 바뀌는지 먼저 확인 — gltf-transform 으로
-   내보낼 때 바뀔 수 있다). 다음 사람은 `Sword_Attack`·`Jog_Fwd_Loop`
-   정도만 옮겨서 실제로 돌려 보고, 몸이 눕지 않는지부터 스크린샷으로
-   확인하고 시작하면 된다.
+~~5. 키클롭스 공격 동작~~ → **착각이었다. 이미 되어 있다.** 13차
+   갱신에서 실제로 켜 보니 `models.js` 의 `cyclopsBody.borrow` 가
+   정확히 이 매핑(뼈 이름까지, `Upperarm.L_32` 식 Sketchfab 번호
+   꼬리표 포함)으로 오디세우스의 `Sword_Attack`·`Jog_Fwd_Loop`·
+   `Death01`·`Hit_Chest` 를 이미 빌려 오고 있었다 — 콘솔에
+   `[models] cyclopsBody: 빌려 온 동작 ...` 으로 찍힌다. 이 문서에
+   "동작이 없다" 고 적힌 게 낡은 기록이었다. 4절도 같이 고쳤다.
 
 ### 음원
 효과음은 **파일 없이 합성해서 넣었다** (`src/core/sfx.js`, 0 바이트).
