@@ -60,6 +60,7 @@ export class Actor {
     this.actionRate = 1    // 공격속도 배수. 액션 프레임 전체가 이 비율로 빨라진다
     this.takeMul = 1       // 받는 피해 배수. 난이도가 여기를 건드린다
     this.god = false       // 시험용 무적. 배포 전에 끈다 (main.js 의 GOD 주석 참고)
+    this.lastStand = 0     // 치명상을 대신 버티는 횟수 (메두사의 방패 — player.js 가 채운다)
     this.hurtFlash = 0
     this.burn = null       // { left, dps, tick, level, from }
     this.action = new ActionRunner(this)
@@ -127,8 +128,29 @@ export class Actor {
       this.fx.ring(this.pos.x, this.pos.z, { radius: this.radius * 2.4, life: 0.22 })
     }
 
-    if (this.hp <= 0) { this.die(); return 'dead' }
+    if (this.hp <= 0) {
+      if (this.#surviveLethal()) return 'hit'
+      this.die(); return 'dead'
+    }
     return 'hit'
+  }
+
+  /**
+   * 치명상을 버틴다 (메두사의 방패). die() 대신 숨만 붙여 돌려보낸다 —
+   * 0 으로 죽고 그 프레임에 하나 남는 게 아니라, 애초에 안 죽은 것으로
+   * 친다. 맞자마자 다음 공격에 또 죽지 않게 잠깐 무적도 준다. 칼에도
+   * 불에도 같이 적용한다 (step() 의 화상 틱도 이걸 부른다).
+   * @returns 버텼으면 true, 남은 게 없으면 false (그대로 죽는다)
+   */
+  #surviveLethal() {
+    if (this.lastStand <= 0) return false
+    this.lastStand--
+    this.hp = Math.max(1, Math.round(this.maxHp * 0.15))
+    this.invuln = Math.max(this.invuln, 1.1)
+    this.fx?.shake(0.4)
+    this.fx?.ring(this.pos.x, this.pos.z, { color: '#8fd8ff', radius: this.radius * 6, life: 0.6 })
+    this.fx?.number(this.pos.clone().setY(2.3), '버텼다', { color: '#8fd8ff', size: 26, crit: true })
+    return true
   }
 
   die() {
@@ -155,7 +177,10 @@ export class Actor {
         this.hp = Math.max(0, this.hp - dealt)
         this.onHurt?.(dealt, this)
         this.fx?.number(this.pos.clone().setY(1.7), Math.round(dealt), { color: '#ff8a3a', size: 22 })
-        if (this.hp <= 0) { this.burnedOut = true; this.die(); return }
+        if (this.hp <= 0) {
+          if (this.#surviveLethal()) { /* 버텼다 — 불은 그대로 몸에 남아 있다 */ }
+          else { this.burnedOut = true; this.die(); return }
+        }
       }
       if (this.burn.left <= 0) this.burn = null
     }

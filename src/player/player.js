@@ -74,6 +74,17 @@ export const TUNING = {
     fullDraw: 1.05,       // 꽉 채우기까지. 팽팽한 시위로 줄인다
     release: 0.55,        // 쏘고 난 후딜. 난사의 대가가 여기 있다
   },
+  /**
+   * 특수공격 (F) — 저승의 유물 셋 중 하나를 들면 열린다.
+   * 유물 문구(`stages.js` 의 RELICS)가 이미 약속한 값들을 여기 숫자로 옮긴다.
+   * 셋 다 같은 F 키를 쓰지만 유물마다 완전히 다른 일을 한다 — 그래서
+   * 재사용 대기시간도 하는 일의 무게에 맞춰 따로 잡는다.
+   */
+  special: {
+    wax: { duration: 3, cooldown: 8 },              // 밀랍 — 경직 무시 3초
+    aegis: { radius: 4.6, freeze: 2.2, cooldown: 11 },  // 메두사 — 주위를 굳힌다
+    spear: { damage: 70, speed: 30, cooldown: 3.6 },    // 청동 창 — 높은 피해, 짧은 쿨
+  },
 }
 
 /* ── 칼 3타 ──────────────────────────────────────────────
@@ -481,6 +492,8 @@ export class Player extends Actor {
     this._focusIdle = 0
     this.rallyCd = 0          // 함성 재사용 대기 (main.js 의 rally)
     this.rallyMax = 20
+    this.specialCd = 0        // 특수공격(F) 재사용 대기 — 유물 없으면 그냥 안 나간다
+    this.staggerImmuneT = 0   // 밀랍 — 이 동안은 맞아도 경직이 안 걸린다
     // 막기·쳐내기 (위 TUNING.guard)
     this.guarding = false
     this.guardT = 99          // 막기를 누른 뒤 지난 시간. window 안이면 쳐낸다
@@ -523,6 +536,13 @@ export class Player extends Actor {
     // 은총이 구르기 충전과 무적 길이를 건드린다
     this.maxRollCharges = Math.max(1, TUNING.roll.charges + (this.stats.rollChargeMod ?? 0))
     this.rollCharges = Math.min(this.rollCharges, this.maxRollCharges)
+    /* 치명상 방지(메두사의 방패)는 한 번만 지급한다 — applyStats() 는
+       장비를 새로 걸칠 때마다 다시 불리므로, 매번 그대로 더하면 유물
+       하나로 몇 번이고 버티게 된다. 이미 준 만큼은 뺀다. */
+    const wantLS = this.stats.lastStand ?? 0
+    const grant = wantLS - (this._lastStandGranted ?? 0)
+    if (grant > 0) this.lastStand += grant
+    this._lastStandGranted = wantLS
   }
 
   update(dt, aim) {
@@ -536,6 +556,8 @@ export class Player extends Actor {
       if (this._focusIdle > 5) { this.focus--; this._focusIdle = 2.2 }
     }
     if (this.rallyCd > 0) this.rallyCd -= dt
+    if (this.specialCd > 0) this.specialCd -= dt
+    if (this.staggerImmuneT > 0) this.staggerImmuneT -= dt
 
     /* 막기와 자세.
        누르고 있는 동안만 막는다. 눌린 지 얼마나 됐는지(guardT)가 쳐내기의
@@ -639,6 +661,7 @@ export class Player extends Actor {
       return
     }
     if (this.input.consume('rally')) this.world.rally?.()
+    if (this.input.consume('special')) this.#special(aim)
     /* 자세가 무너졌으면 아무것도 못 한다. 세키로가 여기서 무서운 이유는
        '막다가 무너지면 그 다음 한 방을 그대로 맞는다' 이기 때문이다. */
     if (this.broken > 0) {
@@ -759,6 +782,8 @@ export class Player extends Actor {
    * 프레임이 있는데, 소리가 나면 "피했다" 가 손에 남는다.
    */
   hurt(amount, opts = {}) {
+    // 밀랍(특수공격) — 맞아도 경직만 빠진다. 피해는 그대로 받는다.
+    if (this.staggerImmuneT > 0 && opts.stagger) opts = { ...opts, stagger: 0 }
     const before = this.invuln > 0 || this.rolling > 0 || this.god
     // 구르기 무적이 먼저다 — 구르는 중이면 막기를 볼 것도 없다
     if (!before && this.guarding && this.broken <= 0 && !this.dead) {
@@ -916,6 +941,59 @@ export class Player extends Actor {
     this.world.sfx?.shoot(full)
     this.fx.shake(full ? 0.16 : 0.07)
     this.fx.ring(this.pos.x, this.pos.z, { color: full ? '#ffe08a' : '#ff9a4a', radius: 1.1, life: 0.2 })
+  }
+
+  /**
+   * 특수공격 (F) — 저승에서 고른 유물 하나가 여기서 갈린다.
+   * `stats.relic` 이 없으면(맨몸 시험이거나 아직 저승 전이면) 아무 일도
+   * 안 일어난다 — 키를 눌렀는데 반응이 없는 것과, 애초에 못 여는 문 사이의
+   * 차이는 F 를 아무 때나 눌러 봐도 무해하다는 것뿐이다.
+   */
+  #special(aim) {
+    const relic = this.stats.relic
+    if (!relic || this.dead) return
+    if (this.specialCd > 0) {
+      this.fx?.number(this.pos.clone().setY(2.0), '대기 중', { color: '#8a7c66', size: 16 })
+      return
+    }
+    const T = TUNING.special
+    if (relic === 'wax') {
+      const cfg = T.wax
+      this.specialCd = cfg.cooldown
+      this.staggerImmuneT = cfg.duration
+      this.world.sfx?.ready?.()
+      this.fx.ring(this.pos.x, this.pos.z, { color: '#e8d6ae', radius: 1.6, life: 0.5 })
+      this.fx.number(this.pos.clone().setY(2.2), '밀랍', { color: '#e8d6ae', size: 22, crit: true })
+      this.world.hud?.toast('무엇을 들어도 흔들리지 않는다', 1.8)
+    } else if (relic === 'aegis') {
+      const cfg = T.aegis
+      this.specialCd = cfg.cooldown
+      this.world.sfx?.chime?.()
+      this.fx.shake(0.3)
+      this.fx.ring(this.pos.x, this.pos.z, { color: '#c9d6e0', radius: cfg.radius, life: 0.55 })
+      let hit = 0
+      for (const e of this.world.enemies) {
+        if (e.dead || dist2d(e.pos, this.pos) > cfg.radius + e.radius) continue
+        e.stagger = Math.max(e.stagger, cfg.freeze)
+        e.action?.stop?.()
+        hit++
+      }
+      if (hit) this.world.hud?.toast(`주위가 돌처럼 굳었다 — ${hit}`, 1.8)
+    } else if (relic === 'spear') {
+      const cfg = T.spear
+      this.specialCd = cfg.cooldown
+      this.faceTo(aim.x, aim.z)
+      this.projectiles.spawn({
+        x: this.pos.x + Math.sin(this.facing) * 0.7,
+        z: this.pos.z + Math.cos(this.facing) * 0.7,
+        dir: this.facing, kind: 'spear', speed: cfg.speed,
+        damage: cfg.damage * this.stats.meleeDamage,
+        team: 'player', pierce: 2, knockback: 10,
+        hitstop: 0.09, color: '#ffd9a0', range: 26,
+      })
+      this.world.sfx?.shoot?.(true)
+      this.fx.shake(0.18)
+    }
   }
 
   /** 전리품을 입힌다. 처치 수가 임계에 닿을 때 부른다. @returns 방금 붙은 메시들 */

@@ -839,6 +839,7 @@ class Game {
     })
     pick.apply(this.player.stats)
     this.player.applyStats()
+    this.hud.setSpecialHint(pick.id)
     this.reach.close()
     this.hud.banner(pick.name, pick.flavor, 2.8)
     this.#thaw()
@@ -1401,13 +1402,16 @@ class Game {
 // 시작할 때는 어느 판에나 나오는 것만 받는다. 보스는 그 판에 들어갈 때.
 await Promise.all([models.preload(models.baseKeys()), preloadCharacter(), preloadRealHelmet()])
 const game = new Game(document.getElementById('app'), document.getElementById('ui'))
-window.__game = game
 
 /**
- * 개발용 화면 캡처. window.__shot('이름.png') → shots/ 에 떨어진다.
- * 3D 캔버스 위에 HUD(DOM) 를 SVG foreignObject 로 얹어 한 장으로 만든다.
+ * 개발용 콘솔 도구. `window.__game` 하나만 있어도 god·jumpTo·enemies 를
+ * 콘솔에서 그대로 주무를 수 있다 — 빌드된 화면에 이게 열려 있으면
+ * 아무나 켜서 무적·즉사를 켤 수 있는 것과 같다. DEV 에서만 연다.
+ * 화면 캡처(window.__shot)는 3D 캔버스 위에 HUD(DOM) 를 SVG
+ * foreignObject 로 얹어 한 장으로 만든다.
  */
 if (import.meta.env?.DEV) {
+  window.__game = game
   /** 패널이 숨어 있으면 rAF 가 멈춰 캐릭터가 바인드 포즈(T포즈)로 남는다. 손으로 돌려 준다. */
   window.__tick = (n = 60) => {
     for (let i = 0; i < n; i++) { game.fx.update(1 / 60); game.drive(1 / 60); game.update(1 / 60) }

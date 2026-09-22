@@ -2,7 +2,8 @@ import * as THREE from 'three'
 
 /**
  * WASD(또는 방향키) 이동, 좌클릭 칼, 우클릭 활, 스페이스 구르기, 마우스로 조준.
- * Shift 중격(기세를 태운다), E 함성(동료를 부른다), Q 막기·쳐내기.
+ * Shift 중격(기세를 태운다), E 함성(동료를 부른다), Q 막기·쳐내기,
+ * F 특수공격(저승의 유물이 있어야 나간다 — player.js 의 #special).
  *
  * 입력 버퍼가 핵심이다. 회복 동작 중에 누른 입력을 0.22초 동안 들고 있다가
  * 다음 캔슬 창이 열리는 순간 꺼내 쓴다. 이게 없으면 조작이 통째로 뻑뻑해진다.
@@ -16,6 +17,7 @@ const KEYMAP = {
   ShiftLeft: 'heavy', ShiftRight: 'heavy',   // 중격 — 기세를 태운다
   KeyE: 'rally',                             // 함성 — 동료를 부른다
   KeyQ: 'guard',                             // 막기 — 맞기 직전에 누르면 쳐낸다
+  KeyF: 'special',                           // 특수공격 — 저승의 유물이 있어야 나간다
 }
 
 export class Input {

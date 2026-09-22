@@ -324,6 +324,7 @@ export class Hud {
         <div><b class="k lmb"></b> 칼 (3타) &nbsp; <b class="k rmb"></b> 활 (꾹 눌러 차징) &nbsp; <b class="k space"></b> 구르기</div>
         <div><kbd>Shift</kbd> 중격 — 기세를 태운다 &nbsp; <kbd>E</kbd> 함성 — 동료를 부른다</div>
         <div><kbd>Q</kbd> 막기 — <b style="color:#9fd8e8">맞기 직전</b>에 누르면 쳐낸다 (무력화를 크게 민다)</div>
+        <div class="special" hidden><kbd>F</kbd> <span></span></div>
         <div class="grown"></div>
         <div class="dev"><kbd>Tab</kbd> 판 고르기 · <kbd>L</kbd> 화면 톤 · <kbd>M</kbd> 음소거 · <kbd>]</kbd> 다음 판 · <kbd>R</kbd> 처음부터</div>
       </div>
@@ -349,6 +350,12 @@ export class Hud {
       <div class="dead"><p>죽음</p></div>`
     root.appendChild(el)
 
+    // 개발용 단축키 줄(Tab 판 고르기 · R 처음부터 등)은 화면에서만 뗀다 —
+    // 키 자체는 QA 배포에서도 그대로 산다(41ways CLAUDE.md 참고, 여긴
+    // 소비자 배포가 아니라 QA 배포다). 빌드된 화면에 "치트 패널" 처럼
+    // 보이는 줄만 지운다. 로컬 개발 서버(npm run dev)에서는 그대로 보인다.
+    if (!import.meta.env?.DEV) el.querySelector('.keys .dev')?.remove()
+
     this.hpWrap = el.querySelector('.hpwrap')
     this.hpFill = el.querySelector('.hp i')
     this.hpGhost = el.querySelector('.hp b')
@@ -364,6 +371,7 @@ export class Hud {
     this.lvChip = el.querySelector('.lvchip')
     this.lvEl = el.querySelector('.lv')
     this.statsEl = el.querySelector('.keys .grown')
+    this.specialEl = el.querySelector('.keys .special')
     this.fpsEl = el.querySelector('.fps')
     this.deadEl = el.querySelector('.dead')
     this.waveEl = el.querySelector('.wave')
@@ -391,6 +399,20 @@ export class Hud {
   }
 
   clearBanner() { clearTimeout(this._bannerT); this.bannerEl.classList.remove('on') }
+
+  /** 저승의 유물을 든 순간 F 줄을 켠다. 유물마다 하는 일이 다르니 문구도 따라간다. */
+  setSpecialHint(relicId) {
+    if (!this.specialEl) return
+    const TEXT = {
+      wax: '특수공격 — 3초간 경직 무시',
+      aegis: '특수공격 — 주위를 굳힌다',
+      spear: '특수공격 — 창을 던진다',
+    }
+    const t = TEXT[relicId]
+    if (!t) { this.specialEl.hidden = true; return }
+    this.specialEl.querySelector('span').textContent = t
+    this.specialEl.hidden = false
+  }
 
   /** 웨이브가 바뀔 때 한 줄. */
   toast(text, hold = 2.2) {
