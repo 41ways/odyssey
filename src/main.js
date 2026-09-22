@@ -1127,7 +1127,7 @@ class Game {
   presentGear(piece, meshes) {
     return new Promise(resolve => {
       this.hud.clearBanner()          // 스테이지 배너와 겹치면 둘 다 안 읽힌다
-      this.equipCard.open(piece.name, piece.line)
+      this.equipCard.open(piece.name, piece.line, piece.id)
       const { x, z } = this.player.pos
       // 퍼지는 노란 링 대신, 바닥엔 도는 뇌문 고리 하나와 위에서 내려오는 빛기둥
       this.fx.meanderRing(x, z, { color: '#f0d49a', radius: 2.3, life: 1.7, spin: 0.9 })
