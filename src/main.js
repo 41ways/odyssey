@@ -74,6 +74,7 @@ class Game {
     this.projectiles = new Projectiles(this.render3d.scene, this.fx, this.particles)
     this.pickups = new Pickups(this.render3d.scene, this.fx)
     this.hud = new Hud(uiRoot)
+    this.hud.creditsEl.querySelector('.again').addEventListener('click', () => this.restart())
     // 넓어진 판에서 길을 잃지 않게 — 지도와 할 일 (ui/minimap.js, ui/quest.js)
     this.minimap = new Minimap(uiRoot)
     this.quest = new QuestPanel(uiRoot)
@@ -1040,6 +1041,25 @@ class Game {
     this.hud.credits(damage, this.taken, this.run, this.voyage, FATES)
   }
 
+  /**
+   * 이야기의 결말(텔레고노스)이 아니라 도중에 쓰러졌을 때.
+   *
+   * 전에는 작은 배너 하나("죽음 / 다시 시작하려면 R")뿐이었다 — 실제로는
+   * 이게 제일 자주 보는 화면인데(보스를 배우는 동안 몇 번이고 죽는다)
+   * 정작 결말에만 있던 성적표(입힌 피해·고른 것)가 여기엔 없었다.
+   * 같은 화면(`hud.credits`)을 문구만 바꿔 쓴다 — 결말 그림(텔레고노스)
+   * 대신 그림 없이 어둡게만: 일곱 보스 중 누구에게 죽었든 다 맞아야 한다.
+   */
+  showDefeat() {
+    const v = this.run.view
+    const where = v?.bossName ?? v?.name ?? ''
+    this.hud.credits(this.totalDamage, this.taken, this.run, null, [], {
+      title: '쓰러졌다',
+      sub2: where ? `${where} 앞에서, 여기까지.` : '여기까지.',
+      bg: null,
+    })
+  }
+
   /* ── 진행 ─────────────────────────────────────────────── */
 
   restart() {
@@ -1288,7 +1308,7 @@ class Game {
 
     if (p.dead && !this._deathHandled) {
       this._deathHandled = true
-      if (!this.run.onPlayerDeath()) this.hud.banner('죽음', '다시 시작하려면 R', 9)
+      if (!this.run.onPlayerDeath()) this.showDefeat()
     }
     if (!p.dead) this._deathHandled = false
 

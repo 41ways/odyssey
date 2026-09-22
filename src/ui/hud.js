@@ -278,7 +278,9 @@ const CSS = `
 #hud .credits .list span { font-size:12px; color:#bda87f; border:1px solid #4a3a28;
   border-radius:2px; padding:4px 10px; background:rgba(28,20,14,.6); }
 #hud .credits .again { margin-top:32px; font-family:var(--serif); font-size:12px;
-  letter-spacing:.3em; color:#7d7264; }
+  letter-spacing:.3em; color:#7d7264; cursor:pointer; transition:color .15s;
+  pointer-events:auto; display:inline-block; }
+#hud .credits .again:hover { color:var(--gold); }
 /* 여정의 기록 — 누가 어디서 돌아오지 못했고, 무엇을 골랐는가 */
 #hud .credits .voyage { margin-top:22px; text-align:left; font-size:13px; line-height:1.9; color:#bda87f;
   border-top:1px solid #4a3a28; border-bottom:1px solid #4a3a28; padding:12px 4px; }
@@ -450,7 +452,13 @@ export class Hud {
     }
   }
 
-  credits(damage, taken, run, voyage = null, fates = []) {
+  /**
+   * @param opts.title/sub2  이야기 결말(텔레고노스)이 아니라 도중에 죽었을 때
+   *   쓸 문구. 안 주면 원래 결말 문구(가오리 뼈 창)로 나간다.
+   * @param opts.bg  결말 그림(텔레고노스) 대신 쓸 배경. `null` 이면 그림 없이
+   *   어두운 바탕만 — 어느 보스에게 죽었든 다 맞는 자리라 특정 그림을 못 박지 않는다.
+   */
+  credits(damage, taken, run, voyage = null, fates = [], opts = {}) {
     const el = this.creditsEl
     const vEl = el.querySelector('.voyage')
     if (voyage) {
@@ -472,9 +480,14 @@ export class Hud {
         if (c?.epilogue) { epilogue = c.epilogue; break }
       }
       el.querySelector('.epilogue').innerHTML = epilogue
-    } else el.querySelector('.epilogue').textContent = ''
-    el.querySelector('h1').textContent = '죽음'
-    el.querySelector('.sub2').textContent = '창은 가오리 뼈로 만든 것이었다. 아들은 아버지를 몰랐다.'
+    } else { el.querySelector('.epilogue').textContent = ''; vEl.style.display = 'none' }
+    el.querySelector('h1').textContent = opts.title ?? '죽음'
+    el.querySelector('.sub2').textContent = opts.sub2 ?? '창은 가오리 뼈로 만든 것이었다. 아들은 아버지를 몰랐다.'
+    // 그림이 없을 땐(도중에 죽었을 때) 뒤에 얼어붙은 전투 화면이 비치면
+    // 안 된다 — 체력바·미니맵이 새 문구와 겹쳐 보인다. 거의 완전히 덮는다.
+    el.style.backgroundImage = !('bg' in opts) ? ''
+      : opts.bg ? `linear-gradient(180deg, rgba(4,3,6,.88), rgba(8,5,4,.95)), url('${opts.bg}')`
+      : `linear-gradient(180deg, rgba(5,4,4,.99), rgba(5,4,4,.99))`
     el.querySelector('.num').textContent = Math.round(damage).toLocaleString('ko-KR')
     const names = []
     for (const [id, n] of taken) {
