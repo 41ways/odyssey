@@ -35,7 +35,7 @@ import { Level, BOSS_XP } from './player/level.js'
 import { Sfx } from './core/sfx.js'
 import { Notice } from './ui/notice.js'
 import { promote, eliteChance } from './enemy/elite.js'
-import { CUT_TROY, CUT_CAVE, CUT_AIAIA, CUT_UNDER, CUT_SIRENS, CUT_WHIRL, CUT_ITHACA, CUT_BOW, ALL_CUTS, cutArt } from './stage/cuts.js'
+import { CUT_TROY, CUT_TELEPYLOS, CUT_CAVE, CUT_AIAIA, CUT_UNDER, CUT_SIRENS, CUT_WHIRL, CUT_ITHACA, CUT_BOW, ALL_CUTS, cutArt } from './stage/cuts.js'
 import { rollBlessings } from './player/blessings.js'
 import { models } from './render/models.js'
 import { preloadCharacter } from './render/character.js'
@@ -452,6 +452,7 @@ class Game {
       { group: '시작', name: '오프닝', note: '왜 바다에 있는가', run: () => this.playInterlude(OPENING) },
       { group: '컷신', name: '트로이가 불탔다', note: '그림 세 장', run: () => this.playCut(CUT_TROY) },
       { group: '컷신', name: '동굴 문이 막혔다', note: '폴리페모스', run: () => this.playCut(CUT_CAVE) },
+      { group: '컷신', name: '절벽 위가 새까맣다', note: '라이스트리고네스', run: () => this.playCut(CUT_TELEPYLOS) },
       { group: '컷신', name: '연기가 오르는 집', note: '키르케', run: () => this.playCut(CUT_AIAIA) },
       { group: '컷신', name: '해가 들지 않는 곳', note: '저승', run: () => this.playCut(CUT_UNDER) },
       { group: '컷신', name: '돛대에 몸을 묶는다', note: '세이렌', run: () => this.playCut(CUT_SIRENS) },

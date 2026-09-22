@@ -226,18 +226,23 @@ export const CUT_SIRENS = {
  *
  * 바로 앞 액자(세이렌 판을 깬 뒤)가 소용돌이 그림 두 장을 쓴다. 그래서
  * 여기서는 그 둘을 안 쓴다 — 1분 안에 같은 장을 두 번 보면 안 된다.
+ *
+ * 첫 두 장은 텔레필로스 액자 그림을 빌려 쓰고 있었다(네 판 전 그림).
+ * `cut-skylla.webp` 자체가 이미 해협을 넓게 담은 그림이라 — 왼쪽 절벽
+ * (스킬라), 오른쪽 트인 물(카리브디스 쪽), 그 사이로 배 한 척 — 화각만
+ * 바꿔도 "좁아진다 → 양쪽을 본다 → 절벽을 본다" 세 장이 다 이 판
+ * 전용 그림 하나에서 나온다. 다른 판 그림을 안 빌려도 된다.
  */
 export const CUT_WHIRL = {
   mood: 'water',
   where: '메시나 해협',
   shots: [
-    // 좁아지는 물길을 넓게 → 절벽 쪽 → 도는 물 쪽 → 그 안으로.
-    // 텔레필로스 액자용 그림이지만 네 판 전이다.
-    { art: '/img/lude-telepylos-b.webp', hold: 1800, focus: [50, 50, 1.0],
+    // 해협 전경 → 트인 물(카리브디스) 쪽 → 절벽(스킬라) 쪽 → 그 안으로.
+    { art: '/img/cut-skylla.webp', hold: 1800, focus: [50, 48, 1.0],
       text: '해협이 좁아진다.' },
-    { art: '/img/lude-telepylos-b.webp', hold: 1700, focus: [34, 44, 2.0],
+    { art: '/img/cut-skylla.webp', hold: 1700, focus: [78, 55, 1.5],
       text: '<em>양쪽 다 무사하지 않다.</em>' },
-    { art: '/img/cut-skylla.webp', hold: 1800, focus: [40, 45, 1.4],
+    { art: '/img/cut-skylla.webp', hold: 1800, focus: [26, 42, 1.7],
       text: '한쪽은 절벽.' },
     { art: '/img/boss/charybdis.webp', hold: 1800, focus: [50, 46, 1.3],
       text: '한쪽은 <em>바다가 통째로 도는 자리.</em>' },
