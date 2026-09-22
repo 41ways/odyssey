@@ -1,5 +1,33 @@
 import { installTheme, meanderURI } from './theme.js'
 
+/**
+ * 계열 문장(紋章). 칼·활·발 셋뿐이라(stats.js 의 LINEAGES) 아이콘도 셋 —
+ * 거기에 계열 없는 둘(암브로시아·"아무도 아니다")은 id로 따로 짚는다.
+ * relic.js 의 SIGILS 와 같은 규칙(64 사각, stroke #c8973e, 강조만 옅게 채움).
+ * 이게 있어야 카드 넉 장이 글자로만 안 갈리고 한눈에 계열이 잡힌다.
+ */
+const ICON = {
+  blade: `<svg viewBox="0 0 64 64" fill="none" stroke="#c8973e" stroke-width="2.2">
+    <path d="M32 6v34" fill="none"/>
+    <path d="M26 14h12M23 22h18" stroke-linecap="round"/>
+    <path d="M32 40v10" stroke-width="3.4" stroke-linecap="round"/>
+    <circle cx="32" cy="53" r="4" fill="#c8973e" fill-opacity=".3"/></svg>`,
+  arrow: `<svg viewBox="0 0 64 64" fill="none" stroke="#c8973e" stroke-width="2.2">
+    <path d="M14 10c-4 12-4 32 0 44 14-4 22-14 26-22-4-8-12-18-26-22z" fill="#c8973e" fill-opacity=".15"/>
+    <path d="M18 32h34M52 32l-9-7M52 32l-9 7"/></svg>`,
+  step: `<svg viewBox="0 0 64 64" fill="none" stroke="#c8973e" stroke-width="2.2">
+    <path d="M18 40c0-9 6-15 14-15s14 6 14 15-6 11-14 11-14-2-14-11z" fill="#c8973e" fill-opacity=".2"/>
+    <path d="M32 25c4-9 12-16 20-16-2 9-8 15-14 18M32 25c-4-9-12-16-20-16 2 9 8 15 14 18" stroke-linecap="round"/></svg>`,
+  ambrosia: `<svg viewBox="0 0 64 64" fill="none" stroke="#c8973e" stroke-width="2.2">
+    <path d="M16 10h32l-4 20c-2 8-8 12-12 12s-10-4-12-12z" fill="#c8973e" fill-opacity=".2"/>
+    <path d="M32 42v14M22 56h20"/>
+    <path d="M32 4v4M25 5l1.5 3.5M39 5l-1.5 3.5" stroke-linecap="round"/></svg>`,
+  nobody: `<svg viewBox="0 0 64 64" fill="none" stroke="#c8973e" stroke-width="2.2">
+    <path d="M32 8c12 0 20 9 20 22 0 14-9 24-20 24S12 44 12 30C12 17 20 8 32 8z" fill="#c8973e" fill-opacity=".12"/>
+    <path d="M22 46c4 3 16 3 20 0" stroke-linecap="round"/></svg>`,
+}
+const iconFor = u => ICON[u.id] ?? ICON[u.lineage] ?? ''
+
 const CSS = `
 #levelup { position:absolute; inset:0; z-index:50; display:none; place-items:center;
   pointer-events:none; font-family:var(--body);
@@ -73,6 +101,8 @@ const CSS = `
   background-repeat:repeat-x; background-position:center; opacity:.4; margin-bottom:20px; }
 #levelup button:hover .top { opacity:.85; }
 #levelup .pad { padding:0 20px; }
+#levelup .icon { width:30px; height:30px; margin-bottom:12px; opacity:.92; }
+#levelup .icon svg { width:100%; height:100%; }
 #levelup .tag { font-family:var(--serif); font-size:10px; letter-spacing:.26em;
   color:var(--gold-dim); margin-bottom:13px; display:flex; justify-content:space-between; align-items:center; }
 #levelup .num { font-size:10px; color:#5f564c; border:1px solid #3d332b;
@@ -127,6 +157,7 @@ export class LevelUp {
                 ${u.tier > 0 ? `<div class="burst" style="background:radial-gradient(circle, ${tiers[u.tier].color}88, ${tiers[u.tier].color}22 42%, transparent 68%)"></div>` : ''}
                 <div class="top"></div>
                 <div class="pad">
+                  ${iconFor(u) ? `<div class="icon">${iconFor(u)}</div>` : ''}
                   <div class="tag"><span>${u.tag ?? ''}</span><span class="num">${i + 1}</span></div>
                   ${u.tier > 0 ? `<div class="tier" style="background:${tiers[u.tier].color}22;color:${tiers[u.tier].color}">${tiers[u.tier].label}</div>` : ''}
                   <div class="name">${u.name}</div>

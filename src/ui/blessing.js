@@ -32,6 +32,36 @@ const owlSVG = encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width
   <g fill="#e8c98a"><circle cx="172" cy="190" r="10"/><circle cx="248" cy="190" r="10"/></g>
 </svg>`)
 
+/**
+ * 은총 여섯 개는 계열이 없고(한 번씩만 받는다) 전부 "아테나의 OO" 라
+ * 이름만으로는 안 갈린다. 하나씩 다른 문장을 준다 — 이 화면의 색(금빛,
+ * #e8c98a)에 맞춰 relic.js·levelup.js 와 같은 규칙으로 그린다.
+ */
+const BICON = {
+  spear: `<svg viewBox="0 0 64 64" fill="none" stroke="#e8c98a" stroke-width="2.2">
+    <path d="M32 4 41 22 32 30 23 22z" fill="#e8c98a" fill-opacity=".22"/>
+    <path d="M32 30v28"/><path d="M26 34h12"/><path d="M28 58h8"/></svg>`,
+  aegis: `<svg viewBox="0 0 64 64" fill="none" stroke="#e8c98a" stroke-width="2.2">
+    <path d="M32 6 54 14v20c0 13-10 21-22 24C20 55 10 47 10 34V14z" fill="#e8c98a" fill-opacity=".12"/>
+    <path d="M22 32l7 7 13-15"/></svg>`,
+  eye: `<svg viewBox="0 0 64 64" fill="none" stroke="#e8c98a" stroke-width="2.2">
+    <path d="M6 32c6-11 16-17 26-17s20 6 26 17c-6 11-16 17-26 17S12 43 6 32z"/>
+    <circle cx="32" cy="32" r="8" fill="#e8c98a" fill-opacity=".25"/></svg>`,
+  breath: `<svg viewBox="0 0 64 64" fill="none" stroke="#e8c98a" stroke-width="2.2" stroke-linecap="round">
+    <path d="M8 24h30a7 7 0 1 0-6-11"/>
+    <path d="M8 34h40a7 7 0 1 1-6 11"/>
+    <path d="M8 44h24a7 7 0 1 1-5 10"/></svg>`,
+  counsel: `<svg viewBox="0 0 64 64" fill="none" stroke="#e8c98a" stroke-width="2.2">
+    <path d="M32 10c-12 0-19 9-19 20 0 9 4 16 4 20h30c0-4 4-11 4-20 0-11-7-20-19-20z" fill="#e8c98a" fill-opacity=".12"/>
+    <circle cx="25" cy="30" r="4.4" fill="#e8c98a" fill-opacity=".3"/>
+    <circle cx="39" cy="30" r="4.4" fill="#e8c98a" fill-opacity=".3"/>
+    <path d="M32 36v6M26 50h12" stroke-linecap="round"/></svg>`,
+  name: `<svg viewBox="0 0 64 64" fill="none" stroke="#e8c98a" stroke-width="2.2">
+    <path d="M32 8c12 0 20 9 20 22 0 14-9 24-20 24S12 44 12 30C12 17 20 8 32 8z" fill="#e8c98a" fill-opacity=".12"/>
+    <circle cx="25" cy="30" r="2.6" fill="#e8c98a"/><circle cx="39" cy="30" r="2.6" fill="#e8c98a"/>
+    <path d="M24 44c4 3 12 3 16 0" stroke-linecap="round"/></svg>`,
+}
+
 const CSS = `
 #bless { position:absolute; inset:0; z-index:56; display:none; pointer-events:none;
   font-family:var(--body); overflow:hidden;
@@ -92,6 +122,8 @@ const CSS = `
   background-repeat:repeat-x; background-position:center; opacity:.5; }
 #bless button:hover .top { opacity:1; }
 #bless .pad { padding:16px 18px 0; }
+#bless .icon { width:30px; height:30px; margin-bottom:11px; opacity:.92; }
+#bless .icon svg { width:100%; height:100%; }
 #bless .tag { font-family:var(--serif); font-size:10px; letter-spacing:.24em;
   color:#a88c52; margin-bottom:10px; }
 #bless .bname { font-family:var(--serif); font-size:18px; font-weight:700;
@@ -152,6 +184,7 @@ export class BlessingScreen {
               <div class="top"></div>
               <span class="num">${i + 1}</span>
               <div class="pad">
+                ${BICON[b.id] ? `<div class="icon">${BICON[b.id]}</div>` : ''}
                 <div class="tag">${b.tag}</div>
                 <div class="bname">${b.name}</div>
                 <div class="bdesc">${b.desc}</div>
