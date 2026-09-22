@@ -7,7 +7,8 @@ import { Projectiles } from './combat/projectile.js'
 import { Particles } from './render/particles.js'
 import { separate, setRenderAlpha } from './combat/actor.js'
 import { Player } from './player/player.js'
-import { kikonesWarrior, kikonesArcher, kikonesShield, circePig, circeWolf, circeLion, laistrygon } from './enemy/kikones.js'
+import { kikonesWarrior, kikonesArcher, kikonesShield, circePig, circeWolf, circeLion, laistrygon,
+  sirenWarrior, sirenArcher, messinaWarrior, messinaArcher, suitorWarrior, suitorArcher } from './enemy/kikones.js'
 import { Hud } from './ui/hud.js'
 import { Minimap } from './ui/minimap.js'
 import { QuestPanel } from './ui/quest.js'
@@ -50,7 +51,9 @@ import { spawnFlock } from './enemy/sheep.js'
 import { SailLeg } from './stage/sailleg.js'
 
 const MINIONS = { warrior: kikonesWarrior, archer: kikonesArcher, shield: kikonesShield,
-  pig: circePig, wolf: circeWolf, lion: circeLion, giant: laistrygon }
+  pig: circePig, wolf: circeWolf, lion: circeLion, giant: laistrygon,
+  // 이스마로스 말고 또 나오는 자리는 옷을 갈아입는다 (kikones.js 의 VARIANTS)
+  sirenWarrior, sirenArcher, messinaWarrior, messinaArcher, suitorWarrior, suitorArcher }
 
 /**
  * 오디세이 — 아홉 판을 이어 달리는 한 번의 귀향.

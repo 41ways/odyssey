@@ -403,8 +403,12 @@ class Kikones extends Actor {
   }
 }
 
-export function kikonesWarrior(world, fx) {
-  return new Kikones(world, fx, {
+/**
+ * @param over  옷만 갈아 끼울 때 쓴다 (아래 VARIANTS 참고). label·gltf.tint·
+ *              gltf.dress·palette 만 덮어쓴다 — 몸(glb)과 동작은 그대로다.
+ */
+export function kikonesWarrior(world, fx, over = null) {
+  const cfg = {
     label: '전사',
     hp: 58, radius: 0.46, mass: 1.6, speed: 4.2, keepRange: [2.4, 3.1], barHeight: 2.05, xp: 4,
     look: {
@@ -419,11 +423,13 @@ export function kikonesWarrior(world, fx) {
       if (d < 5.2) return { def: WARRIOR_STAB, cooldown: rand(1.6, 2.4) }
       return null
     },
-  })
+  }
+  if (over) applyOver(cfg, over)
+  return new Kikones(world, fx, cfg)
 }
 
-export function kikonesArcher(world, fx) {
-  return new Kikones(world, fx, {
+export function kikonesArcher(world, fx, over = null) {
+  const cfg = {
     label: '활잡이',
     hp: 40, radius: 0.42, mass: 1.2, speed: 4.6, keepRange: [7.5, 10.5], barHeight: 1.95, xp: 5,
     look: {
@@ -437,8 +443,51 @@ export function kikonesArcher(world, fx) {
       if (d > 4.5 && d < 18) return { def: ARCHER_SHOT, cooldown: rand(1.8, 2.8) }
       return null
     },
-  })
+  }
+  if (over) applyOver(cfg, over)
+  return new Kikones(world, fx, cfg)
 }
+
+function applyOver(cfg, { label, tint, dress, palette }) {
+  cfg.label = label
+  Object.assign(cfg.look.gltf, { tint, dress })
+  Object.assign(cfg.look.palette, palette)
+}
+
+/**
+ * 이스마로스 말고 다른 판(세이렌의 바다·메시나·이타카)에 전사·활잡이가
+ * 그대로 다시 나오면 "키코네스족이 왜 여기 또" 가 된다. 모델을 새로 못
+ * 구해도 옷과 이름은 공짜다 — `applyOver` 가 `look` 을 만드는 시점에
+ * 덮어쓴다(다 만든 뒤에 색만 바꾸면 늦는다 — Kikones 생성자가 그 자리에서
+ * 바로 메시·재질을 굽는다).
+ */
+const VARIANTS = {
+  // 세이렌의 바다 — 노래에 홀려 배를 버리고 물에 뛰어든 자들. 젖어서 색이 죽었다.
+  siren: {
+    label: '뱃사람',
+    warrior: { tint: '#5c7f8a', dress: { body: '#3a5a5e', feet: '#3a3a34', skirt: '#3a5a5e' }, palette: { cloth: '#2e4d50', accent: '#1e3638' } },
+    archer: { tint: '#5c7f8a', dress: { body: '#2e4a5e', feet: '#3a3a34', skirt: '#2e4a5e' }, palette: { cloth: '#25384f', accent: '#1a2638' } },
+  },
+  // 메시나 해협 — 폭풍에 갑판을 잃은 다른 배의 선원들. 젖은 가죽, 검게 그은 천.
+  messina: {
+    label: '선원',
+    warrior: { tint: '#7a7268', dress: { body: '#463f38', feet: '#241f1a', skirt: '#463f38' }, palette: { cloth: '#3a352e', accent: '#221e18' } },
+    archer: { tint: '#7a7268', dress: { body: '#4a4038', feet: '#241f1a', skirt: '#4a4038' }, palette: { cloth: '#3d362e', accent: '#221e18' } },
+  },
+  // 이타카 — 구혼자를 따르는 부하들. 벽 안이라 옷이 낫다, 자주와 금.
+  suitor: {
+    label: '구혼자의 부하',
+    warrior: { tint: '#8a6a9c', dress: { body: '#5a3a6e', feet: '#3a2a1e', skirt: '#5a3a6e' }, palette: { cloth: '#4a2e5c', bronze: '#c9a544', accent: '#3a2248' } },
+    archer: { tint: '#8a6a9c', dress: { body: '#4e3268', feet: '#3a2a1e', skirt: '#4e3268' }, palette: { cloth: '#402858', bronze: '#c9a544', accent: '#33203f' } },
+  },
+}
+
+export const sirenWarrior = (world, fx) => kikonesWarrior(world, fx, { label: VARIANTS.siren.label, ...VARIANTS.siren.warrior })
+export const sirenArcher = (world, fx) => kikonesArcher(world, fx, { label: VARIANTS.siren.label, ...VARIANTS.siren.archer })
+export const messinaWarrior = (world, fx) => kikonesWarrior(world, fx, { label: VARIANTS.messina.label, ...VARIANTS.messina.warrior })
+export const messinaArcher = (world, fx) => kikonesArcher(world, fx, { label: VARIANTS.messina.label, ...VARIANTS.messina.archer })
+export const suitorWarrior = (world, fx) => kikonesWarrior(world, fx, { label: VARIANTS.suitor.label, ...VARIANTS.suitor.warrior })
+export const suitorArcher = (world, fx) => kikonesArcher(world, fx, { label: VARIANTS.suitor.label, ...VARIANTS.suitor.archer })
 
 /** 키르케가 부르는 돼지. 약하고 빠르고 자꾸 몸으로 민다. */
 export function circePig(world, fx) {
