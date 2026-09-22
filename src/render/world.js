@@ -946,48 +946,112 @@ export class World {
   }
 
   /**
-   * 소용돌이 물보라. WHIRL(카리브디스)은 이름부터 "소용돌이" 인데,
-   * 실제로는 갑판결을 푸르게 물들인 것 말고는 도는 것이 하나도 없었다
-   * — 가만히 있는 물 위에 떠 있는 배와 다를 게 없었다. 판 중심(원점)을
-   * 축으로, 반지름이 줄수록 빨리 도는 나선으로 안쪽으로 빨려 들다가
-   * 중심 가까이서 다시 바깥으로 태어난다 — 소용돌이의 결.
+   * 소용돌이. WHIRL(카리브디스)은 이름부터 "소용돌이" 인데, 실제로는
+   * 갑판결을 늘려 만든 **완전한 동심원**(널판 무늬가 반복되는 것뿐이다
+   * — 판마다 똑같은 간격, 똑같은 굵기)이 바닥에 깔려 있을 뿐이었다.
+   * 처음엔 입자만 뿌렸는데(물보라, 아래 #setSprayPts) 스크린샷으로
+   * 보니 촘촘한 동심원 위에 옅은 점 몇 개는 안 보이고 — 그냥 과녁으로
+   * 읽혔다. **점은 돈다는 걸 못 그린다, 선이 그려야 한다.** 팔 셋짜리
+   * 나선을 캔버스에 직접 그려 바닥 위에 얹고(같은 동심원인데 이번엔
+   * 안으로 빨려 들어가는 결이다) 천천히 돌린다 — 멈춘 화면에서도
+   * "이건 소용돌이다" 가 바로 읽혀야 한다.
    */
   #setSpray(on) {
-    if (!on) { if (this.spray) this.spray.visible = false; return }
-    if (!this.spray) {
-      const N = 420
-      const pos = new Float32Array(N * 3)
-      const ang = new Float32Array(N)
-      const rad = new Float32Array(N)
-      const y = new Float32Array(N)
-      for (let i = 0; i < N; i++) {
-        ang[i] = rand(0, Math.PI * 2)
-        rad[i] = rand(4, 29)
-        y[i] = rand(0.1, 1.6)
-        pos[i * 3] = Math.cos(ang[i]) * rad[i]
-        pos[i * 3 + 1] = y[i]
-        pos[i * 3 + 2] = Math.sin(ang[i]) * rad[i]
-      }
-      const geo = new THREE.BufferGeometry()
-      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
-      const mat = new THREE.PointsMaterial({
-        color: '#dff2ff', size: 0.13, transparent: true, opacity: 0.7,
-        depthWrite: false, sizeAttenuation: true, blending: THREE.AdditiveBlending,
-      })
-      const pts = new THREE.Points(geo, mat)
-      pts.frustumCulled = false
-      pts.userData.ang = ang
-      pts.userData.rad = rad
-      pts.userData.y = y
-      this.scene.add(pts)
-      this.spray = pts
+    if (!on) {
+      if (this.spray) this.spray.visible = false
+      if (this.sprayDecal) this.sprayDecal.visible = false
+      return
     }
+    this.#setSprayPts()
     this.spray.visible = true
+    if (!this.sprayDecal) {
+      /* 옅게 빛만 더하면(가산 블렌딩) 밑바탕이 비슷한 파란색이라 묻힌다
+         (실제로 한 번 그렇게 해서 스크린샷으로 확인해 보니 거의 안 보였다).
+         선 바깥에 짙은 테두리를 먼저 긋고 안쪽에 밝은 선을 얹는다 — 만화의
+         선처럼, 바탕이 밝든 어둡든 테두리 덕에 늘 읽힌다. 팔도 둘로 줄이고
+         굵게, 덜 감기게(turns↓) 해서 한눈에 "돈다" 는 게 보이게 한다. */
+      const cv = document.createElement('canvas')
+      cv.width = cv.height = 512
+      const ctx = cv.getContext('2d')
+      const cx = 256, cy = 256, R = 248
+      const arms = 2, turns = 1.5
+      const path = (theta0, theta1) => {
+        ctx.beginPath()
+        const steps = 200
+        for (let i = 0; i <= steps; i++) {
+          const t = i / steps
+          const theta = theta0 + t * (theta1 - theta0)
+          const r = (1 - t) * R * 0.96 + R * 0.04
+          const x = cx + Math.cos(theta) * r, y = cy + Math.sin(theta) * r
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y)
+        }
+      }
+      for (let a = 0; a < arms; a++) {
+        const base = (a / arms) * Math.PI * 2
+        const theta0 = base, theta1 = base + turns * Math.PI * 2
+        ctx.lineCap = 'round'
+        path(theta0, theta1)
+        ctx.strokeStyle = 'rgba(6,20,30,.85)'
+        ctx.lineWidth = 26
+        ctx.stroke()
+        path(theta0, theta1)
+        ctx.strokeStyle = 'rgba(232,248,255,.95)'
+        ctx.lineWidth = 12
+        ctx.stroke()
+      }
+      const tex = new THREE.CanvasTexture(cv)
+      const geo = new THREE.CircleGeometry(1, 64)
+      const mat = new THREE.MeshBasicMaterial({
+        map: tex, transparent: true, opacity: 0.8, depthWrite: false,
+        side: THREE.DoubleSide,
+      })
+      const disc = new THREE.Mesh(geo, mat)
+      disc.rotation.x = -Math.PI / 2
+      const grp = new THREE.Group()
+      grp.add(disc)
+      grp.position.y = 0.08
+      this.scene.add(grp)
+      this.sprayDecal = grp
+      this.sprayDecal.userData.disc = disc
+    }
+    this.sprayDecal.userData.disc.scale.setScalar(this.arenaRadius * 0.98)
+    this.sprayDecal.visible = true
   }
 
-  /** draw() 가 매 프레임 부른다. 중심에 가까울수록 빨리 돈다 — 실제 소용돌이처럼. */
+  #setSprayPts() {
+    if (this.spray) return
+    const N = 420
+    const pos = new Float32Array(N * 3)
+    const ang = new Float32Array(N)
+    const rad = new Float32Array(N)
+    const y = new Float32Array(N)
+    for (let i = 0; i < N; i++) {
+      ang[i] = rand(0, Math.PI * 2)
+      rad[i] = rand(4, 29)
+      y[i] = rand(0.1, 1.6)
+      pos[i * 3] = Math.cos(ang[i]) * rad[i]
+      pos[i * 3 + 1] = y[i]
+      pos[i * 3 + 2] = Math.sin(ang[i]) * rad[i]
+    }
+    const geo = new THREE.BufferGeometry()
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
+    const mat = new THREE.PointsMaterial({
+      color: '#f4fbff', size: 0.34, transparent: true, opacity: 0.95,
+      depthWrite: false, sizeAttenuation: true, blending: THREE.AdditiveBlending,
+    })
+    const pts = new THREE.Points(geo, mat)
+    pts.frustumCulled = false
+    pts.userData.ang = ang
+    pts.userData.rad = rad
+    pts.userData.y = y
+    this.scene.add(pts)
+    this.spray = pts
+  }
+
+  /** draw() 가 매 프레임 부른다. 중심에 가까울수록 빨리 돈다 — 실제 소용돌이처럼. 나선 그림도 같이 돈다. */
   updateSpray(dt) {
     const s = this.spray
+    if (this.sprayDecal?.visible) this.sprayDecal.rotation.y -= dt * 0.18
     if (!s || !s.visible) return
     const p = s.geometry.attributes.position
     const ang = s.userData.ang
