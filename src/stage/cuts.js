@@ -106,9 +106,11 @@ export const CUT_CAVE = {
       text: '동굴 하나. 양 떼와 치즈가 있었다.' },
     { art: '/img/cut-cave-1.webp', hold: 1700, focus: [50, 40, 1.7],
       text: '<em>주인은 없었다.</em>' },
-    { art: '/img/cut-cave-2.webp', hold: 1800, focus: [50, 45, 1.3],
+    // 바위가 문을 막는 동작 하나를 세 장 스톱모션으로 — 아직 안 막힘 → 반쯤 → 거의 다.
+    { art: '/img/cave-boulder-1.webp', hold: 900, focus: [50, 45, 1.15], hard: true,
       text: '해가 질 때 무언가가 돌아왔다.' },
-    { art: '/img/cut-cave-2.webp', hold: 2000, focus: [50, 48, 2.0],
+    { art: '/img/cut-cave-2.webp', hold: 800, focus: [50, 46, 1.5], hard: true },
+    { art: '/img/cave-boulder-3.webp', hold: 1300, focus: [50, 48, 1.6], hard: true,
       text: '돌아온 것이 <em>바위로 문을 막았다.</em><br>스무 명이 밀어도 꼼짝하지 않는 바위였다.' },
     { art: '/img/boss/polyphemos.webp', hold: 2300,
       text: '그것이 우리를 세어 보았다.' },
@@ -139,7 +141,9 @@ export const CUT_TELEPYLOS = {
       text: '절벽 위가 새까맣게 움직였다.' },
     { art: '/img/boss/antiphates.webp', hold: 1900, focus: [50, 34, 1.6],
       text: '사람이 아니었다. <em>온 마을이 거인이었다.</em>' },
-    { art: '/img/lude-telepylos-b.webp', hold: 2300, focus: [56, 48, 1.5],
+    // 돌이 떨어지는 순간을 스톱모션으로 — 공중에서 → 부서진 뒤.
+    { art: '/img/telepylos-rock-1.webp', hold: 900, focus: [50, 45, 1.2], hard: true },
+    { art: '/img/lude-telepylos-b.webp', hold: 1500, focus: [56, 48, 1.5], hard: true,
       text: '돌이 떨어졌다. 열한 척이 그 만에 남았다.' },
   ],
 }
