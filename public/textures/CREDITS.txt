@@ -28,3 +28,13 @@ ship 과 ithaca 는 처음에 WoodFloor064 · Tiles074 로 받았다가 바꿨�
 널판과 줄눈이 있는 포석으로 갈았다 (19.3 · 9.2).
 
 waternormals.webp — three.js examples (MIT) · https://threejs.org/examples/textures/waternormals.jpg
+
+── 입자 스프라이트 (Kenney.nl, CC0) ──
+눈·비·불씨·부유물·물보라(world.js 의 THREE.Points)가 처음엔 캔버스로
+그린 원형 그라디언트 하나를 같이 썼다 — 손으로 그린 티가 나서
+Kenney Particle Pack 의 낱장으로 바꿨다.
+
+- `particles/glow.webp`  — star_05.png (Kenney Particle Pack, CC0) — 눈·비·물보라
+- `particles/fire.webp`  — fire_01.png (Kenney Particle Pack, CC0) — 불씨(이스마로스·동굴)
+- `particles/spark.webp` — star_07.png (Kenney Particle Pack, CC0) — 부유물(아이아이에)
+https://kenney.nl/assets/particle-pack
