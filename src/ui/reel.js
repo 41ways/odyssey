@@ -20,6 +20,17 @@ import { installTheme } from './theme.js'
  * 액자(ui/interlude.js)와 다른 물건이다. 액자는 "지나온 뱃길을 박물관처럼
  * 돌아보는" 장치고, 릴은 **지금 눈앞에서 벌어지는 일**이다. 그래서 테두리가
  * 없고 화면을 꽉 채운다.
+ *
+ * ── 동작 하나를 스톱모션으로 (`hold` 짧게 + `shot.hard`) ──
+ * 위 크로스페이드는 "장면이 바뀐다" 는 느낌에 맞는 넘김이다. 그런데 화살이
+ * 날아가는 것처럼 **한 동작이 이어지는** 순간은 흐물흐물 녹아 붙으면 오히려
+ * 어색하다 — 그럴 땐 그림을 짧게(700~1000ms) 여러 장 두고 `shot.hard: true`
+ * 를 준다. 거의 겹치지 않고 컷으로 바로 바뀌면서, 낮은 프레임률 애니메이션
+ * (초당 한두 장) 처럼 읽힌다. 만화의 칸이 시간을 만드는 것과 같은 수법을
+ * 넘기는 속도에도 쓴 것뿐이지, 영상을 흉내내는 게 아니다.
+ * 이런 구간에서 글까지 매 컷 깜빡이면 못 읽으므로, 글을 유지할 컷은 그냥
+ * `text` 를 안 적으면 된다 (지우려면 `text: ''`). 예: `src/stage/cuts.js`
+ * 의 `CUT_BOW` 마지막 관통 순간.
  */
 
 const CSS = `
@@ -277,9 +288,17 @@ export class Reel {
       shots.forEach((s, i) => {
         const hold = s.hold ?? 2600
         T.push(setTimeout(() => {
-          // 겹쳐 넘긴다. 페이드를 hold 의 3분의 1 로 잡으면 넘기는 게 보이면서
-          // 머무는 시간도 남는다 — 절반을 넘기면 계속 흐릿한 화면이 된다.
-          const fade = Math.min(1100, hold * 0.34)
+          /**
+           * 겹쳐 넘긴다. 페이드를 hold 의 3분의 1 로 잡으면 넘기는 게 보이면서
+           * 머무는 시간도 남는다 — 절반을 넘기면 계속 흐릿한 화면이 된다.
+           *
+           * `s.hard` 를 주면 거의 겹치지 않고 바로 바뀐다 — 초당 한 장씩
+           * 다른 그림을 붙여 "정지 동작(스톱모션)" 을 만들 때 쓴다. 크로스
+           * 페이드로 넘기면 동작 하나가 흐물흐물 녹아 붙는 것처럼 보이는데,
+           * 컷을 끊으면 그림 사이에 진짜 동작이 있는 것처럼 읽힌다 — 만화가
+           * 칸을 나누는 것과 같은 이치를, 넘기는 방식에도 적용한 것이다.
+           */
+          const fade = s.hard ? Math.min(140, hold * 0.4) : Math.min(1100, hold * 0.34)
           const el = plateEls[i]
           if (el) {
             el.style.setProperty('--fade', `${fade}ms`)
@@ -288,10 +307,16 @@ export class Reel {
             // 지난 장은 다음 장이 다 올라온 뒤에 내린다. 동시에 바꾸면 사이가 빈다.
             if (i > 0) T.push(setTimeout(() => plateEls[i - 1]?.classList.remove('in'), fade))
           }
-          span.classList.remove('in')
-          T.push(setTimeout(() => {
-            if (s.text) { span.innerHTML = s.text; span.classList.add('in') }
-          }, Math.min(320, fade * 0.4)))
+          // 글은 s.text 가 있을 때만 손댄다. 스톱모션처럼 한 문장 위에 그림
+          // 여러 장이 지나가는 구간에서는 shot마다 text 를 안 적어 두면 되고,
+          // 그러면 글이 깜빡이지 않고 그대로 걸려 있는다. 글을 지우고 싶으면
+          // (그림만 있는 컷) text: '' 를 명시한다.
+          if (s.text !== undefined) {
+            span.classList.remove('in')
+            T.push(setTimeout(() => {
+              if (s.text) { span.innerHTML = s.text; span.classList.add('in') }
+            }, Math.min(320, fade * 0.4)))
+          }
         }, t))
         t += hold
       })

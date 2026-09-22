@@ -294,8 +294,18 @@ export const CUT_BOW = {
       text: '거지가 활을 달라고 했다. 모두가 웃었다.' },
     { art: '/img/cut-bow-2.webp', hold: 2100, focus: [66, 40, 1.8],
       text: '<em>한 번에 걸었다.</em><br>현이 제비 소리를 냈다.' },
-    { art: '/img/cut-bow-3.webp', hold: 2000, focus: [50, 48, 1.15],
+    /**
+     * 화살이 자루를 꿰는 순간만 스톱모션(초당 한두 장)으로 끊는다. 이 넷은
+     * 크로스페이드 대신 `hard` 컷으로 넘긴다 — 관통은 **동작**이지, 장면이
+     * 바뀌는 게 아니다. 흐물흐물 녹여 넘기면 화살이 안 날아가고 두 그림이
+     * 겹쳐 보이는 것처럼 읽힌다. 글은 첫 컷에만 두고 나머지는 비워서
+     * (`text` 를 안 적음) 한 문장이 넷을 관통하는 동안 안 깜빡이게 한다.
+     */
+    { art: '/img/cut-bow-arrow-1.webp', hold: 750, hard: true,
       text: '화살 하나가 <em>열두 자루</em>를 꿰었다.' },
+    { art: '/img/cut-bow-arrow-2.webp', hold: 700, hard: true },
+    { art: '/img/cut-bow-arrow-3.webp', hold: 700, hard: true },
+    { art: '/img/cut-bow-3.webp', hold: 950, focus: [50, 48, 1.15], hard: true },
     { art: '/img/cut-bow-4.webp', hold: 2600, focus: [52, 42, 1.25],
       text: '누더기를 벗었다.<br><em>놀이는 끝났다.</em>' },
   ],
