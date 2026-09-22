@@ -23,7 +23,23 @@ const TRACKS = {
   sail: '/audio/movement-1-ashen-causeway.mp3',   // 뱃길·막간
   fight: '/audio/movement-2-cinder-vault.mp3',    // 웨이브
   deep: '/audio/movement-3-black-bell-sanctum.mp3', // 저승·동굴
-  boss: '/audio/boss-bell-warden.mp3',            // 보스
+  boss: '/audio/boss-bell-warden.mp3',            // 공용 보스 곡 — 전용 곡 없는 보스가 쓴다
+}
+
+/**
+ * 보스 id → 전용 곡. 일곱 보스가 지금은 전부 TRACKS.boss 하나를 같이 쓴다
+ * (HANDOFF.md 5절). 곡을 골랐으면 파일을 public/audio/ 에 넣고 여기 경로만
+ * 채우면 된다 — 비워 둔 보스는 자동으로 공용 곡으로 돈다.
+ */
+const BOSS_TRACKS = {
+  polyphemos: null,
+  antiphates: null,
+  kirke: null,
+  siren: null,
+  skylla: null,
+  charybdis: null,
+  antinoos: null,
+  telegonos: null,
 }
 
 export class Music {
@@ -58,7 +74,7 @@ export class Music {
    * 같은 트랙을 다시 걸면 처음으로 돌아가서 흐름이 끊긴다.
    */
   play(key, { fade = 2.0 } = {}) {
-    const url = TRACKS[key]
+    const url = TRACKS[key] ?? BOSS_TRACKS[key]
     if (!url) return
     this._want = key
     if (!this.armed || this.muted) return
@@ -72,6 +88,11 @@ export class Music {
     if (from) this.#fade(from.el, from.el.volume, 0, fade, () => {
       from.el.pause(); from.el.src = ''
     })
+  }
+
+  /** 보스 id 에 맞는 곡으로 넘어간다. 전용 곡이 없으면 공용 보스 곡을 쓴다. */
+  playBoss(id, opts) {
+    this.play(BOSS_TRACKS[id] ? id : 'boss', opts)
   }
 
   /** 지금 곡을 내린다. 컷신처럼 조용해야 하는 자리에서 쓴다. */

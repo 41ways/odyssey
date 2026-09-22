@@ -160,7 +160,7 @@ export class Run {
     await this.#scene(cfg, cfg.intro, { banner: false })
     // 보스를 만나는 컷신. 갇혔다는 게 먼저 와야 그 뒤가 파훼가 된다.
     if (cfg.cut) await g.playCut(cfg.cut)
-    g.music.play('boss')
+    g.music.playBoss(cfg.id)
     const b = makeBoss(cfg.id, g, g.fx)
     // 난간에 붙는 보스는 뱃전에, 나머지는 판 안쪽에 선다
     const zHalf = g.render3d.arena?.radiusAt(Math.PI) ?? g.arenaRadius
