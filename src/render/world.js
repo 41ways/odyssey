@@ -544,6 +544,7 @@ export class World {
     this.#setSnow(!!e.snow)
     this.#setRain(!!e.rain)
     this.#setEmbers(!!e.embers)
+    this.#setMotes(!!e.motes)
     this.#setPost(e)
     /* 바닥 결 반복수는 **판이 넓어져도 그대로 둔다.**
        판에 비례해 올려 봤다 (9 → 20). 그랬더니 같은 무늬가 스무 번 반복되는
@@ -880,6 +881,64 @@ export class World {
         p.array[i * 3 + 2] = focus.z + rand(-26, 26)
       }
       p.array[i * 3 + 1] = y
+    }
+    p.needsUpdate = true
+  }
+
+  /**
+   * 마법 부유물. 아이아이에는 키르케의 숲인데(rim 조명이 이미 보라빛),
+   * 정작 화면에는 떠다니는 게 아무것도 없어 그냥 어두운 숲과 다를 바
+   * 없었다 — "마녀의 숲" 이라는 말을 그림이 안 지키고 있었다. 눈·비·
+   * 불씨와 같은 방식이지만 **거의 제자리에서** 맴돈다. 중력도 바람도
+   * 없이, 혼자 살아있는 것처럼 느리게 떠돈다.
+   */
+  #setMotes(on) {
+    if (!on) { if (this.motes) this.motes.visible = false; return }
+    if (!this.motes) {
+      const N = 150
+      const pos = new Float32Array(N * 3)
+      const ph = new Float32Array(N * 3)
+      for (let i = 0; i < N; i++) {
+        pos[i * 3] = rand(-26, 26)
+        pos[i * 3 + 1] = rand(0.6, 4.5)
+        pos[i * 3 + 2] = rand(-26, 26)
+        ph[i * 3] = rand(0, Math.PI * 2)
+        ph[i * 3 + 1] = rand(0, Math.PI * 2)
+        ph[i * 3 + 2] = rand(0.3, 0.7)
+      }
+      const geo = new THREE.BufferGeometry()
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
+      const mat = new THREE.PointsMaterial({
+        color: '#d0a0f0', size: 0.1, transparent: true, opacity: 0.8,
+        depthWrite: false, sizeAttenuation: true, blending: THREE.AdditiveBlending,
+      })
+      const pts = new THREE.Points(geo, mat)
+      pts.frustumCulled = false
+      pts.userData.ph = ph
+      pts.userData.origin = pos.slice()
+      this.scene.add(pts)
+      this.motes = pts
+    }
+    this.motes.visible = true
+  }
+
+  /** draw() 가 매 프레임 부른다. 각자 제 자리를 중심으로 작게 맴돈다 — 바람이 아니라 뜻이 있는 움직임처럼. */
+  updateMotes(dt, focus, t) {
+    const s = this.motes
+    if (!s || !s.visible) return
+    const p = s.geometry.attributes.position
+    const ph = s.userData.ph
+    const origin = s.userData.origin
+    for (let i = 0; i < origin.length / 3; i++) {
+      const speed = ph[i * 3 + 2]
+      p.array[i * 3] = origin[i * 3] + Math.sin(t * speed + ph[i * 3]) * 1.1
+      p.array[i * 3 + 1] = origin[i * 3 + 1] + Math.sin(t * speed * 1.3 + ph[i * 3 + 1]) * 0.6
+      p.array[i * 3 + 2] = origin[i * 3 + 2] + Math.cos(t * speed + ph[i * 3]) * 1.1
+      // 초점(플레이어)에서 너무 멀어지면 근처로 다시 태어난다 — 판을 넓게 돌아도 늘 곁에 있게
+      if (Math.hypot(p.array[i * 3] - focus.x, p.array[i * 3 + 2] - focus.z) > 30) {
+        origin[i * 3] = focus.x + rand(-26, 26)
+        origin[i * 3 + 2] = focus.z + rand(-26, 26)
+      }
     }
     p.needsUpdate = true
   }

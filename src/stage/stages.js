@@ -130,7 +130,8 @@ const FOREST = {
             { key: 'grass', count: 40, ring: [0.2, 1.0], scale: [0.8, 1.5], fill: true }] },
   env: { bg: '#0a1208', fog: 0.022, fogColor: '#101a10', exposure: 1.08, camDistance: 27,
     key: '#e8d08a', keyIntensity: 2.1, rim: '#a06fd0', rimIntensity: 1.3,
-    hemiSky: '#54704a', hemiGround: '#141a10', hemiIntensity: 0.55 },
+    hemiSky: '#54704a', hemiGround: '#141a10', hemiIntensity: 0.55,
+    motes: true },   // 키르케의 마법 숲 — 보랏빛 부유물이 제자리를 맴돈다
   ambience: 'forest',
 }
 const UNDER = {
