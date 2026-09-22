@@ -882,8 +882,31 @@ Sketchfab CC-BY 두 건(Cyclops Rig / DM-913, Yamata no Orochi / tran95)은
    더 정교한 게 있으면 좋지만 급하지 않다 — 지금 것은 각진 저폴리라
    사람 캐릭터와 결이 조금 다르다.
 5. 키클롭스 **공격 동작** (Attack / Walk / Stagger). 모델은 있고 동작만 없다.
-   Quaternius *Universal Animation Library* (CC0) 가 후보인데 뼈대 호환을
-   확인해야 한다 (이 저장소는 UE 식 뼈 이름을 쓴다).
+   후보였던 Quaternius *Universal Animation Library* 는 **이미 받아서
+   `public/models/anims.glb` 로 쓰고 있는 바로 그 파일이다**(`art/
+   UniversalAnimationLibrary.zip`, 43 클립, `character.js` 의 CLIP
+   상수와 이름이 다 맞는다) — 새로 받을 것 없이 지금 있는 파일에서
+   바로 시작하면 된다.
+
+   **뼈대는 안 맞는다** — 직접 확인했다(13차 갱신). `cyclops.glb`
+   (Sketchfab "Cyclops Rig", DM-913, CC-BY)는 `Upperarm.L_32`·
+   `Forearm.L_22`·`Hand.L_20`·`Shoulder.L_33` 식으로, UAL 의
+   `upperarm_l`·`lowerarm_l`·`hand_l`·`clavicle_l` 과 이름도 다르고
+   숫자 꼬리표(`_32` 등)도 붙어 있다. `character.js` 의 `EXTRA_MAP`
+   과 같은 방식(팔 여덟 뼈만 이름으로 매핑해 `retargetClips` 에
+   넘기는 것)으로 될 걸로 보이는데, 아직 안 해봤다 — 몸통 전체를
+   옮기면 눕거나 접힌다는 게 이미 `EXTRA_MAP` 주석에 남은 교훈이라
+   **팔만** 옮겨야 한다. 매핑 표 초안:
+   ```js
+   { 'Shoulder.L_33': 'clavicle_l', 'Upperarm.L_32': 'upperarm_l',
+     'Forearm.L_22': 'lowerarm_l', 'Hand.L_20': 'hand_l',
+     'Shoulder.R_58': 'clavicle_r', 'Upperarm.R_57': 'upperarm_r',
+     'Forearm.R_56': 'lowerarm_r', 'Hand.R_45': 'hand_r' }
+   ```
+   (숫자 꼬리표는 파일마다 안 바뀌는지 먼저 확인 — gltf-transform 으로
+   내보낼 때 바뀔 수 있다). 다음 사람은 `Sword_Attack`·`Jog_Fwd_Loop`
+   정도만 옮겨서 실제로 돌려 보고, 몸이 눕지 않는지부터 스크린샷으로
+   확인하고 시작하면 된다.
 
 ### 음원
 효과음은 **파일 없이 합성해서 넣었다** (`src/core/sfx.js`, 0 바이트).
