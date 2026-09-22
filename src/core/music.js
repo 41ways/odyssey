@@ -14,6 +14,11 @@
  * 3. 볼륨은 항상 낮게. 배경은 배경이어야 한다. 기본 0.34.
  * 4. 음소거는 언제든 M. 끈 상태는 기억한다 — 껐는데 다음 판에서 다시 켜지면
  *    그건 버그로 읽힌다.
+ * 5. **기본은 음소거다.** 처음 여는 사람에게 소리를 강제로 들려주지 않는다
+ *    (사무실·공공장소에서 링크를 열어 볼 수도 있다) — 원하면 M 으로 직접
+ *    켠다. 저장된 값이 없을 때만 그렇다 — 전에 켜 봤다면(`0` 이 저장돼
+ *    있으면) 그 선택을 기억한다. sfx.js 도 이 값을 그대로 본다
+ *    (`Sfx.muted` 가 `Music.muted` 를 물려 받는다).
  */
 
 const KEY = 'odyssey.muted'
@@ -45,7 +50,9 @@ const BOSS_TRACKS = {
 
 export class Music {
   constructor() {
-    this.muted = localStorage.getItem(KEY) === '1'
+    // 저장된 값이 없으면(첫 방문) 음소거가 기본이다 — '1' 로 저장돼 있거나
+    // 아예 없으면 켠 적이 없다는 뜻. 켜 본 적이 있으면(저장값 '0') 그대로 둔다.
+    this.muted = localStorage.getItem(KEY) !== '0'
     this.vol = 0.34
     this.cur = null          // { el, key }
     this.next = null

@@ -30,6 +30,7 @@ const GAP = {
   swing: 0.05, hit: 0.03, crit: 0.06, thud: 0.04, clang: 0.05,
   draw: 0.2, shoot: 0.05, roll: 0.12, step: 0.09,
   level: 0.4, chime: 0.15, boom: 0.08, deny: 0.18, bleat: 0.5,
+  stageIn: 1.5, bossIn: 2.0, bossDown: 2.0,
 }
 
 export class Sfx {
@@ -261,6 +262,51 @@ export class Sfx {
     if (!this.#ok('level')) return
     for (const [f, d] of [[523, 0], [659, 0.09], [784, 0.18], [1047, 0.27]]) {
       this.#tone({ f0: f, f1: f, dur: 0.5, gain: 0.17, type: 'triangle', delay: d })
+    }
+  }
+
+  /**
+   * 판에 들어선다.
+   *
+   * 판·컷신·배너는 늘 있었는데 그 순간에 소리가 없었다 — 눈으로만
+   * "새 판이다" 를 알았다. 낮은 톤 하나가 부풀어 오르는 동안 넓은
+   * 잡음을 겹쳐 **문이 열리는 느낌**을 만든다. 전투 소리(swing·hit 등)
+   * 와 겹치지 않는 자리(판이 바뀌는 배너 동안은 대개 조용하다)라
+   * 길게(1.4초) 둬도 된다 — 급한 신호가 아니라 자리를 알리는 신호다.
+   */
+  stageIn() {
+    if (!this.#ok('stageIn')) return
+    this.#tone({ f0: 90, f1: 140, dur: 1.3, gain: 0.22, type: 'sine' })
+    this.#puff({ dur: 1.1, from: 300, to: 1400, q: 0.9, gain: 0.14, type: 'lowpass', rate: 0.6 })
+  }
+
+  /**
+   * 보스가 나타난다.
+   *
+   * 만나는 장면(cinema)이 뜨는 그 순간 소리가 있어야 화면 전환이 아니라
+   * '마주친 것' 으로 읽힌다. 낮게 내려가는 톤에 어긋난 5도 위 톤을
+   * 살짝 얹어 불협을 만든다 — 협화음은 안심이고, 이 순간은 안심이면
+   * 안 된다.
+   */
+  bossIn() {
+    if (!this.#ok('bossIn')) return
+    this.#tone({ f0: 160, f1: 58, dur: 1.6, gain: 0.34 })
+    this.#tone({ f0: 233, f1: 84, dur: 1.5, gain: 0.14, type: 'triangle', delay: 0.05 })
+    this.#puff({ dur: 0.9, from: 900, to: 140, q: 0.6, gain: 0.2, type: 'lowpass' })
+  }
+
+  /**
+   * 토벌 — 보스가 쓰러졌다.
+   *
+   * `level()` 보다 더 큰 사건이라 더 크게 둔다. 같은 상승 3화음 구조를
+   * 쓰되 음을 하나 더 얹고(장3화음 옥타브 마무리) 낮은 축하 톤을
+   * 바닥에 깐다 — 레벨업과 헷갈리지 않으면서 "이겼다" 로 읽힌다.
+   */
+  bossDown() {
+    if (!this.#ok('bossDown')) return
+    this.#tone({ f0: 130, f1: 130, dur: 0.9, gain: 0.22 })
+    for (const [f, d] of [[392, 0], [523, 0.1], [659, 0.2], [784, 0.32], [1047, 0.46]]) {
+      this.#tone({ f0: f, f1: f, dur: 0.6, gain: 0.18, type: 'triangle', delay: d })
     }
   }
 }

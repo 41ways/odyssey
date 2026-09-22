@@ -131,7 +131,7 @@ export class Run {
       g.setSheep?.(part)
     })
     // 구간이 제 이름을 들고 있으면 그걸 쓴다 (해안 → 동굴처럼 자리가 바뀔 때)
-    if (banner) g.hud.banner(part.name ?? this.stage.name, intro, 3.4)
+    if (banner) { g.hud.banner(part.name ?? this.stage.name, intro, 3.4); g.sfx?.stageIn() }
   }
 
   /** 웨이브를 다 치우면 보스방으로 넘어간다. */
@@ -172,6 +172,7 @@ export class Run {
     g.render3d.setBossFocus(b)
 
     // 만나는 장면. 체력바는 이 뒤에 붙여야 이름이 두 번 나오지 않는다
+    g.sfx?.bossIn()
     await g.cinema({
       title: b.cfg.name, sub: b.cfg.title ?? '', at: b.pos, zoom: 0.5, hold: 2.6,
       face: `/img/boss/${b.cfg.id}.webp?v=2`,   // v2: 세이렌 초상을 인어로
@@ -261,6 +262,7 @@ export class Run {
     }
     setTimeout(async () => {
       g.hud.setBoss(null)
+      g.sfx?.bossDown()
       // 쓰러진 자리를 한 번 보고 간다. 바로 은총 화면이 뜨면 이긴 실감이 없다
       await g.cinema({
         title: `${fell?.cfg?.name ?? this.stage.name} 토벌`,
