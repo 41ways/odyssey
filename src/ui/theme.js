@@ -7,10 +7,12 @@
  * 글꼴 — 전에는 Bodoni Moda·Playfair Display(둘 다 패션지 쪽 디도네)를
  * 썼는데, 그리스 신화보다는 보그(Vogue) 표지에 가까운 결이었다.
  * 제목은 Cinzel(로마·그리스 비문에서 그대로 뜬 대문자꼴 — 코롭게, 갓
- * 오브 워, 300 류가 즐겨 쓰는 바로 그 글꼴)로, 본문·카드는 Cormorant
- * Garamond(오래된 인문주의 활자, Cinzel과 흔히 짝지어 쓰는 조합)로
- * 바꿨다. 한글은 그대로 송명(한글에는 "비문체"에 대응하는 흔한 짝이
- * 없어 손대지 않았다).
+ * 오브 워, 300 류가 즐겨 쓰는 바로 그 글꼴)로, 영문 본문·카드는
+ * Cormorant Garamond(오래된 인문주의 활자, Cinzel과 흔히 짝지어 쓰는
+ * 조합)로 바꿨다. 한글은 송명(붓글씨 느낌, 획이 가늘다)에서 Hahmlet
+ * 으로 — 두 서체 다 한글·라틴을 같이 그리는데, 획이 Cinzel·Cormorant
+ * 쪽에 더 가까워 제목과 한 화면에 있을 때 덜 따로 논다. 시안을 여러
+ * 벌 만들어 보여 주고 고른 것 (2026-09-22).
  */
 
 export const PALETTE = {
@@ -67,8 +69,7 @@ export function installTheme() {
   link.href = 'https://fonts.googleapis.com/css2'
     + '?family=Cinzel:wght@400;500;600;700;800'
     + '&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500'
-    + '&family=Song+Myung'
-    + '&family=Gowun+Batang:wght@400;700'
+    + '&family=Hahmlet:wght@400;500;600;700'
     + '&display=swap'
   document.head.appendChild(link)
 
@@ -87,10 +88,10 @@ export function installTheme() {
   --ink:${PALETTE.ground}; --clay:#7a3a20; --clay-dim:#3d1c10;
   --ivory-dim:${PALETTE.textDim}; --bronze:${PALETTE.gold};
 
-  --serif:'Cormorant Garamond','Song Myung',"Apple SD Gothic Neo",serif;
+  --serif:'Cormorant Garamond','Hahmlet',"Apple SD Gothic Neo",serif;
   /* 제목 한 줄만 — 로마·그리스 비문 대문자꼴. 크게 뽑을수록 산다 */
-  --display:'Cinzel','Cormorant Garamond','Song Myung',serif;
-  --body:'Song Myung','Gowun Batang',"Apple SD Gothic Neo",serif;
+  --display:'Cinzel','Cormorant Garamond','Hahmlet',serif;
+  --body:'Hahmlet',"Apple SD Gothic Neo",serif;
 }
 
 /* 뇌문 띠 */

@@ -92,7 +92,7 @@ export class Companion extends Actor {
     const c = document.createElement('canvas')
     c.width = 256; c.height = 64
     const x = c.getContext('2d')
-    x.font = '600 30px "Song Myung", serif'
+    x.font = '600 30px "Hahmlet", serif'
     x.textAlign = 'center'; x.textBaseline = 'middle'
     x.shadowColor = '#000'; x.shadowBlur = 8
     x.fillStyle = '#bfe8df'
