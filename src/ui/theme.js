@@ -4,8 +4,13 @@
  * 두들겨 편 금속판에 새긴 글자. 획 굵기 대비가 크고 빛을 받는 면이 살아 있다.
  * 바탕은 그을린 쇠, 글자는 상아, 강조는 금 하나. 색을 더 늘리지 않는다.
  *
- * 글꼴은 Bodoni Moda(라틴) + 송명(한글). 둘 다 세로획이 굵고 가로획이 가늘어
- * 판에 새긴 것처럼 보인다.
+ * 글꼴 — 전에는 Bodoni Moda·Playfair Display(둘 다 패션지 쪽 디도네)를
+ * 썼는데, 그리스 신화보다는 보그(Vogue) 표지에 가까운 결이었다.
+ * 제목은 Cinzel(로마·그리스 비문에서 그대로 뜬 대문자꼴 — 코롭게, 갓
+ * 오브 워, 300 류가 즐겨 쓰는 바로 그 글꼴)로, 본문·카드는 Cormorant
+ * Garamond(오래된 인문주의 활자, Cinzel과 흔히 짝지어 쓰는 조합)로
+ * 바꿨다. 한글은 그대로 송명(한글에는 "비문체"에 대응하는 흔한 짝이
+ * 없어 손대지 않았다).
  */
 
 export const PALETTE = {
@@ -60,8 +65,8 @@ export function installTheme() {
   const link = document.createElement('link')
   link.rel = 'stylesheet'
   link.href = 'https://fonts.googleapis.com/css2'
-    + '?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,600;0,6..96,700;1,6..96,400'
-    + '&family=Playfair+Display:ital,wght@0,400;0,500;0,700;1,400'
+    + '?family=Cinzel:wght@400;500;600;700;800'
+    + '&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500'
     + '&family=Song+Myung'
     + '&family=Gowun+Batang:wght@400;700'
     + '&display=swap'
@@ -82,9 +87,9 @@ export function installTheme() {
   --ink:${PALETTE.ground}; --clay:#7a3a20; --clay-dim:#3d1c10;
   --ivory-dim:${PALETTE.textDim}; --bronze:${PALETTE.gold};
 
-  --serif:'Bodoni Moda','Song Myung',"Apple SD Gothic Neo",serif;
-  /* 제목 한 줄만 — 획 굵기 차이가 큰 디도네. 크게 뽑을수록 산다 */
-  --display:'Playfair Display','Bodoni Moda','Song Myung',serif;
+  --serif:'Cormorant Garamond','Song Myung',"Apple SD Gothic Neo",serif;
+  /* 제목 한 줄만 — 로마·그리스 비문 대문자꼴. 크게 뽑을수록 산다 */
+  --display:'Cinzel','Cormorant Garamond','Song Myung',serif;
   --body:'Song Myung','Gowun Batang',"Apple SD Gothic Neo",serif;
 }
 
