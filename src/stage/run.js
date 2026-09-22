@@ -117,6 +117,7 @@ export class Run {
       // 기다리는 시간이 화면에 안 드러난다.
       await g.loadStageModels(this.stage?.id)
       await g.render3d.applyStage(part)
+      g.ambience?.play(part.ambience)
       g.arenaRadius = g.render3d.arenaRadius
       // 판 모양은 한 군데서 만들고 쓰는 쪽마다 물려 준다 —
       // 경계를 보는 눈이 둘이 되면 반드시 어긋난다

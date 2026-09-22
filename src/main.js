@@ -34,6 +34,7 @@ import { Reel } from './ui/reel.js'
 import { Music } from './core/music.js'
 import { Level, BOSS_XP } from './player/level.js'
 import { Sfx } from './core/sfx.js'
+import { Ambience } from './core/ambience.js'
 import { Notice } from './ui/notice.js'
 import { promote, eliteChance } from './enemy/elite.js'
 import { CUT_TROY, CUT_TELEPYLOS, CUT_CAVE, CUT_AIAIA, CUT_UNDER, CUT_SIRENS, CUT_WHIRL, CUT_ITHACA, CUT_BOW, CUT_TELEGONOS, ALL_CUTS, cutArt } from './stage/cuts.js'
@@ -88,6 +89,8 @@ class Game {
     // 효과음은 파일이 없다 — 잡음과 사인파로 합성한다 (core/sfx.js).
     // 음소거를 음악과 같이 보도록 music 을 물려 준다.
     this.sfx = new Sfx(this.music)
+    // 배경 공기 — 판마다 까는 낮은 잡음 한 겹 (core/ambience.js). 음소거는 같이 본다.
+    this.ambience = new Ambience(this.music)
     this.notice = new Notice(uiRoot)     // 얻은 것이 얻은 것처럼 보이게 (ui/notice.js)
     // 여정 — 배·동료·신들의 시선, 그리고 판 사이의 갈림길 (stage/voyage.js)
     this.voyage = new Voyage()

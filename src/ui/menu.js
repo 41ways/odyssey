@@ -83,6 +83,7 @@ export class PauseMenu {
 
   toggleMute() {
     const m = this.game.music?.toggleMute()
+    this.game.ambience?.syncMute()
     if (this.open) this.render()
     return m
   }

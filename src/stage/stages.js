@@ -30,6 +30,7 @@ const SHORE = {
   env: { bg: '#150c08', fog: 0.019, fogColor: '#1a0e08', exposure: 1.05, camDistance: 27,
     key: '#ffb478', keyIntensity: 2.4, rim: '#6f8cff', rimIntensity: 1.1,
     hemiSky: '#3a4a74', hemiGround: '#140f0a', hemiIntensity: 0.55 },
+  ambience: 'sea',
 }
 /**
  * 폴리페모스의 동굴.
@@ -98,6 +99,7 @@ const CAVE = {
     // 동굴에는 하늘이 없다. 위에서 오는 빛을 거의 끄고 불빛에 맡긴다 —
     // 다만 0.18 은 발밑이 안 읽힐 만큼 어두웠다. 바닥의 결이 보이는 선까지만 올린다
     hemiSky: '#182029', hemiGround: '#0a0806', hemiIntensity: 0.28 },
+  ambience: 'cave',
 }
 const CLIFF = {
   arena: { radius: 38, ground: 'telepylos', repeat: 8, wallColor: '#2a2e33', rockColor: '#4a4f55',
@@ -111,6 +113,7 @@ const CLIFF = {
     snow: true,          // 북쪽 끝이다. 눈이 온다
     key: '#cfd8e8', keyIntensity: 2.0, rim: '#5f7fa8', rimIntensity: 1.2,
     hemiSky: '#4a5a72', hemiGround: '#181c20', hemiIntensity: 0.6 },
+  ambience: 'sea',
 }
 const FOREST = {
   arena: { radius: 36, ground: 'aiaia', repeat: 7, wallColor: '#23301f', rockColor: '#3e4a34',
@@ -127,6 +130,7 @@ const FOREST = {
   env: { bg: '#0a1208', fog: 0.022, fogColor: '#101a10', exposure: 1.08, camDistance: 27,
     key: '#e8d08a', keyIntensity: 2.1, rim: '#a06fd0', rimIntensity: 1.3,
     hemiSky: '#54704a', hemiGround: '#141a10', hemiIntensity: 0.55 },
+  ambience: 'forest',
 }
 const UNDER = {
   keepEnv: true,        // 톤 시안이 덮지 않는다 — 여기 어둠은 연출이다
@@ -142,6 +146,7 @@ const UNDER = {
   env: { bg: '#050408', fog: 0.028, fogColor: '#0a0812', exposure: 1.02, camDistance: 27,
     key: '#9a8ee0', keyIntensity: 1.6, rim: '#d05a6a', rimIntensity: 1.1,
     hemiSky: '#3a3158', hemiGround: '#0c0a12', hemiIntensity: 0.62 },
+  ambience: 'cave',
 }
 const DECK = (radius = 26, cam = 22) => ({
   arena: { radius, ground: 'ship', repeat: 5, wallColor: '#141a22', rocks: false,
@@ -151,6 +156,7 @@ const DECK = (radius = 26, cam = 22) => ({
   env: { bg: '#060c14', fog: 0.03, fogColor: '#0a121c', exposure: 1.02, camDistance: cam,
     key: '#bfd8ff', keyIntensity: 1.8, rim: '#7f5fd0', rimIntensity: 1.4,
     hemiSky: '#2a3d5a', hemiGround: '#0a1018', hemiIntensity: 0.5 },
+  ambience: 'sea',
 })
 /** 가로로 누운 뱃전. 스킬라가 매달릴 난간이 화면 위를 가로지른다. */
 const BROADSIDE = {
@@ -165,6 +171,7 @@ const BROADSIDE = {
   env: { bg: '#04080e', fog: 0.03, fogColor: '#070d16', exposure: 1.0, camDistance: 29,
     key: '#9fc0e8', keyIntensity: 1.8, rim: '#4ad09a', rimIntensity: 1.6,
     hemiSky: '#223349', hemiGround: '#060a10', hemiIntensity: 0.45 },
+  ambience: 'sea',
 }
 /**
  * 소용돌이. 카리브디스가 있는 곳은 갑판이 아니라 **물 위**다.
@@ -179,6 +186,7 @@ const WHIRL = {
   env: { bg: '#050c14', fog: 0.032, fogColor: '#08111c', exposure: 1.0, camDistance: 24,
     key: '#8fb8e0', keyIntensity: 1.6, rim: '#4a90d0', rimIntensity: 1.7,
     hemiSky: '#1e3350', hemiGround: '#050a12', hemiIntensity: 0.5 },
+  ambience: 'sea',
 }
 const STORM = {
   arena: { radius: 28, ground: 'ship', repeat: 5, wallColor: '#10161e', rocks: false,
@@ -187,6 +195,7 @@ const STORM = {
   env: { bg: '#04080e', fog: 0.034, fogColor: '#070d16', exposure: 1.0, camDistance: 24,
     key: '#9fc0e8', keyIntensity: 1.7, rim: '#4a7fd0', rimIntensity: 1.5,
     hemiSky: '#223349', hemiGround: '#060a10', hemiIntensity: 0.45 },
+  ambience: 'sea',
 }
 const HALL = {
   arena: { radius: 23, ground: 'ithaca', repeat: 8, wallColor: '#2a2420', rocks: false,
@@ -201,6 +210,7 @@ const HALL = {
   env: { bg: '#0f0a06', fog: 0.024, fogColor: '#160f08', exposure: 1.1, camDistance: 24,
     key: '#ffc888', keyIntensity: 2.6, rim: '#8a6fd0', rimIntensity: 0.9,
     hemiSky: '#4a3f5a', hemiGround: '#1a1208', hemiIntensity: 0.5 },
+  ambience: 'hall',
 }
 const BEACH = {
   arena: { radius: 36, ground: 'shore', repeat: 8, wallColor: '#241f1a', rockColor: '#4a4238',
@@ -208,6 +218,7 @@ const BEACH = {
   env: { bg: '#0a0c12', fog: 0.02, fogColor: '#10131a', exposure: 1.04, camDistance: 27,
     key: '#e8c8a0', keyIntensity: 2.0, rim: '#6f7fd0', rimIntensity: 1.2,
     hemiSky: '#3a4258', hemiGround: '#14120e', hemiIntensity: 0.55 },
+  ambience: 'sea',
 }
 
 /* ── 판 ──────────────────────────────────────────────────── */
