@@ -25,8 +25,18 @@ const ICON = {
   nobody: `<svg viewBox="0 0 64 64" fill="none" stroke="#c8973e" stroke-width="2.2">
     <path d="M32 8c12 0 20 9 20 22 0 14-9 24-20 24S12 44 12 30C12 17 20 8 32 8z" fill="#c8973e" fill-opacity=".12"/>
     <path d="M22 46c4 3 16 3 20 0" stroke-linecap="round"/></svg>`,
+  // 메시나 갈림길(main.js 의 chooseFork) 도 이 카드를 그대로 빌려 쓴다 —
+  // 스킬라(절벽·촉수)와 카리브디스(소용돌이)도 있으면 고르기 전에 눈에 걸린다.
+  skylla: `<svg viewBox="0 0 64 64" fill="none" stroke="#c8973e" stroke-width="2.2">
+    <path d="M10 8v30c0 14 10 22 22 22s22-8 22-22V8" fill="#c8973e" fill-opacity=".12"/>
+    <path d="M22 24c0 6 4 10 10 10s10-4 10-10" stroke-linecap="round"/>
+    <path d="M18 40c2 6 7 10 14 10s12-4 14-10" stroke-linecap="round"/></svg>`,
+  charybdis: `<svg viewBox="0 0 64 64" fill="none" stroke="#c8973e" stroke-width="2.2">
+    <path d="M32 8a24 24 0 1 1 -17 7" stroke-linecap="round"/>
+    <path d="M32 16a16 16 0 1 1 -11 4.6" stroke-linecap="round"/>
+    <circle cx="32" cy="32" r="4.6" fill="#c8973e" fill-opacity=".35"/></svg>`,
 }
-const iconFor = u => ICON[u.id] ?? ICON[u.lineage] ?? ''
+const iconFor = u => ICON[u.id] ?? ICON[u.boss] ?? ICON[u.lineage] ?? ''
 
 const CSS = `
 #levelup { position:absolute; inset:0; z-index:50; display:none; place-items:center;
