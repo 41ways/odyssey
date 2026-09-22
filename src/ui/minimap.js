@@ -24,26 +24,40 @@ import { installTheme, meanderURI } from './theme.js'
  * 위쪽이 늘 -z 다 — 지도를 돌리면 오히려 화면과 어긋난다.
  */
 
-const SIZE = 148          // 원반 지름(px)
-const DOT = { me: 4.2, ally: 3.2, enemy: 3.0, boss: 6.0, loot: 2.4 }
+// 168 → 224. 처음엔 아껴서 작게 뒀는데, 판이 34~38 반지름짜리라 점 사이
+// 간격이 손톱만 해서 실제로 보고 판단하기엔 너무 작았다. 정보가 아니라
+// 장식이 되는 크기였던 셈이다. 오른쪽 위 한 자리를 이것과 할 일 판이
+// 나눠 쓰므로, 키우는 만큼 ui/quest.js 의 자리도 같이 밀어야 한다.
+const SIZE = 224          // 원반 지름(px)
+const DOT = { me: 6.4, ally: 4.6, enemy: 4.2, boss: 8.6, loot: 3.2 }
 
 const CSS = `
-#minimap { position:absolute; right:18px; top:16px; z-index:12; pointer-events:none;
-  width:${SIZE}px; height:${SIZE}px; }
-/* 청동 원반 — 체력판과 같은 결로. 테두리 한 줄만으로는 브라우저 위젯처럼 보인다 */
+#minimap { position:absolute; right:20px; top:18px; z-index:12; pointer-events:none;
+  width:${SIZE}px; height:${SIZE}px; filter:drop-shadow(0 10px 28px rgba(0,0,0,.6)); }
+/* 청동 원반 — 체력판과 같은 결로. 테두리 한 줄만으로는 브라우저 위젯처럼 보인다.
+   테를 두 겹으로 — 안쪽은 밝게 도드라지고 바깥쪽은 판 자체의 두께처럼 어둡게. */
 #minimap .disc { position:absolute; inset:0; border-radius:50%;
-  background:radial-gradient(circle at 42% 34%, #221d15, #0d0b08 72%);
+  background:radial-gradient(circle at 42% 34%, #241f16, #0d0b08 72%);
   box-shadow:
-    inset 0 1px 0 rgba(255,225,165,.22), inset 0 0 0 1px rgba(232,200,132,.26),
-    inset 0 0 26px rgba(0,0,0,.9), 0 8px 26px rgba(0,0,0,.7); }
-#minimap canvas { position:absolute; inset:5px; width:calc(100% - 10px); height:calc(100% - 10px);
+    inset 0 2px 0 rgba(255,225,165,.26), inset 0 0 0 2px rgba(232,200,132,.32),
+    inset 0 0 0 8px rgba(20,16,10,.55), inset 0 0 34px rgba(0,0,0,.9),
+    0 0 0 1px rgba(0,0,0,.6); }
+#minimap canvas { position:absolute; inset:9px; width:calc(100% - 18px); height:calc(100% - 18px);
   border-radius:50%; }
+/* 네 귀의 못 — 체력판(hud.js 의 .rivet)과 같은 결. 원반도 청동판의 하나로 읽히게 */
+#minimap .rivet { position:absolute; width:7px; height:7px; border-radius:50%;
+  background:radial-gradient(circle at 35% 30%, #ffe6b4, #a3843f 55%, #4a3a1c 100%);
+  box-shadow:0 1px 2px rgba(0,0,0,.8); z-index:1; }
+#minimap .rivet.n { left:50%; top:3px; transform:translateX(-50%); }
+#minimap .rivet.s { left:50%; bottom:3px; transform:translateX(-50%); }
+#minimap .rivet.w { left:3px; top:50%; transform:translateY(-50%); }
+#minimap .rivet.e { right:3px; top:50%; transform:translateY(-50%); }
 /* 위쪽에 뇌문 한 조각 — 어디가 북쪽인지 표시도 겸한다 */
-#minimap .north { position:absolute; left:50%; top:-3px; transform:translateX(-50%);
-  width:44px; height:7px; background-image:${meanderURI('#c8973e', 0.9)};
-  background-repeat:repeat-x; background-size:auto 7px; opacity:.55; }
-#minimap .label { position:absolute; left:0; right:0; bottom:-16px; text-align:center;
-  font-family:var(--serif); font-size:10px; letter-spacing:.14em; color:#7d7264;
+#minimap .north { position:absolute; left:50%; top:-4px; transform:translateX(-50%);
+  width:60px; height:9px; background-image:${meanderURI('#c8973e', 0.95)};
+  background-repeat:repeat-x; background-size:auto 9px; opacity:.6; z-index:1; }
+#minimap .label { position:absolute; left:0; right:0; bottom:-20px; text-align:center;
+  font-family:var(--serif); font-size:12.5px; letter-spacing:.14em; color:#9d8d6c;
   text-shadow:0 1px 3px rgba(0,0,0,.9); white-space:nowrap; }
 #minimap.off { display:none; }
 `
@@ -57,14 +71,16 @@ export class Minimap {
 
     const el = document.createElement('div')
     el.id = 'minimap'
-    el.innerHTML = `<div class="disc"></div><canvas></canvas><i class="north"></i><span class="label"></span>`
+    el.innerHTML = `<div class="disc"></div><canvas></canvas>
+      <i class="rivet n"></i><i class="rivet s"></i><i class="rivet w"></i><i class="rivet e"></i>
+      <i class="north"></i><span class="label"></span>`
     root.appendChild(el)
     this.el = el
     this.canvas = el.querySelector('canvas')
     this.labelEl = el.querySelector('.label')
     // 레티나에서 점이 뭉개지지 않게 두 배로 그린다
     const dpr = Math.min(2, devicePixelRatio || 1)
-    this.canvas.width = this.canvas.height = Math.round((SIZE - 10) * dpr)
+    this.canvas.width = this.canvas.height = Math.round((SIZE - 18) * dpr)
     this.ctx = this.canvas.getContext('2d')
     this.dpr = dpr
     this._label = null
@@ -105,7 +121,7 @@ export class Minimap {
     ctx.fillStyle = 'rgba(122,102,62,.30)'
     ctx.fill()
     ctx.strokeStyle = 'rgba(232,200,132,.62)'
-    ctx.lineWidth = 1.4 * this.dpr
+    ctx.lineWidth = 1.8 * this.dpr
     ctx.stroke()
     ctx.restore()
 
@@ -124,7 +140,7 @@ export class Minimap {
       ctx.arc(px(x), pz(z), r * this.dpr, 0, Math.PI * 2)
       ctx.fillStyle = fill
       ctx.fill()
-      if (ring) { ctx.strokeStyle = ring; ctx.lineWidth = 1.2 * this.dpr; ctx.stroke() }
+      if (ring) { ctx.strokeStyle = ring; ctx.lineWidth = 1.6 * this.dpr; ctx.stroke() }
     }
 
     // ── 전리품 ── 흘린 것을 두고 가지 않게
@@ -168,7 +184,7 @@ export class Minimap {
       ctx.fillStyle = '#ffe6b8'
       ctx.fill()
       ctx.strokeStyle = 'rgba(40,28,10,.9)'
-      ctx.lineWidth = 1 * this.dpr
+      ctx.lineWidth = 1.3 * this.dpr
       ctx.stroke()
       ctx.restore()
     }

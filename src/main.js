@@ -1504,6 +1504,24 @@ if (import.meta.env?.DEV) {
         img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg)
       })
       g2.drawImage(img, 0, 0, w, h)
+
+      /* 위 SVG 합성은 outerHTML 을 그대로 직렬화하는데, XMLSerializer 는
+         <canvas> 를 **빈 태그**로만 옮긴다 — 캔버스에 그린 픽셀은 DOM 이
+         아니라서 안 딸려 간다. 미니맵(ui/minimap.js)이 그 캔버스라서,
+         합성한 장면에서는 미니맵 원반이 늘 아무것도 없는 빈 원이었다.
+         그 캔버스만 따로 한 번 더, 제자리에 찍어 준다. */
+      const mmCanvas = document.getElementById('minimap')?.querySelector('canvas')
+      if (mmCanvas?.width) {
+        const rect = mmCanvas.getBoundingClientRect()
+        const kx = w / innerWidth, ky = h / innerHeight
+        const x = rect.left * kx, y = rect.top * ky, cw = rect.width * kx, ch = rect.height * ky
+        g2.save()
+        g2.beginPath()
+        g2.ellipse(x + cw / 2, y + ch / 2, cw / 2, ch / 2, 0, 0, Math.PI * 2)   // CSS border-radius:50% 를 흉내
+        g2.clip()
+        g2.drawImage(mmCanvas, x, y, cw, ch)
+        g2.restore()
+      }
     } catch (err) {
       console.warn('[shot] HUD 합성 실패, 3D 만 담는다:', err)
     }

@@ -28,7 +28,6 @@ import { models } from '../render/models.js'
  */
 
 const R = 0.55          // 몸 반지름
-const TOUCH = 0.55      // 이만큼 겹치면 부딪힌 것이다
 const CALM = 4.5        // 한 번 울면 이만큼은 다시 안 운다
 
 export class Sheep {
@@ -87,7 +86,9 @@ export class Sheep {
     const bump = a => {
       if (!a || a.dead) return false
       const d = dist2d(a.pos, this.pos)
-      if (d > R + (a.radius ?? 0.45) + TOUCH - 0.55) return false
+      // 몸이 실제로 맞닿는 거리. TOUCH 라는 여유값을 더했다가 그대로 다시
+      // 빼는 죽은 식이 있었다 — 뭘 조정하려다 지우지 않은 자국이었다. 정리한다.
+      if (d > R + (a.radius ?? 0.45)) return false
       // 서로 밀어낸다. 양이 가볍다
       const nx = (this.pos.x - a.pos.x) / (d || 1), nz = (this.pos.z - a.pos.z) / (d || 1)
       const push = (R + (a.radius ?? 0.45) - d) * 0.9
@@ -104,7 +105,17 @@ export class Sheep {
       // 놀라서 사람 반대쪽으로 종종걸음
       speed = 5.4
       const a = Math.atan2(this.pos.x - p.pos.x, this.pos.z - p.pos.z)
-      this.goal.set(this.pos.x + Math.sin(a) * 4, 0, this.pos.z + Math.cos(a) * 4)
+      let gx = this.pos.x + Math.sin(a) * 4, gz = this.pos.z + Math.cos(a) * 4
+      /* 놀란 자리가 벽 가까이면 도망갈 방향이 벽 밖을 가리킨다. 평소 goal 은
+         arena.radiusAt 으로 안쪽만 고르는데(아래), 여기는 매번 급하게 정해야
+         해서 그 검사를 건너뛰고 있었다 — 놀란 양이 동굴 벽을 뚫고 나가
+         허공에 서 있는 걸 봤다. 여기도 같은 경계로 깎는다. */
+      const arena0 = this.world.render3d?.arena
+      const ga = Math.atan2(gx, gz)
+      const lim0 = (arena0 ? arena0.radiusAt(ga) : (this.world.arenaRadius ?? 20)) - 1.5
+      const gr = Math.hypot(gx, gz)
+      if (gr > lim0) { const k = lim0 / gr; gx *= k; gz *= k }
+      this.goal.set(gx, 0, gz)
     } else if (this.wait > 0) {
       this.wait -= dt
       this._run += (0 - this._run) * Math.min(1, dt * 6)
