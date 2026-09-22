@@ -253,8 +253,17 @@ const CSS = `
 #hud .boss .phases { position:absolute; inset:0; display:flex; pointer-events:none; }
 #hud .boss .phases s { flex:1; border-right:1px solid rgba(0,0,0,.6); }
 #hud .boss .phases s:last-child { border:0; }
+/* 엔딩 화면 — 배경이 검정 그라데이션뿐이었다. 텔레고노스 컷신
+   (stage/cuts.js 의 CUT_TELEGONOS) 과 같은 해변 그림을 깔아서,
+   방금 본 그 자리에서 죽었다는 게 이어지게 한다. 그림 위 그라데이션은
+   그대로 두고 세기만 살짝 줄였다 — 글이 여전히 또렷하게 읽혀야 한다. */
 #hud .credits { position:absolute; inset:0; z-index:60; display:none; place-items:center;
-  background:linear-gradient(180deg, rgba(4,3,6,.95), rgba(8,5,4,.98)); }
+  background:
+    linear-gradient(180deg, rgba(4,3,6,.88), rgba(8,5,4,.95)),
+    url('/img/boss/telegonos.webp');
+  background-size: auto, cover;
+  background-position: 0 0, 42% 22%;
+  background-repeat: no-repeat, no-repeat; }
 #hud .credits.on { display:grid; }
 #hud .credits .in { text-align:center; max-width:620px; padding:0 24px; animation:lvlIn .8s ease; }
 #hud .credits h1 { font-family:var(--serif); font-size:38px; font-weight:700;
