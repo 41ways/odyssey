@@ -853,7 +853,7 @@ export class World {
       const geo = new THREE.BufferGeometry()
       geo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
       const mat = new THREE.PointsMaterial({
-        color: '#ff8a3a', size: 0.09, transparent: true, opacity: 0.85,
+        color: '#ffa04e', size: 0.24, transparent: true, opacity: 0.95,
         depthWrite: false, sizeAttenuation: true, blending: THREE.AdditiveBlending,
       })
       const pts = new THREE.Points(geo, mat)
@@ -911,7 +911,7 @@ export class World {
       const geo = new THREE.BufferGeometry()
       geo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
       const mat = new THREE.PointsMaterial({
-        color: '#d0a0f0', size: 0.1, transparent: true, opacity: 0.8,
+        color: '#dcb4ff', size: 0.26, transparent: true, opacity: 0.95,
         depthWrite: false, sizeAttenuation: true, blending: THREE.AdditiveBlending,
       })
       const pts = new THREE.Points(geo, mat)
@@ -1103,7 +1103,7 @@ export class World {
       const geo = new THREE.BufferGeometry()
       geo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
       const mat = new THREE.PointsMaterial({
-        color: '#ffa04a', size: 0.08, transparent: true, opacity: 0.85,
+        color: '#ffb454', size: 0.2, transparent: true, opacity: 0.95,
         depthWrite: false, sizeAttenuation: true, blending: THREE.AdditiveBlending,
       })
       const pts = new THREE.Points(geo, mat)
