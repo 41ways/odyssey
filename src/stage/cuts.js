@@ -31,15 +31,10 @@
  *    글로 부르면 어긋난 게 그대로 화면에 남는다. 있는 그림으로 할 수 있는
  *    이야기를 한다.
  *
- * ── 대역으로 쓴 것 (솔직하게) ──
- * · 동굴 두 번째 장에 `boss/antiphates` 를 쓴다. 폴리페모스가 바위로 문을
- *   막는 그림이 없다. 안티파테스는 바위를 머리 위로 든 거인이라, 실루엣과
- *   덩치가 그 순간과 같다 — 다른 거인의 초상이라는 건 사실이다.
- * · 저승 첫 장에 `lude-ithaca`(붉은 빛이 도는 무너진 홀)를 쓴다. 저승 내부
- *   그림이 없다. 해가 들지 않는 실내라는 점만 같다.
- * · 해협 두 번째 장의 절벽은 `lude-aiaia-b` 다. 스킬라가 붙은 절벽 그림이
- *   따로 없다.
- * 아직 필요한 그림은 HANDOFF.md 에 프롬프트까지 적어 뒀다.
+ * ── 9차 갱신 (2026-09-22) ──
+ * 위 세 자리(동굴 문 막기·저승 내부·스킬라 절벽) 모두 전용 그림으로
+ * 갈았다 (`cut-cave-1/2`, `cut-underworld`, `cut-skylla`, 제미나이로
+ * 직접 만듦). 더 이상 다른 장면의 그림을 빌려 쓰지 않는다.
  */
 
 /**
@@ -101,15 +96,13 @@ export const CUT_CAVE = {
   where: '폴리페모스의 동굴',
   shots: [
     // 동굴 입구를 안에서 — 넓게 보고, 입구로 당기고, 그 다음 막힌다.
-    // 저승 액자용 그림이지만 다섯 판 뒤라 겹치지 않는다.
-    { art: '/img/lude-underworld.webp', hold: 1800, focus: [50, 50, 1.0],
+    { art: '/img/cut-cave-1.webp', hold: 1800, focus: [50, 50, 1.0],
       text: '동굴 하나. 양 떼와 치즈가 있었다.' },
-    { art: '/img/lude-underworld.webp', hold: 1700, focus: [52, 44, 1.8],
+    { art: '/img/cut-cave-1.webp', hold: 1700, focus: [50, 40, 1.7],
       text: '<em>주인은 없었다.</em>' },
-    // 바위를 머리 위로 든 거인 — 문이 막히는 순간의 대역이다 (진짜 그림 필요)
-    { art: '/img/boss/antiphates.webp', hold: 1800, focus: [50, 30, 1.5], tall: false,
+    { art: '/img/cut-cave-2.webp', hold: 1800, focus: [50, 45, 1.3],
       text: '해가 질 때 무언가가 돌아왔다.' },
-    { art: '/img/boss/antiphates.webp', hold: 2000, focus: [50, 46, 2.3], tall: false,
+    { art: '/img/cut-cave-2.webp', hold: 2000, focus: [50, 48, 2.0],
       text: '돌아온 것이 <em>바위로 문을 막았다.</em><br>스무 명이 밀어도 꼼짝하지 않는 바위였다.' },
     { art: '/img/boss/polyphemos.webp', hold: 2300,
       text: '그것이 우리를 세어 보았다.' },
@@ -150,11 +143,10 @@ export const CUT_UNDER = {
   mood: 'under',
   where: '저승 — 해가 들지 않는 곳',
   shots: [
-    // 해가 들지 않는 실내를 넓게 → 어둠으로 당겨 → 흙에서 손이 올라온다.
-    // 이타카 액자용 그림이지만 그건 세 판 뒤다.
-    { art: '/img/lude-ithaca.webp', hold: 1900, focus: [50, 50, 1.0],
+    // 해가 들지 않는 실내를 넓게 → 그 안에 선 사람 쪽으로 당긴다.
+    { art: '/img/cut-underworld.webp', hold: 1900, focus: [50, 50, 1.0],
       text: '바다 끝에 <em>해가 들지 않는 곳</em>이 있었다.' },
-    { art: '/img/lude-ithaca.webp', hold: 1700, focus: [42, 58, 1.9],
+    { art: '/img/cut-underworld.webp', hold: 1700, focus: [72, 72, 1.9],
       text: '살아서 여기 온 사람은 없다고 했다.' },
     { art: '/img/rise/rise-agamemnon-1.webp', hold: 1800, focus: [50, 70, 1.2],
       text: '구덩이를 파고 <em>피를 부으라</em> 했다.' },
@@ -184,7 +176,7 @@ export const CUT_WHIRL = {
       text: '해협이 좁아진다.' },
     { art: '/img/lude-telepylos-b.webp', hold: 1700, focus: [34, 44, 2.0],
       text: '<em>양쪽 다 무사하지 않다.</em>' },
-    { art: '/img/lude-aiaia-b.webp', hold: 1800, focus: [30, 50, 1.6],
+    { art: '/img/cut-skylla.webp', hold: 1800, focus: [40, 45, 1.4],
       text: '한쪽은 절벽.' },
     { art: '/img/boss/charybdis.webp', hold: 1800, focus: [50, 46, 1.3],
       text: '한쪽은 <em>바다가 통째로 도는 자리.</em>' },
