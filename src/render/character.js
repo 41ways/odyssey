@@ -351,6 +351,7 @@ export function createCharacter({ height = 1.82, facing = 0, tint = null, gear: 
   }
 
   let lastOneShot = null
+  let atkCore = CORE.idle
 
   return {
     root, mats, mixer, actions, boneByName,
@@ -455,13 +456,27 @@ export function createCharacter({ height = 1.82, facing = 0, tint = null, gear: 
       } else if (s.attack) {
         const key = `atk${s.attackId ?? ''}`
         if (lastOneShot !== key) {
+          // 타를 시작하는 이 순간의 core 자리는 "지금 s.run" 이 아니라
+          // 방금까지 메인 켜가 돌리던 클립에서 그대로 이어받는다. 공격을
+          // 누르면 보통 그 프레임에 이동 속도가 같이 꺾이는데, s.run 으로
+          // 다시 고르면 core 가 메인이 빠져나오는 자세(Sprint_Loop 등)와
+          // 다른 빠르기의 다리 클립으로 갈아타 버려 두 다리가 같이 보였다.
+          // 콤보 이어치기(2·3 타)는 방금 켜가 이미 팔 동작(Sword_A 등)이라
+          // 여기 안 걸린다 — 그럴 땐 직전 타에서 정한 atkCore 를 그대로 둔다.
+          const prevName = current?.getClip().name
+          if (prevName === CLIP.sprint) atkCore = CORE.sprint
+          else if (prevName === CLIP.run) atkCore = CORE.run
+          else if (prevName === CLIP.idle) atkCore = CORE.idle
           // 타마다 다른 동작. 없으면 한 종류로 돌아간다
           const name = pick(SLASH[s.attackId] ?? CLIP.attack)
           play(name, { fade: 0.05, speed: fitSpeed(name, s.attackDuration ?? 0.4), restart: true })
           lastOneShot = key
         }
         // 대역(Sword_Attack)은 몸 전체 클립이라 밑에 깔 필요가 없다 — 팔만 도는 것일 때만
-        if (EXTRA.includes(current?.getClip().name)) layerCore(0.05); else stopCore()
+        if (EXTRA.includes(current?.getClip().name)) {
+          if (actions[atkCore]) playCore(atkCore, { fade: 0.05, speed: 0.85 + s.run * 0.35 })
+          else stopCore()
+        } else stopCore()
       } else if (s.draw != null) {
         const name = pick(CLIP.aim)
         play(name, { fade: 0.12 })

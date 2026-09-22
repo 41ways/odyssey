@@ -650,9 +650,17 @@ export class Player extends Actor {
       if (this.drawing < 0.05) this.world.sfx?.draw()
       const was = this.drawing
       this.drawing += dt * this.stats.drawRate
-      // 만작에 닿는 그 프레임에 '띵'. 조준하는 동안은 화살촉 색을 못 보므로
-      // 놓을 때를 눈이 아니라 귀가 알려 줘야 한다.
-      if (was < TUNING.bow.fullDraw && this.drawing >= TUNING.bow.fullDraw) this.world.sfx?.ready()
+      // 만작에 닿는 그 프레임에 '띵' + 조준선이 밝아진다.
+      // 소리는 기본이 음소거라(core/music.js) **눈으로도 알 수 있어야** 한다 —
+      // 소리 하나에만 기대면 소리를 끈 사람에게는 신호가 아예 없는 것과 같다.
+      // 조준선 색은 #visual() 에서 drawK 로 계속 갱신되지만, 그 색 변화만으로는
+      // "지금 이 순간 찼다" 는 못 알아챈다(서서히 바뀌는 값이라 문턱을 넘는
+      // 그 프레임이 도드라지지 않는다) — 그래서 넘는 순간에만 링을 한 번 터뜨려
+      // "지금" 을 못 박는다.
+      if (was < TUNING.bow.fullDraw && this.drawing >= TUNING.bow.fullDraw) {
+        this.world.sfx?.ready()
+        this.fx.ring(this.pos.x, this.pos.z, { color: '#fff2c8', radius: 1.4, life: 0.3 })
+      }
       this.facing = dampAngle(this.facing, Math.atan2(aim.x - this.pos.x, aim.z - this.pos.z), TUNING.turnHalf * 2.4, dt)
       if (!this.input.isHeld('bow') && this.drawing >= TUNING.bow.minDraw) this.#release()
       else if (this.drawing > TUNING.bow.fullDraw + 1.2) this.#release()  // 무한 홀드 방지
@@ -1135,6 +1143,10 @@ export class Player extends Actor {
       const len = 8 + (drawK ?? 0) * 12
       this.aimLine.scale.set(1, len, 1)
       this.aimLine.position.set(0, 0.04, len / 2 + 0.6)
+      // 만작(drawK 1)이면 금빛에서 흰빛으로 — 색이 바뀌는 것 자체가
+      // "지금 놓아도 된다" 는 신호다. 매 프레임 그냥 덮어써도 싸다 —
+      // Color.set 은 문자열 하나 파싱하는 정도다.
+      this.aimLine.material.color.set((drawK ?? 0) >= 1 ? '#fff6de' : '#ffcf7a')
     }
   }
 

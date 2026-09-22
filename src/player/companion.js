@@ -84,11 +84,20 @@ export class Companion extends Actor {
     ring.position.y = 0.02
     this.ring = ring
     this.group.add(ring)
-    this.#nameTag(name)
+    this.#nameTag(name, slot)
   }
 
-  /** 머리 위 이름. 동료가 '누군가' 여야 잃을 때 무게가 있다 */
-  #nameTag(name) {
+  /**
+   * 머리 위 이름. 동료가 '누군가' 여야 잃을 때 무게가 있다.
+   *
+   * 셋 다 같은 높이(2.25)에 박아 뒀더니, 전투 중 셋이 같은 적 하나에게
+   * 몰리면(가까운 잡졸을 쫓는 게 동료 AI 의 전부다) 이름 세 개가 한
+   * 화면에서 겹쳐 읽을 수 없는 얼룩이 됐다 — 실제로 플레이하다 본 것.
+   * `slot` 은 이미 자리를 흩는 데 쓰던 값이다(설 때 x 좌표를
+   * `spec.slot * 1.4` 로 벌린다, main.js 의 setAllies). 같은 값을 높이에도
+   * 써서, 셋이 한 몸처럼 뭉쳐도 이름은 세 층으로 갈라져 남는다.
+   */
+  #nameTag(name, slot = 0) {
     const c = document.createElement('canvas')
     c.width = 256; c.height = 64
     const x = c.getContext('2d')
@@ -101,7 +110,7 @@ export class Companion extends Actor {
     tex.colorSpace = THREE.SRGBColorSpace
     const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, opacity: 0.85 }))
     sp.scale.set(1.5, 0.375, 1)
-    sp.position.y = 2.25
+    sp.position.y = 2.25 + slot * 0.24
     this.group.add(sp)
     this._tag = { sprite: sp, ctx: x, canvas: c, tex, name }
   }
