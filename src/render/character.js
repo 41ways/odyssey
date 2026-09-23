@@ -395,6 +395,24 @@ export function createCharacter({ height = 1.82, facing = 0, tint = null, gear: 
   let lastOneShot = null
   let atkCore = CORE.idle
   let atkCoreTime = 0
+  let drawCore = CORE.idle
+  let drawCoreTime = 0
+
+  /**
+   * 로코모션(서기/걷기/뛰기)에서 팔만 도는 동작(공격·활 당기기)으로 막
+   * 넘어가는 순간, 그 로코모션의 갈래와 재생 시간을 잡아 둔다. 공격과
+   * 활 당기기 둘 다 같은 문제(진입 순간 core 가 "지금 s.run" 으로 다시
+   * 골라 메인이 빠져나오는 갈래와 어긋나 겹쳐 보이는 것)를 겪어서 공용으로
+   * 뺐다 — `play()` 가 `current` 를 팔 동작으로 바꿔치우기 **전에** 불러야
+   * 한다.
+   */
+  const captureLocomotionCore = () => {
+    const name = current?.getClip().name
+    if (name === CLIP.sprint) return { core: CORE.sprint, time: current.time }
+    if (name === CLIP.run) return { core: CORE.run, time: current.time }
+    if (name === CLIP.idle) return { core: CORE.idle, time: current.time }
+    return null
+  }
 
   return {
     root, mats, mixer, actions, boneByName,
@@ -477,23 +495,6 @@ export function createCharacter({ height = 1.82, facing = 0, tint = null, gear: 
       }
       if (die?.paused) die.paused = false
 
-      /* 팔만 도는 동작(EXTRA)을 골랐으면, 그 밑에 다리·몸통용 "팔 없는" 동작을
-         같이 깐다 — 지금 움직이는 정도(s.run)에 맞춰 서기/걷기/뛰기 중 하나.
-         몸 전체를 쓰는 동작(죽음·구르기·완전한 칼질 대역)일 때는 꺼 둔다 —
-         안 그러면 같은 뼈를 두 켜가 동시에 몰아서 되레 어긋난다.
-         `fade` 는 팔 쪽(`play()`)에 준 값과 맞춰서 받는다 — 처음 켜질 때
-         (currentCore 가 비어 있을 때) 팔은 0.05초 만에 확 바뀌는데 몸통이
-         기본값(0.16초)으로 천천히 따라오면, 그 사이 팔은 이미 새 동작인데
-         몸통은 아직 직전 자세에 걸려 있는 구간이 110ms 가까이 생긴다.
-         칼을 휘두르는 순간 몸이 두 자세로 겹쳐 보인 게 이것이었다 — 켜는
-         순간만 팔과 같은 속도로 맞추고, 이미 돌고 있는 core 끼리(서기→
-         걷기→뛰기) 바뀌는 자연스러운 전환은 원래 속도(0.16초)를 그대로 쓴다. */
-      const layerCore = (fade = 0.16) => {
-        const name = s.run > 0.85 ? CORE.sprint : s.run > 0.12 ? CORE.run : CORE.idle
-        if (actions[name]) playCore(name, { fade: currentCore ? fade : Math.min(fade, 0.05), speed: 0.85 + s.run * 0.35 })
-        else stopCore()
-      }
-
       if (s.dead) { play(CLIP.die, { fade: 0.2, speed: 1 }); stopCore() }
       else if (s.roll > 0) {
         if (lastOneShot !== 'roll') { play(CLIP.roll, { fade: 0.06, speed: fitSpeed(CLIP.roll, s.rollDuration ?? 0.44), restart: true }); lastOneShot = 'roll' }
@@ -502,21 +503,12 @@ export function createCharacter({ height = 1.82, facing = 0, tint = null, gear: 
         const key = `atk${s.attackId ?? ''}`
         if (lastOneShot !== key) {
           // 타를 시작하는 이 순간의 core 자리는 "지금 s.run" 이 아니라
-          // 방금까지 메인 켜가 돌리던 클립에서 그대로 이어받는다. 공격을
-          // 누르면 보통 그 프레임에 이동 속도가 같이 꺾이는데, s.run 으로
-          // 다시 고르면 core 가 메인이 빠져나오는 자세(Sprint_Loop 등)와
-          // 다른 빠르기의 다리 클립으로 갈아타 버려 두 다리가 같이 보였다.
-          // 콤보 이어치기(2·3 타)는 방금 켜가 이미 팔 동작(Sword_A 등)이라
-          // 여기 안 걸린다 — 그럴 땐 직전 타에서 정한 atkCore 를 그대로 둔다.
-          // play() 가 곧 current 를 팔 동작으로 바꿔치우므로, 지금(로코모션이
-          // 아직 current 인 순간)의 시간을 먼저 챙겨 둔다 — syncTime() 이
-          // playCore() 시점엔 이미 늦어서(current 가 Sword_A 로 바뀐 뒤라)
-          // 못 찾는다.
-          const prevAction = current
-          const prevName = prevAction?.getClip().name
-          if (prevName === CLIP.sprint) { atkCore = CORE.sprint; atkCoreTime = prevAction.time }
-          else if (prevName === CLIP.run) { atkCore = CORE.run; atkCoreTime = prevAction.time }
-          else if (prevName === CLIP.idle) { atkCore = CORE.idle; atkCoreTime = prevAction.time }
+          // 방금까지 메인 켜가 돌리던 클립에서 그대로 이어받는다 —
+          // captureLocomotionCore 주석 참고. 콤보 이어치기(2·3 타)는
+          // 방금 켜가 이미 팔 동작(Sword_A 등)이라 여기 안 걸린다 —
+          // 그럴 땐 직전 타에서 정한 atkCore 를 그대로 둔다.
+          const cap = captureLocomotionCore()
+          if (cap) { atkCore = cap.core; atkCoreTime = cap.time }
           // 타마다 다른 동작. 없으면 한 종류로 돌아간다
           const name = pick(SLASH[s.attackId] ?? CLIP.attack)
           play(name, { fade: 0.05, speed: fitSpeed(name, s.attackDuration ?? 0.4), restart: true })
@@ -529,9 +521,22 @@ export function createCharacter({ height = 1.82, facing = 0, tint = null, gear: 
         } else stopCore()
       } else if (s.draw != null) {
         const name = pick(CLIP.aim)
+        // 공격과 같은 문제 — 활을 막 당기기 시작하는(달리다가 당기는)
+        // 순간의 로코모션 갈래·시간을 잡아 당기는 동안 그대로 붙든다
+        // (captureLocomotionCore 주석 참고). 공격처럼 한 번 타이밍이
+        // 아니라 오래 쥐고 있을 수 있는 동작이지만, 매 프레임 s.run 을
+        // 다시 보고 갈래를 바꾸면 그때마다 같은 문제가 또 난다 — 당기는
+        // 내내 처음 갈래를 유지하는 쪽이 더 간단하고 안전하다.
+        if (current?.getClip().name !== name) {
+          const cap = captureLocomotionCore()
+          if (cap) { drawCore = cap.core; drawCoreTime = cap.time }
+        }
         play(name, { fade: 0.12 })
         lastOneShot = null
-        if (EXTRA.includes(name)) layerCore(0.12); else stopCore()
+        if (EXTRA.includes(name)) {
+          if (actions[drawCore]) playCore(drawCore, { fade: 0.12, speed: 0.85 + s.run * 0.35, time: drawCoreTime })
+          else stopCore()
+        } else stopCore()
       }
       else if (s.run > 0.12) {
         // 공격에서 막 빠져나온 순간엔 core 가 아직 안 꺼졌다(stopCore 는
