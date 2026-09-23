@@ -257,9 +257,10 @@ export const SIREN = {
   hp: 680, radius: 1.0, mass: 26, speed: 3.2, keepRange: [5, 9], gap: [0.7, 1.3],
   barHeight: 4.4, groggyMult: 1.7,
   // 새의 몸(호메로스 원전)이 아니라 인어로 간다 — 바다에서 노래해 배를
-  // 끌어들이는 쪽이 이 판의 그림과 맞는다. 받아 온 몸이라 사람 뼈대가 아니고,
-  // 그래서 클립 대신 코드가 흔든다 (sway).
-  look: { model: 'siren', height: 4.2, bulk: 1.0, tint: null, gear: [], sway: 1 },
+  // 끌어들이는 쪽이 이 판의 그림과 맞는다. 받아 온 몸이라 사람 뼈대가 아니고
+  // 제 클립도 없어서, models.js 의 공용 대역(숨쉬기·기울임)이 대신 흔든다
+  // — 이 보스만의 것이 아니라 클립 없는 받아 온 몸 전부가 쓰는 길이다.
+  look: { model: 'siren', height: 4.2, bulk: 1.0, tint: null, gear: [] },
   phases: [
     {
       below: 1,
