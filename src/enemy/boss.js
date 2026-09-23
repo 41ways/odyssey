@@ -483,8 +483,28 @@ export class Boss extends Actor {
     return true
   }
 
-  /** 그로기 — 큰 기술 뒤의 반격 창. 여기서 몰아쳐야 보스가 넘어간다. */
+  /**
+   * 그로기 — 큰 기술 뒤의 반격 창. 여기서 몰아쳐야 보스가 넘어간다.
+   *
+   * 부르는 자리가 넷이다 — 패턴 자체의 자멸 그로기(`onEnd` 의 `cfg.
+   * groggy`), 무력화가 다 찼을 때(`breakPoise`), 쳐냈을 때(`onParry`),
+   * 시전을 끊었을 때(`breakGroggy`). `breakPoise` 만 부르기 전에
+   * `this.groggy > 0` 을 스스로 확인하고, 나머지 셋은 안 본다.
+   *
+   * 문제는 **패턴은 그로기와 별개로 제 타이머를 끝까지 돈다** 는 것이다.
+   * 공격 도중(startup·active·recovery)에 무력화로 먼저 그로기가 걸려도
+   * 그 공격 자체는 멈추지 않고 계속 돈다 — 그러다 몇 초 뒤 recovery 가
+   * 끝나면 `onEnd` 가 또 `setGroggy` 를 부른다. 이미 그로기인데
+   * "그로기!" 팡파르(글자·흔들림·소리)가 갑자기 한 번 더 터지는 것이다.
+   * 실제로 무력화로 그로기를 만든 채 원래 돌던 공격을 끝까지 흘려 보니
+   * `setGroggy` 가 두 번 불렸다 — 이게 사용자가 본 "난리법석" 이었다.
+   *
+   * 그래서 이미 그로기 중이면 시간만 **더 긴 쪽으로** 늘리고 팡파르는
+   * 다시 안 튼다 — 창을 짧게 만드는 일 없이, 없던 걸 만들어 내지도
+   * 않는다.
+   */
   setGroggy(sec) {
+    if (this.groggy > 0) { this.groggy = Math.max(this.groggy, sec); return }
     this.groggy = sec
     this.fx.number(this.pos.clone().setY(this.cfg.barHeight ?? 3), '그로기', { color: '#ffd166', size: 26 })
   }
